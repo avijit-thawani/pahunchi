@@ -1,0 +1,47 @@
+{
+  "_note": "text = TTS input (Hindi in Devanagari, English words in Latin); roman = display transcript. gap = silence before the line, seconds. near = her surroundings, far = dad's room (heard through the phone).",
+  "scenes": [
+    {
+      "id": "cab_night",
+      "title": "Cab at night (Hinglish)",
+      "near": "cab",
+      "far": "tv",
+      "lines": [
+        {"who": "girl", "gap": 0.3, "text": "हेलो पापा? हाँ, मैं cab में बैठ गई हूँ।", "roman": "Hello papa? Haan, main cab mein baith gayi hoon."},
+        {"who": "dad", "gap": 0.6, "text": "अच्छा बेटा। कौन सी गाड़ी है? नंबर बता ज़रा।", "roman": "Achha beta. Kaun si gaadi hai? Number bata zara."},
+        {"who": "girl", "gap": 0.5, "text": "White Dzire है। डी एल थ्री सी, ए बी, फ़ोर फ़ाइव टू वन।", "roman": "White Dzire hai. DL 3C, AB, 4521."},
+        {"who": "dad", "gap": 0.7, "text": "हम्म, लिख लिया। हाँ, location share आ गया है। तो कितनी देर में पहुँच जाओगी?", "roman": "Hmm, likh liya. Haan, location share aa gaya hai. Toh kitni der mein pahunch jaogi?"},
+        {"who": "girl", "gap": 0.5, "text": "बस बीस-पच्चीस मिनट। Maps पे यही दिखा रहा है।", "roman": "Bas bees-pachchees minute. Maps pe yahi dikha raha hai."},
+        {"who": "dad", "gap": 0.6, "text": "ठीक है। मैं line पे हूँ, तू आराम से बैठ। Gate पे पहुँच के बता देना।", "roman": "Theek hai. Main line pe hoon, tu aaram se baith. Gate pe pahunch ke bata dena."}
+      ]
+    },
+    {
+      "id": "walk_scroll",
+      "title": "Walking home, mostly silent (Hinglish)",
+      "near": "street",
+      "far": "tv",
+      "lines": [
+        {"who": "girl", "gap": 0.3, "text": "हाँ पापा, बस metro से निकली हूँ। घर की तरफ़ चल रही हूँ।", "roman": "Haan papa, bas metro se nikli hoon. Ghar ki taraf chal rahi hoon."},
+        {"who": "dad", "gap": 0.6, "text": "अच्छा अच्छा। अंधेरा हो गया है, मैं phone पे हूँ, तू चलती रह।", "roman": "Achha achha. Andhera ho gaya hai, main phone pe hoon, tu chalti reh."},
+        {"who": "girl", "gap": 0.5, "text": "हम्म।", "roman": "Hmm."},
+        {"who": "dad", "gap": 4.0, "text": "और सुन, मम्मी बोल रही है आते टाइम दूध ले आना, अगर दुकान खुली हो तो।", "roman": "Aur sun, mummy bol rahi hai aate time doodh le aana, agar dukaan khuli ho toh."},
+        {"who": "girl", "gap": 0.6, "text": "हाँ ठीक है, ले आऊँगी।", "roman": "Haan theek hai, le aaungi."},
+        {"who": "dad", "gap": 0.6, "text": "चल। मैं यहीं हूँ, कुछ हो तो बोल देना।", "roman": "Chal. Main yahin hoon, kuch ho toh bol dena."}
+      ]
+    },
+    {
+      "id": "cab_english",
+      "title": "Cab at night (Indian English)",
+      "near": "cab",
+      "far": "tv",
+      "lines": [
+        {"who": "girl", "gap": 0.3, "text": "Hi Papa. Yes, I just got into the cab.", "roman": "Hi Papa. Yes, I just got into the cab."},
+        {"who": "dad", "gap": 0.6, "text": "Okay beta. Which car is it? Tell me the number.", "roman": "Okay beta. Which car is it? Tell me the number."},
+        {"who": "girl", "gap": 0.5, "text": "White Dzire. D L three C, A B, four five two one.", "roman": "White Dzire. DL 3C, AB, 4521."},
+        {"who": "dad", "gap": 0.7, "text": "Hmm, noted. Haan, your location is coming through. So how long will it take?", "roman": "Hmm, noted. Haan, your location is coming through. So how long will it take?"},
+        {"who": "girl", "gap": 0.5, "text": "Twenty, twenty-five minutes. Maps is showing that.", "roman": "Twenty, twenty-five minutes. Maps is showing that."},
+        {"who": "dad", "gap": 0.6, "text": "Fine. I'm on the line, you relax. Call me once you reach the gate.", "roman": "Fine. I'm on the line, you relax. Call me once you reach the gate."}
+      ]
+    }
+  ]
+}
