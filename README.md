@@ -13,6 +13,7 @@ Hinglish), reacts like a real person, and keeps quiet when she just wants to scr
 
 Free to use. React PWA + Netlify + Supabase + OpenRouter (one key for LLM, STT and TTS).
 <p><img src="docs/media/01_home.png" width="190"> <img src="docs/media/03_call_connected.png" width="190"> <img src="docs/media/04_after_call.png" width="190"> <img src="docs/media/07_contacts.png" width="190"></p>
+**Listen** (scripted Hinglish calls, Gemini TTS: Sulafat as her, Algenib as dad, phone-band + ambience): [cab at night](docs/media/demo_cab_night.mp3) · [walking home, mostly silent](docs/media/demo_walk_home.mp3)
 
 ## The call
 
@@ -21,8 +22,7 @@ Free to use. React PWA + Netlify + Supabase + OpenRouter (one key for LLM, STT a
 - The responder mostly responds. Sometimes it asks something useful, like a person would:
   "gaadi ka number bata zara" when she mentions a cab, "haan, location share aa gaya",
   "toh kitni der mein pahunch jaogi?". It is not nosy and is fine with long silences.
-- Realism: phone-band audio, their room in the background (TV, fan), natural pauses.
-  Prompts get tuned later; the bar is "a bystander believes it".
+- Realism: phone-band audio, TV/fan in their room, natural pauses; bar: "a bystander believes it".
 
 ## Safety features (order to be decided)
 
