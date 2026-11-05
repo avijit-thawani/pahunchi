@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: dark --default, light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.call-bg {
+  background: radial-gradient(120% 80% at 50% 0%, #1f3b4d 0%, #0e1a24 55%, #070b10 100%);
+}

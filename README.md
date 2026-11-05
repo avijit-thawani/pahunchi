@@ -40,45 +40,64 @@ Transcripts can drop the AI side and export just her journal.
 
 ## Status
 
-Voice lab only (`sim/`). No app yet. Findings: [docs/voices.md](docs/voices.md).
+Local web app (no Supabase/Netlify yet) with a working live call, plus the voice lab.
 
-Three scripted calls (cab at night in Hinglish, walking home mostly silent, cab in
-Indian English) voiced by 4 TTS providers, then mixed like a real call. Dad goes
-through a 300-3400 Hz phone band with a TV room behind him; she gets cab or street
-ambience. 34 voices across 9 models were auditioned and scored by an audio LLM judge.
+- **Call loop:** ringback -> responder picks up -> her speech is detected in the browser
+  (energy VAD, 800 ms end-of-turn) -> STT `openai/gpt-4o-mini-transcribe` -> reply
+  `google/gemini-3.5-flash-lite` (reasoning `minimal`) -> TTS `google/gemini-3.8-flash-tts`,
+  one request per sentence -> played through a phone-band filter with a TV room behind.
+  A cached "हम्म / हाँ" plays if the reply is slow. Long silences ask the model, which
+  usually stays quiet. Mic is ignored while the responder talks (no barge-in yet).
+- **Latency:** about 4-5 s from the end of her speech to his first word (VAD 0.8 s, STT
+  ~1 s, LLM ~0.8 s, TTS first sentence ~1.5-2 s; Gemini TTS does not stream).
+- **Cost:** voice (Algenib) is $0.0136 per minute of him talking; a busy call is
+  roughly $0.01/min all-in, a mostly-silent one far less.
+- **Screens:** pick responder + language, a dialer-style call screen (hidden transcript
+  with per-turn latency), "I'm safe" after the call, history, trusted contacts (stored
+  locally; alerts need the backend).
+- **Voice lab** (`sim/`): 34 voices across 9 TTS models auditioned; picks are Sulafat (her,
+  for simulations) and Algenib (dad). Findings: [docs/voices.md](docs/voices.md).
 
-Current picks: **Gemini 3.8 Flash TTS**, Sulafat (her) + Algenib (dad), steered by a
-short style line ("Indian father in his late fifties, deep, warm, unhurried").
+Voices other than dad (mom, siblings, friends) are untested guesses in
+`shared/personas.ts`. A PWA in the background (she switches apps to scroll) may lose
+mic/audio, especially on iOS; may need a native wrapper later.
 
 ## Layout
 
 ```
-sim/
-  scenes.json   scripted calls: TTS text (Devanagari + English) and a roman transcript
-  lab.py        audition -> ambience -> scenes -> mix -> page (cached, budget-guarded)
-  orlib.py      OpenRouter TTS/chat client, cost ledger (sim/ledger.jsonl, gitignored)
-  out/          generated audio + index.html to compare by ear (gitignored)
-docs/voices.md  what was tried, scores, costs, latency, next experiments
+src/            React app: pages/, lib/call.ts (call loop), audio.ts (phone chain,
+                ringback, PCM playback), mic.ts (VAD -> WAV), store.ts (localStorage)
+server/         API handlers as Request -> Response (Netlify-ready): stt, reply, tts;
+                prompt.ts = responder system prompt
+shared/         personas (voice, style) and API types used by both sides
+scripts/        smoke-call.ts: a headless call through the dev server using lab clips
+sim/            voice lab: scenes.json, lab.py, orlib.py; out/ + ledger gitignored
+docs/voices.md  TTS findings, scores, costs, latency
 ```
 
 ## Run
 
 ```bash
-uv run sim/lab.py all        # or: audition | ambience | scenes | mix | page
-open sim/out/index.html      # audition tables + full calls side by side
+npm install
+npm run dev                  # http://localhost:5173, /api/* served by vite.config.ts
+npm run dev:phone            # HTTPS on the LAN so a phone can use the mic
+node scripts/smoke-call.ts cab_night dad hinglish   # headless check, dev server running
+uv run sim/lab.py all        # voice lab (needs ffmpeg); open sim/out/index.html
 ```
 
-Needs `OPENROUTER_API_KEY` in `phoney/.env` or the shared `../.env`, and `ffmpeg`.
-Spending stops at `PHONEY_BUDGET_USD` (default $8) based on the ledger. The first full
-lab run cost about $0.55.
+Needs `OPENROUTER_API_KEY` in `phoney/.env` or the shared `../.env` (server-side only).
+Models are overridable with `PHONEY_LLM_MODEL`, `PHONEY_STT_MODEL`, `PHONEY_TTS_MODEL`.
+The lab stops at `PHONEY_BUDGET_USD` (default $8); the app's calls are not budgeted.
 
 ## Roadmap
 
 - [x] Voice lab: provider audition, scripted calls, phone-call mix
-- [ ] Ear check by the owner; second audition round on the shortlist (docs/voices.md)
-- [ ] Live loop prototype: mic -> STT -> LLM (persona prompt) -> streaming TTS, measure
-      time from her last word to the responder's first word
-- [ ] PWA shell (Vite + React + Tailwind), call screen that looks like a real call
+- [x] Live loop: mic -> STT -> LLM -> TTS, latency shown per turn
+- [x] PWA shell (Vite + React + Tailwind/daisyUI), dialer-style call screen
+- [ ] Try it on a phone; tune VAD thresholds, prompt, filler frequency
+- [ ] Cut latency: shorter VAD tail, Lite TTS for the first sentence, barge-in
+- [ ] Audition voices for mom / siblings / friends
+- [ ] Rate-limit /api before any public deploy (the key pays for every request)
 - [ ] Supabase: auth, sessions, transcripts, trusted contacts (RLS)
 - [ ] "I'm safe" timer + delayed notify (Netlify scheduled function)
 - [ ] Netlify deploy
@@ -86,6 +105,8 @@ lab run cost about $0.55.
 ## Conventions
 
 - Never commit secrets or generated audio; `sim/out/` and the ledger are gitignored.
-- Paid calls go through `orlib` so they are logged and budget-checked.
+- Lab paid calls go through `orlib` so they are logged and budget-checked.
+- The OpenRouter key stays server-side (`server/`); the browser only calls `/api/*`.
+- Before committing: `npm run build && npm run lint`, and `wc -l README.md` <= 150.
 - Hindi text for TTS is written in Devanagari (better pronunciation); keep a roman
   transcript beside it for display.
