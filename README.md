@@ -13,6 +13,7 @@ Hinglish), reacts like a real person, and keeps quiet when she just wants to scr
 
 Free to use. React PWA + Netlify + Supabase + OpenRouter (one key for LLM, STT and TTS).
 <p><img src="docs/media/01_home.png" width="190"> <img src="docs/media/03_call_connected.png" width="190"> <img src="docs/media/04_after_call.png" width="190"> <img src="docs/media/07_contacts.png" width="190"></p>
+
 **Listen** (scripted Hinglish calls, Gemini TTS: Sulafat as her, Algenib as dad, phone-band + ambience): [cab at night](docs/media/demo_cab_night.mp3) · [walking home, mostly silent](docs/media/demo_walk_home.mp3)
 
 ## The call
@@ -35,8 +36,7 @@ Free to use. React PWA + Netlify + Supabase + OpenRouter (one key for LLM, STT a
 - **Location sharing**, later, if needed.
 - **Records retained** for a possible investigation, even after "I'm safe".
 
-Later: make the call time useful in itself, e.g. a free-form voice journal or a listener.
-Transcripts can drop the AI side and export just her journal.
+Later: make call time useful (voice journal, a listener); export just her side of the transcript.
 
 ## Status
 
