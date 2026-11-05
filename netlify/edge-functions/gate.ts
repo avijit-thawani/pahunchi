@@ -1,12 +1,14 @@
 // Password gate in front of the whole site, /api included (the OpenRouter key pays for every
 // request). Unauthenticated page loads get a login form; API calls get 401. Fails closed
-// when PHONEY_PASSWORD / PHONEY_COOKIE_SECRET are missing.
+// when PHONEY_PASSWORD / PHONEY_COOKIE_SECRET are missing. PHONEY_PUBLIC=1 turns the password off;
+// the per-IP rateLimit below still applies.
 
 import { checkPassword, isAuthed, loginPage, setCookie } from '../../server/auth.ts'
 
 declare const Netlify: { env: { get(key: string): string | undefined } }
 
 export default async (req: Request): Promise<Response | undefined> => {
+  if (Netlify.env.get('PHONEY_PUBLIC') === '1') return undefined
   const password = Netlify.env.get('PHONEY_PASSWORD')
   const secret = Netlify.env.get('PHONEY_COOKIE_SECRET')
   if (!password || !secret) return new Response('Site is not configured', { status: 503 })

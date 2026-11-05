@@ -6,7 +6,7 @@
 
 # phoney (tentative name)
 
-**▶ Listen to demo calls (real latency): <https://phoney-call.netlify.app/demos/>**
+**Try it: <https://phoney-call.netlify.app>** · **▶ Demo calls (real latency): <https://phoney-call.netlify.app/demos/>**
 
 A fake phone call that talks back. In India many women call someone, or pretend to,
 when walking alone or riding in a cab at night. phoney places a call to an AI "dad",
@@ -40,7 +40,7 @@ Later: make call time useful (voice journal, a listener); export just her side o
 
 ## Status
 
-Live at <https://phoney-call.netlify.app> behind a shared password (ask Avi), with a working
+Live at <https://phoney-call.netlify.app> (public; per-IP rate limits + OpenRouter key cap), with a working
 call loop, server-side call logging, and the voice lab. No user accounts yet.
 
 - **Call loop:** ringback -> responder picks up -> browser VAD -> STT `openai/gpt-4o-mini-transcribe`
@@ -116,9 +116,8 @@ latency incl. VAD tail and her-end -> his-voice, silences, fillers). The client 
 
 ## Deploy (Netlify)
 
-`netlify deploy --build --prod` from `phoney/` (site `phoney-call`, already linked). The edge
-function gates every path, `/api/*` included, with an HttpOnly cookie = HMAC of the password;
-the function checks it again. Caps: Netlify per-IP rate limits (400 req/min site, 200/min
+`netlify deploy --build --prod` from `phoney/` (site `phoney-call`, already linked). Password gate
+(edge function + rechecked in the API function, HttpOnly HMAC cookie) is off while `PHONEY_PUBLIC=1`. Caps: Netlify per-IP rate limits (400 req/min site, 200/min
 API) plus in-memory 150/min per IP and 2500 requests per call session.
 Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_URL`,
 `SUPABASE_SERVICE_ROLE_KEY`, `PHONEY_PASSWORD` (spaces or hyphens between words both work),
