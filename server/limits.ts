@@ -3,8 +3,8 @@
 // Netlify's own per-IP rateLimit in netlify/functions/api.ts backs this up in production.
 
 const WINDOW_MS = 60_000
-const PER_IP_PER_MIN = 90
-const PER_SESSION = 1500 // ~2 h of a chatty call
+const PER_IP_PER_MIN = 150 // a turn is stt + reply + one tts per clause, more with speculative starts
+const PER_SESSION = 2500 // ~2 h of a chatty call
 const hits = new Map<string, number[]>()
 const sessionCounts = new Map<string, number>()
 

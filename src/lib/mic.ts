@@ -1,9 +1,15 @@
 // Microphone with a simple energy-based voice activity detector. Emits one 16 kHz WAV per
 // utterance (with 300 ms of pre-roll so the first syllable isn't clipped).
+// Turn ends are two-step: after PAUSE_MS of silence `onPause` hands over the audio so far (the
+// caller may start transcribing and replying), `onResume` withdraws it if she keeps talking, and
+// after END_MS `onUtterance` confirms the turn.
 
 const BLOCK_MS = 20
-const ONSET_BLOCKS = 4 // 80 ms above threshold starts speech
-const END_BLOCKS = 40 // 800 ms below threshold ends it
+const ONSET_BLOCKS = 4 // 80 ms above threshold starts speech (and resumes it after a pause)
+export const PAUSE_MS = 300
+export const END_MS = 600
+const PAUSE_BLOCKS = PAUSE_MS / BLOCK_MS
+const END_BLOCKS = END_MS / BLOCK_MS
 const PREROLL_MS = 300
 const MIN_SPEECH_MS = 300
 const MAX_UTTERANCE_MS = 15000
@@ -21,6 +27,8 @@ registerProcessor('phoney-tap', Tap)
 
 type Handlers = {
   onSpeechStart?: () => void
+  onPause?: (wav: Blob, speechMs: number) => void
+  onResume?: () => void
   onUtterance: (wav: Blob, speechMs: number) => void
   onLevel?: (rms: number, threshold: number) => void
 }
@@ -39,6 +47,8 @@ export class Mic {
   private inSpeech = false
   private above = 0
   private below = 0
+  private loud = 0
+  private pausedSent = false
   private floor = 0.004
   private ctx: AudioContext
   private h: Handlers
@@ -75,9 +85,11 @@ export class Mic {
   }
 
   private reset() {
+    if (this.pausedSent) this.h.onResume?.()
     this.inSpeech = false
+    this.pausedSent = false
     this.utter = []
-    this.above = this.below = 0
+    this.above = this.below = this.loud = 0
   }
 
   private onBlock(b: Float32Array) {
@@ -109,13 +121,24 @@ export class Mic {
     }
 
     this.utter.push(b)
-    this.below = rms < threshold * 0.7 ? this.below + 1 : 0
+    const quiet = rms < threshold * 0.7
+    this.below = quiet ? this.below + 1 : 0
+    this.loud = quiet ? 0 : this.loud + 1
     const ms = this.utter.length * BLOCK_MS
+    const speechMs = ms - this.below * BLOCK_MS - PREROLL_MS
+    if (this.pausedSent && this.loud >= ONSET_BLOCKS) {
+      this.pausedSent = false
+      this.h.onResume?.()
+    }
     if (this.below >= END_BLOCKS || ms >= MAX_UTTERANCE_MS) {
-      const speechMs = ms - this.below * BLOCK_MS - PREROLL_MS
       const chunks = this.utter
+      const handedOver = this.pausedSent
+      this.pausedSent = false
       this.reset()
-      if (speechMs >= MIN_SPEECH_MS) this.h.onUtterance(encodeWav(chunks, this.rate), speechMs)
+      if (speechMs >= MIN_SPEECH_MS || handedOver) this.h.onUtterance(encodeWav(chunks, this.rate), speechMs)
+    } else if (!this.pausedSent && this.below === PAUSE_BLOCKS && speechMs >= MIN_SPEECH_MS && this.h.onPause) {
+      this.pausedSent = true
+      this.h.onPause(encodeWav(this.utter, this.rate), speechMs)
     }
   }
 

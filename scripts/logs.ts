@@ -69,16 +69,19 @@ function show(sid: string) {
   for (const e of events) {
     const t = `t${e.turn ?? '??'}`.padEnd(8)
     if (e.kind === 'stt') console.log(`${t}HER    ${q(e.text)}   (stt ${e.ms} ms)`)
-    else if (e.kind === 'reply') console.log(`${t}THEM   ${q(e.text)}   (llm ${e.ms} ms)`)
-    else if (e.kind === 'tts') console.log(`${t}  tts  ${e.seconds}s audio, first byte ${e.firstByteMs} ms, done ${e.totalMs} ms`)
+    else if (e.kind === 'reply') console.log(`${t}THEM   ${q(e.text)}   (llm first clause ${e.firstClauseMs ?? '-'} ms, done ${e.ms} ms)`)
+    else if (e.kind === 'tts') {
+      console.log(`${t}  tts  ${e.engine ?? 'gemini'}${e.fallback ? ' (fallback)' : ''} ${e.seconds}s audio, first byte ${e.firstByteMs} ms, done ${e.totalMs} ms`)
+    }
     else if (e.kind === 'error') console.log(`${t}ERROR  ${e.api} ${e.status} ${e.detail}`)
     else console.log(`${t}${e.kind}`)
   }
   if (end?.metrics?.length) {
-    console.log('\nturn  speech  vad   stt   llm  tts1st  tts  her-end->his-voice (ms)')
+    console.log('\nturn  speech  vad   stt   llm  tts1st  tts  her-end->his-voice (ms)  engine')
     for (const m of end.metrics) {
       const c = (v: unknown) => String(v ?? '-').padStart(5)
-      console.log(`${String(m.turn ?? '-').padEnd(5)}${c(m.speechMs)} ${c(m.vadMs)} ${c(m.sttMs)} ${c(m.llmMs)} ${c(m.ttsFirstByteMs)} ${c(m.ttsMs)} ${c(m.totalMs)}`)
+      console.log(`${String(m.turn ?? '-').padEnd(5)}${c(m.speechMs)} ${c(m.vadMs)} ${c(m.sttMs)} ${c(m.llmMs)} ${c(m.ttsFirstByteMs)} ${c(m.ttsMs)} ${c(m.totalMs)}`
+        + `  ${m.ttsEngine ?? ''}${m.speculative ? ' spec' : ''}`)
     }
   }
   for (const e of end?.events ?? []) if (e.kind !== 'filler') console.log(`client: t${e.turn ?? '-'} ${e.kind} ${e.detail ?? ''}`)

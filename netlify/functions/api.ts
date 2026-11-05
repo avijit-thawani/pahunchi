@@ -24,5 +24,5 @@ export default async (req: Request, context: Context): Promise<Response> => {
 
 export const config = {
   path: '/api/*',
-  rateLimit: { windowLimit: 120, windowSize: 60, aggregateBy: ['ip'] },
+  rateLimit: { windowLimit: 200, windowSize: 60, aggregateBy: ['ip'] },
 }

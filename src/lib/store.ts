@@ -11,10 +11,15 @@ export type Settings = {
   ambience: boolean
 }
 
-/** ttsMs = total minus the other stages; ttsFirstByteMs = reply received -> first TTS bytes. */
+/**
+ * totalMs = her last word -> his first sound. vadMs = silence before the pipeline started (the
+ * speculative pause, or the full end-of-turn tail). llmMs = reply request -> first clause;
+ * replyMs = the whole reply. ttsFirstByteMs = first clause -> first TTS bytes; ttsMs = total
+ * minus the other stages (includes waiting for the turn to be confirmed).
+ */
 export type TurnMetrics = {
-  turn?: string; speechMs?: number; vadMs?: number; sttMs?: number; llmMs?: number
-  ttsFirstByteMs?: number; ttsMs?: number; totalMs?: number
+  turn?: string; speechMs?: number; vadMs?: number; sttMs?: number; llmMs?: number; replyMs?: number
+  ttsFirstByteMs?: number; ttsMs?: number; totalMs?: number; speculative?: boolean; ttsEngine?: string
 }
 
 /** Things worth seeing when debugging a call: silences, fillers, errors. */

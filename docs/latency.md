@@ -14,10 +14,10 @@ pipeline's own history. Turn detection is added on top (we can't measure it with
 
 | Pipeline | STT | LLM clause | TTS 1st byte | Measured | +500 ms VAD | Voice score* | Stays silent? |
 |---|---|---|---|---|---|---|---|
-| Gemini TTS Algenib (app today) | 0.93 | 0.73 | 1.84 | 3.61 | **4.1** | 8.5 | yes |
+| Gemini TTS Algenib (app until now) | 0.93 | 0.73 | 1.84 | 3.61 | **4.1** | 8.5 | yes |
 | Microsoft MAI-Voice-2.1 Grant | 0.80 | 0.80 | 0.98 | 3.03 | 3.5 | 8.5 | yes |
 | ElevenLabs Flash v2.5 brian | 1.13 | 0.75 | 0.31 | 2.21 | 2.7 | 8.6 | yes |
-| **Fish Drama 3, cloned from an Algenib clip** | 0.85 | 0.74 | 0.41 | 2.11 | **2.6** | **9.0** | yes |
+| **Fish Drama 3, cloned from an Algenib clip (app now)** | 0.85 | 0.74 | 0.41 | 2.11 | **2.6** | **9.0** | yes |
 | gpt-audio-mini speech-to-speech | - | - | - | 1.42 | **1.9** | 8.5 | **never** |
 
 *Audio-LLM judge on the dad role (accent, Hindi, naturalness, fit). It only heard the first clause, so
@@ -44,26 +44,42 @@ every pipeline lost points for "cut off"; compare columns, not absolute values. 
   her ("location मैं track कर रहा हूँ"). No transcript-first control, no cached fillers, cost ~$0.01
   per turn. Revisit as a fallback, not the default.
 
-## Turn detection (not yet measured)
+## Turn detection
 
-Every pipeline above pays this on top. Options, cheapest first:
-1. **Fixed silence (today: 800 ms).** Simple; 500 ms saves 0.3 s but cuts her off at mid-sentence pauses.
-2. **Speculative start at ~300 ms of silence**: send STT + LLM immediately, hold the audio until
-   ~600-700 ms of silence, cancel if she resumes. Hides most of STT+LLM behind the wait; costs wasted
-   calls when she pauses mid-thought. Fits the current engine's generation counter.
-3. **Semantic end-of-turn model** (e.g. a small turn-detector run in the browser on the partial
-   transcript): lets the silence threshold shrink when the sentence is clearly finished ("number bata
-   diya") and grow when it isn't ("aur woh..."). Needs streaming or partial STT.
-4. Backchannel instead of answering: the cached "हम्म / हाँ" filler already covers slow turns.
+Options, cheapest first: (1) fixed silence (was 800 ms; 500 ms cuts her off at mid-sentence pauses);
+(2) **speculative start** (shipped, below); (3) a semantic end-of-turn model on a partial transcript
+(shrink the wait when "number bata diya" is clearly finished, grow it on "aur woh..."; needs streaming
+STT); (4) backchannel: the cached "हम्म / हाँ" filler already covers slow turns.
 
-## Recommended design for the app
+## Shipped in the app (Nov 2026)
 
-`STT gpt-4o-mini-transcribe -> gemini-3.5-flash-lite streamed -> TTS per clause` with:
-- `/api/reply` streaming text deltas; the client fires `/api/tts` as soon as the first clause is
-  complete (`[.?!।]`, or a comma after 12+ characters, or 60 characters), then per sentence after that.
-- TTS `fish-audio/drama-3` cloned from a committed Algenib reference clip for dad (keep Gemini TTS as
-  a fallback and for personas without a reference yet); ~1.5 s faster than today at a similar score.
-- Speculative turn detection (option 2) to bring the end-to-end median to roughly 2-2.5 s.
+- **Speculative turns** (`src/lib/mic.ts`, `call.ts`): at 300 ms of silence the mic hands over the
+  audio so far and the app starts STT -> streamed reply -> TTS; playback waits until 600 ms of
+  silence confirms the turn. If she speaks again (80 ms above threshold) the turn is withdrawn:
+  requests aborted, generation counter bumped, nothing played. In a test call 3 of 5 pauses were
+  mid-sentence; all were dropped during STT, so each cost one STT call.
+- **Streamed reply**: `/api/reply` returns NDJSON deltas; `shared/clauses.ts` cuts the first clause
+  at `[.?!।]`, a comma after 12+ characters, or ~60 characters, then whole sentences; each clause
+  goes to `/api/tts` immediately. A reply of only dots (SILENT) yields no clause. Streams through the
+  Netlify edge gate + function (deltas arrive spread over ~300 ms in production).
+- **TTS**: dad = Fish Drama 3 cloned from `server/voices/dad-algenib.mp3`; OpenRouter honours
+  `response_format: "pcm"` for Fish (16-bit mono, 44.1 kHz, `rate=` in Content-Type), so no mp3
+  decoding on the client. First byte 0.34-0.5 s warm, ~1-1.5 s on a cold start. Gemini Algenib is
+  the fallback (upstream error, missing reference, or no answer in 4 s), ~2.0-2.4 s.
+
+Measured with `scripts/smoke-call.ts` (3 scenes, 8 spoken turns + 1 silent, which stayed silent);
+"before" is the previous commit (old server + script), deployed numbers via the previous deploy's
+permalink. Her end -> his first audio, modelled as VAD wait + STT + reply + TTS first byte:
+
+| | Before (800 ms VAD, full reply, Gemini) | After (300/600 ms speculative, first clause, Fish) |
+|---|---|---|
+| Local dev server | median 4.36 s (3.9-6.1) | median **2.45 s** (1.95-3.47) |
+| Netlify production | median 4.32 s (3.8-5.0) | median **2.26 s** (1.97-2.52) |
+
+Real browser calls (headless Chrome, fake mic playing the lab clips): 2.0 / 2.2 s local, 1.9 / 2.9 s
+production (the 2.9 s turn had a 1.1 s STT). Without speculation the same pipeline is ~0.3 s slower.
+What's left is mostly STT (0.5-1.2 s) and the LLM's first clause (0.6-0.9 s); the reply is usually
+one or two short sentences, so the first clause arrives only ~50 ms before the whole reply.
 
 ## Caveats
 
@@ -71,4 +87,5 @@ Every pipeline above pays this on top. Options, cheapest first:
   round trips; the cascade has 3 hops per turn, speech-to-speech 1. Re-measure from an Indian network
   and pick a server region close to the providers.
 - In the live runs the English scene used the Hinglish prompt, so replies there were Hinglish.
-- Clean TTS clips are easier than a real street mic; real STT will be slower and noisier.
+- Clean TTS clips are easier than a real street mic; real STT will be slower and noisier. With the
+  lab clips STT sometimes renders English words in Marathi-style Devanagari ("व्हाईट डिझायर आहे").

@@ -2,8 +2,8 @@
 // chain, plus the ringback tone. One instance per call, created inside the Call tap
 // (browsers only allow audio after a user gesture).
 
-const PCM_RATE = 24000
-const MIN_CHUNK = 2400 // schedule PCM in >=100 ms pieces to avoid clicks
+const PCM_RATE = 24000 // default when the server sends no X-Sample-Rate
+const MIN_CHUNK_S = 0.1 // schedule PCM in >=100 ms pieces to avoid clicks
 
 export class CallAudio {
   readonly ctx: AudioContext
@@ -70,10 +70,10 @@ export class CallAudio {
     this.ambience = src
   }
 
-  pcmToBuffer(bytes: Uint8Array): AudioBuffer {
+  pcmToBuffer(bytes: Uint8Array, rate = PCM_RATE): AudioBuffer {
     const n = Math.floor(bytes.length / 2)
     const view = new DataView(bytes.buffer, bytes.byteOffset, n * 2)
-    const buf = this.ctx.createBuffer(1, Math.max(1, n), PCM_RATE)
+    const buf = this.ctx.createBuffer(1, Math.max(1, n), rate)
     const ch = buf.getChannelData(0)
     for (let i = 0; i < n; i++) ch[i] = view.getInt16(i * 2, true) / 32768
     return buf
@@ -96,6 +96,8 @@ export class CallAudio {
   /** Stream 16-bit PCM from a fetch Response into the queue; resolves once all bytes are scheduled. */
   async playPcmStream(res: Response, onFirstAudio?: () => void): Promise<void> {
     if (!res.body) return
+    const rate = Number(res.headers.get('X-Sample-Rate')) || PCM_RATE
+    const minBytes = Math.round(rate * MIN_CHUNK_S) * 2
     const reader = res.body.getReader()
     let pending = new Uint8Array(0)
     let first = true
@@ -107,10 +109,9 @@ export class CallAudio {
         merged.set(value, pending.length)
         pending = merged
       }
-      const usable = done ? pending.length - (pending.length % 2) : pending.length >= MIN_CHUNK * 2
-        ? pending.length - (pending.length % 2) : 0
+      const usable = done || pending.length >= minBytes ? pending.length - (pending.length % 2) : 0
       if (usable > 0) {
-        this.schedule(this.pcmToBuffer(pending.subarray(0, usable)))
+        this.schedule(this.pcmToBuffer(pending.subarray(0, usable), rate))
         pending = pending.slice(usable)
         if (first) {
           first = false

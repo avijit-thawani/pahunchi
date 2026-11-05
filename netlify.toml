@@ -7,6 +7,8 @@
 
 [functions]
   directory = "netlify/functions"
+  # voice reference clips read at runtime by server/voices.ts
+  included_files = ["server/voices/*.mp3"]
 
 [dev]
   autoLaunch = false

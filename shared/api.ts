@@ -13,5 +13,8 @@ export type ReplyRequest = {
 export type ReplyResponse = { text: string; ms: number; model: string }
 export type SttResponse = { text: string; ms: number; model: string }
 
+// /api/reply streams newline-delimited JSON: text deltas, then one final line (or an error).
+export type ReplyChunk = { d: string } | ({ done: true } & ReplyResponse) | { error: string }
+
 // Sent by the responder to stay quiet; never spoken.
 export const SILENT = '...'

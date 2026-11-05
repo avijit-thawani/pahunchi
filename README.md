@@ -43,16 +43,20 @@ Transcripts can drop the AI side and export just her journal.
 Live at <https://phoney-call.netlify.app> behind a shared password (ask Avi), with a working
 call loop, server-side call logging, and the voice lab. No user accounts yet.
 
-- **Call loop:** ringback -> responder picks up -> her speech is detected in the browser
-  (energy VAD, 800 ms end-of-turn) -> STT `openai/gpt-4o-mini-transcribe` -> reply
-  `google/gemini-3.5-flash-lite` (reasoning `minimal`) -> TTS `google/gemini-3.8-flash-tts`,
-  one request per sentence -> played through a phone-band filter with a TV room behind.
-  A cached "हम्म / हाँ" plays if the reply is slow. Long silences ask the model, which
-  usually stays quiet. Mic is ignored while the responder talks (no barge-in yet).
-- **Latency:** about 4-5 s from the end of her speech to his first word (VAD 0.8 s, STT
-  ~1 s, LLM ~0.8 s, TTS first sentence ~1.5-2 s; Gemini TTS does not stream).
-- **Cost:** voice (Algenib) is $0.0136 per minute of him talking; a busy call is
-  roughly $0.01/min all-in, a mostly-silent one far less.
+- **Call loop:** ringback -> responder picks up -> browser VAD -> STT `openai/gpt-4o-mini-transcribe`
+  -> reply `google/gemini-3.5-flash-lite` (reasoning `minimal`), streamed -> TTS per clause as
+  soon as it is complete -> phone-band filter with a TV room behind. A cached "हम्म / हाँ" plays
+  if he hasn't started 2.5 s after she stops. Long silences ask the model, which usually stays
+  quiet. Mic is ignored while the responder talks (no barge-in yet).
+- **Turn detection (speculative):** at 300 ms of silence the app sends STT + reply + TTS; it plays
+  only once the silence reaches 600 ms and drops it all if she resumes (mostly caught during STT).
+- **Voice:** dad = `fish-audio/drama-3` cloned from an 8 s Algenib clip (`server/voices/` +
+  transcript in `shared/personas.ts`), 44.1 kHz PCM, first byte ~0.35-0.5 s; falls back to Gemini
+  Algenib on error or > 4 s. Others use Gemini TTS (~1.8 s floor). `PHONEY_TTS_ENGINE=gemini` forces it.
+- **Latency** (her last word -> his first sound, median of 8 lab turns): **~2.3-2.5 s**, was
+  ~4.3-4.4 s, local and deployed. Real browser calls: 1.9-2.9 s. See [docs/latency.md](docs/latency.md).
+- **Cost:** a busy call is roughly $0.01/min all-in (Gemini voice $0.0136 per minute of him
+  talking; Fish lists ~10x cheaper per character), a mostly-silent one far less.
 - **Screens:** pick responder + language, a dialer-style call screen (hidden transcript
   with per-turn latency), "I'm safe" after the call, history, trusted contacts (stored
   locally; alerts need the backend).
@@ -66,13 +70,14 @@ mic/audio, especially on iOS; may need a native wrapper later.
 ## Layout
 
 ```
-src/            React app: pages/, lib/call.ts (call loop), audio.ts (phone chain,
-                ringback, PCM playback), mic.ts (VAD -> WAV), store.ts (localStorage)
-server/         API handlers as Request -> Response: api.ts (stt, reply, tts, log),
-                log.ts (call logging), limits.ts (request caps), auth.ts (password
-                gate), prompt.ts (responder system prompt)
+src/            React app: pages/, lib/call.ts (call loop, speculative turns), api.ts (streamed
+                reply -> per-clause TTS), audio.ts (phone chain, ringback, PCM playback),
+                mic.ts (VAD -> WAV), store.ts (localStorage)
+server/         API handlers as Request -> Response: api.ts (stt, reply as NDJSON stream, tts
+                with fallback, log), voices/ (clone reference clips), log.ts (call logging),
+                limits.ts (request caps), auth.ts (password gate), prompt.ts (system prompt)
 netlify/        functions/api.ts (all of /api/*), edge-functions/gate.ts (password gate)
-shared/         personas (voice, style) and API types used by both sides
+shared/         personas (voices, style), clauses.ts (reply splitter), API types
 scripts/        smoke-call.ts (headless call with lab clips), logs.ts (inspect call logs),
                 setup-supabase.ts (creates the log bucket)
 sim/            voice lab: scenes.json, lab.py, orlib.py; out/ + ledger gitignored
@@ -85,7 +90,7 @@ docs/voices.md  TTS findings, scores, costs, latency
 npm install
 npm run dev                  # http://localhost:5173, /api/* served by vite.config.ts
 npm run dev:phone            # HTTPS on the LAN so a phone can use the mic
-node scripts/smoke-call.ts cab_night dad hinglish   # headless check, dev server running
+node scripts/smoke-call.ts cab_night dad hinglish   # headless check (PHONEY_URL/PASSWORD: deployed)
 uv run sim/lab.py all        # voice lab (needs ffmpeg); open sim/out/index.html
 ```
 
@@ -96,7 +101,8 @@ The lab stops at `PHONEY_BUDGET_USD` (default $8); the app's calls are not budge
 ## Call logs
 
 Every call is logged server-side for debugging: per turn her WAV (as sent to STT), the
-transcript, the reply, his TTS audio as WAV, timings (STT, LLM, TTS first byte), models, and
+transcript, the reply, his TTS audio as WAV, timings (STT, LLM first clause, TTS first byte), models
+and TTS engine (clone or Gemini fallback), and
 errors; plus the client's start/end summaries (persona, language, user agent, per-turn
 latency incl. VAD tail and her-end -> his-voice, silences, fillers). The client sends
 `X-Phoney-Session` / `X-Phoney-Turn` headers and posts to `/api/log`; failures never break a call.
@@ -112,8 +118,8 @@ latency incl. VAD tail and her-end -> his-voice, silences, fillers). The client 
 
 `netlify deploy --build --prod` from `phoney/` (site `phoney-call`, already linked). The edge
 function gates every path, `/api/*` included, with an HttpOnly cookie = HMAC of the password;
-the function checks it again. Caps: Netlify per-IP rate limits (300 req/min site, 120/min
-API) plus in-memory 90/min per IP and 1500 requests per call session.
+the function checks it again. Caps: Netlify per-IP rate limits (400 req/min site, 200/min
+API) plus in-memory 150/min per IP and 2500 requests per call session.
 Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_URL`,
 `SUPABASE_SERVICE_ROLE_KEY`, `PHONEY_PASSWORD` (spaces or hyphens between words both work),
 `PHONEY_COOKIE_SECRET` (random hex; rotating either logs everyone out). Locally,
@@ -125,7 +131,8 @@ Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_U
 - [x] Live loop: mic -> STT -> LLM -> TTS, latency shown per turn
 - [x] PWA shell (Vite + React + Tailwind/daisyUI), dialer-style call screen
 - [ ] Try it on a phone; tune VAD thresholds, prompt, filler frequency
-- [ ] Cut latency: shorter VAD tail, Lite TTS for the first sentence, barge-in
+- [x] Cut latency: streamed reply, per-clause Fish TTS, speculative turn detection (4.3 -> 2.3 s)
+- [ ] Barge-in; re-measure latency from an Indian network
 - [ ] Audition voices for mom / siblings / friends
 - [x] Rate-limit /api, password gate, call logging (local + Supabase Storage)
 - [ ] Supabase: auth, sessions, transcripts, trusted contacts (RLS)

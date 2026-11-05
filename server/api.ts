@@ -1,12 +1,14 @@
 // API handlers in web-standard Request -> Response form. vite.config.ts (dev) and
 // netlify/functions/api.ts (deployed) both call `handle`, which adds caps and logging.
 
-import { persona } from '../shared/personas.ts'
-import type { ReplyRequest, ReplyResponse, SttResponse } from '../shared/api.ts'
+import { persona, type Persona } from '../shared/personas.ts'
+import type { ReplyChunk, ReplyRequest, SttResponse } from '../shared/api.ts'
 import { SILENT } from '../shared/api.ts'
+import { Clauses, speakable } from '../shared/clauses.ts'
 import { CallLog, collect, pcmToWav } from './log.ts'
 import { clientIp, overLimit } from './limits.ts'
 import { systemPrompt } from './prompt.ts'
+import { inputReferences } from './voices.ts'
 
 const BASE = 'https://openrouter.ai/api/v1'
 const LLM_MODEL = process.env.PHONEY_LLM_MODEL || 'google/gemini-3.5-flash-lite'
@@ -16,6 +18,7 @@ const MAX_TTS_CHARS = 400
 const MAX_AUDIO_BYTES = 5_000_000
 const MAX_LOG_BYTES = 200_000
 const PCM_RATE = 24000
+const CLONE_HEADERS_TIMEOUT_MS = 4000
 
 type Handler = (req: Request, log: CallLog) => Promise<Response>
 
@@ -58,7 +61,23 @@ export async function stt(req: Request, log: CallLog): Promise<Response> {
   return json(out)
 }
 
-// POST ReplyRequest -> { text } (text === SILENT means stay quiet)
+/** Yields the `data:` payloads of a server-sent-events stream. */
+async function* sseData(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
+  const reader = body.getReader()
+  const dec = new TextDecoder()
+  let buf = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (value) buf += dec.decode(value, { stream: true })
+    const lines = buf.split('\n')
+    buf = done ? '' : lines.pop()!
+    for (const line of lines) if (line.startsWith('data:')) yield line.slice(5).trim()
+    if (done) return
+  }
+}
+
+// POST ReplyRequest -> NDJSON stream of ReplyChunk: { d } deltas, then { done, text, ms, model }.
+// Final text === SILENT means stay quiet.
 export async function reply(req: Request, log: CallLog): Promise<Response> {
   const body = (await req.json()) as ReplyRequest
   const p = persona(body.personaId)
@@ -70,60 +89,149 @@ export async function reply(req: Request, log: CallLog): Promise<Response> {
     })),
   ]
   const t0 = Date.now()
+  const upstream = new AbortController()
+  req.signal?.addEventListener('abort', () => upstream.abort())
   const r = await fetch(`${BASE}/chat/completions`, {
     method: 'POST',
     headers: headers(),
+    signal: upstream.signal,
     body: JSON.stringify({
       model: LLM_MODEL,
       messages,
       max_tokens: 120,
       temperature: 0.8,
       reasoning: { effort: 'minimal' },
+      stream: true,
     }),
   })
-  if (!r.ok) return upstreamError('reply', r, log)
-  const data = await r.json()
-  let text: string = (data.choices?.[0]?.message?.content || '').trim()
-  text = text.replace(/^["“]|["”]$/g, '').trim()
-  if (!text || /^[.…\s]+$/.test(text)) text = SILENT
-  const out: ReplyResponse = { text, ms: Date.now() - t0, model: LLM_MODEL }
-  log.event({
-    kind: 'reply', text, ms: out.ms, model: LLM_MODEL, persona: p.id, language: body.language,
-    after: body.turns.at(-1)?.text, usage: data.usage,
+  if (!r.ok || !r.body) return upstreamError('reply', r, log)
+  const upstreamBody = r.body
+  const enc = new TextEncoder()
+  const meta = { model: LLM_MODEL, persona: p.id, language: body.language, after: body.turns.at(-1)?.text }
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(ctl) {
+      const send = (c: ReplyChunk) => ctl.enqueue(enc.encode(JSON.stringify(c) + '\n'))
+      const clauses = new Clauses()
+      let raw = ''
+      let firstTokenMs: number | undefined
+      let firstClauseMs: number | undefined
+      let usage: unknown
+      try {
+        for await (const data of sseData(upstreamBody)) {
+          if (data === '[DONE]') break
+          const j = JSON.parse(data)
+          if (j.error) throw new Error(`upstream: ${JSON.stringify(j.error).slice(0, 200)}`)
+          if (j.usage) usage = j.usage
+          const d: string = j.choices?.[0]?.delta?.content || ''
+          if (!d) continue
+          firstTokenMs ??= Date.now() - t0
+          raw += d
+          if (firstClauseMs === undefined && clauses.push(d).length) firstClauseMs = Date.now() - t0
+          send({ d })
+        }
+        let text = raw.trim().replace(/^["“]|["”]$/g, '').trim()
+        if (!text || !speakable(text)) text = SILENT
+        const ms = Date.now() - t0
+        if (firstClauseMs === undefined && text !== SILENT) firstClauseMs = ms
+        send({ done: true, text, ms, model: LLM_MODEL })
+        log.event({ kind: 'reply', text, ms, firstTokenMs, firstClauseMs, ...meta, usage })
+      } catch (e) {
+        if (upstream.signal.aborted) {
+          log.event({ kind: 'reply-aborted', text: raw, ms: Date.now() - t0, ...meta })
+        } else {
+          console.error('[api] reply stream', e)
+          log.event({ kind: 'error', api: 'reply', status: 502, detail: String(e).slice(0, 300), text: raw })
+          try {
+            send({ error: 'reply failed mid-stream' })
+          } catch {
+            // client already gone
+          }
+        }
+      } finally {
+        try {
+          ctl.close()
+        } catch {
+          // already cancelled
+        }
+      }
+    },
+    cancel() {
+      upstream.abort()
+    },
   })
-  return json(out)
+  return new Response(stream, {
+    headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-cache' },
+  })
 }
 
-// POST { personaId, text } -> raw 24 kHz 16-bit mono PCM
+type Engine = { name: 'clone' | 'gemini'; model: string; voice: string; body: () => Promise<object>; timeoutMs: number }
+
+function engines(p: Persona, text: string): Engine[] {
+  const gemini: Engine = {
+    name: 'gemini', model: TTS_MODEL, voice: p.voice, timeoutMs: 15000,
+    body: async () => ({ model: TTS_MODEL, input: text, voice: p.voice, instructions: p.style, response_format: 'pcm' }),
+  }
+  const clone = p.clone
+  if (!clone || process.env.PHONEY_TTS_ENGINE === 'gemini') return [gemini]
+  return [{
+    name: 'clone', model: clone.model, voice: clone.ref, timeoutMs: CLONE_HEADERS_TIMEOUT_MS,
+    body: async () => ({ model: clone.model, input: text, response_format: 'pcm', input_references: await inputReferences(clone) }),
+  }, gemini]
+}
+
+// POST { personaId, text } -> raw 16-bit mono PCM; sample rate in X-Sample-Rate (24 kHz Gemini,
+// 44.1 kHz Fish). Cloned voice first, Gemini if it errors or is slow to answer.
 export async function tts(req: Request, log: CallLog): Promise<Response> {
   const { personaId, text } = (await req.json()) as { personaId: string; text: string }
   if (!text || text.length > MAX_TTS_CHARS) return json({ error: 'bad text length' }, 400)
   const p = persona(personaId)
-  const t0 = Date.now()
-  const r = await fetch(`${BASE}/audio/speech`, {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({
-      model: TTS_MODEL, input: text, voice: p.voice, instructions: p.style, response_format: 'pcm',
-    }),
-  })
-  if (!r.ok || !r.body) return upstreamError('tts', r, log)
-  const headersMs = Date.now() - t0
-  const [toClient, toLog] = r.body.tee()
-  const done = collect(toLog, t0)
-  log.file(`${log.turn}_him_${Date.now()}.wav`, done.then((d) => pcmToWav(d.bytes, PCM_RATE)))
-  void done.then((d) => log.event({
-    kind: 'tts', text, model: TTS_MODEL, voice: p.voice, headersMs, firstByteMs: d.firstMs, totalMs: d.totalMs,
-    bytes: d.bytes.length, seconds: +(d.bytes.length / 2 / PCM_RATE).toFixed(2),
-  }), () => undefined)
-  return new Response(toClient, {
-    headers: {
-      'Content-Type': 'audio/pcm',
-      'X-Sample-Rate': String(PCM_RATE),
-      'X-Upstream-Ms': String(headersMs),
-      'X-Model': TTS_MODEL,
-    },
-  })
+  const list = engines(p, text)
+  for (const [i, e] of list.entries()) {
+    const last = i === list.length - 1
+    const t0 = Date.now()
+    const ctl = new AbortController()
+    req.signal?.addEventListener('abort', () => ctl.abort())
+    const timer = setTimeout(() => ctl.abort(), e.timeoutMs)
+    let r: Response
+    try {
+      r = await fetch(`${BASE}/audio/speech`, {
+        method: 'POST', headers: headers(), signal: ctl.signal, body: JSON.stringify(await e.body()),
+      })
+    } catch (err) {
+      log.event({ kind: 'error', api: 'tts', engine: e.name, model: e.model, detail: String(err).slice(0, 200) })
+      if (last || req.signal?.aborted) throw err
+      continue
+    } finally {
+      clearTimeout(timer)
+    }
+    if (!r.ok || !r.body) {
+      if (last) return upstreamError('tts', r, log)
+      const detail = (await r.text()).slice(0, 300)
+      console.error(`[api] tts ${e.name} HTTP ${r.status}: ${detail}`)
+      log.event({ kind: 'error', api: 'tts', engine: e.name, model: e.model, status: r.status, detail })
+      continue
+    }
+    const rate = Number(/rate=(\d+)/.exec(r.headers.get('Content-Type') || '')?.[1]) || PCM_RATE
+    const headersMs = Date.now() - t0
+    const [toClient, toLog] = r.body.tee()
+    const done = collect(toLog, t0)
+    log.file(`${log.turn}_him_${Date.now()}.wav`, done.then((d) => pcmToWav(d.bytes, rate)))
+    void done.then((d) => log.event({
+      kind: 'tts', text, engine: e.name, model: e.model, voice: e.voice, fallback: i > 0, headersMs,
+      firstByteMs: d.firstMs, totalMs: d.totalMs, bytes: d.bytes.length, seconds: +(d.bytes.length / 2 / rate).toFixed(2),
+    }), () => undefined)
+    return new Response(toClient, {
+      headers: {
+        'Content-Type': 'audio/pcm',
+        'X-Sample-Rate': String(rate),
+        'X-Upstream-Ms': String(headersMs),
+        'X-Model': e.model,
+        'X-Engine': e.name,
+      },
+    })
+  }
+  return json({ error: 'tts failed' }, 502)
 }
 
 // POST { kind: 'start' | 'end', ... } from the client: session summaries, saved as JSON.

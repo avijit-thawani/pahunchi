@@ -2,14 +2,20 @@
 
 export type Language = 'hinglish' | 'hindi' | 'english'
 
+/** A cloned voice: the TTS model imitates `ref` (an mp3 in server/voices/) whose words are `transcript`. */
+export type ClonedVoice = { model: string; ref: string; transcript: string }
+
 export type Persona = {
   id: string
   label: string
   defaultName: string
   relation: string
   gender: 'm' | 'f'
+  /** Gemini TTS voice: the default, and the fallback when `clone` fails. */
   voice: string
   style: string
+  /** Preferred engine (fast, streams); falls back to Gemini `voice` on error. */
+  clone?: ClonedVoice
   tested: boolean
 }
 
@@ -18,6 +24,11 @@ export const PERSONAS: Persona[] = [
     id: 'dad', label: 'Dad', defaultName: 'Papa', relation: 'father', gender: 'm',
     voice: 'Algenib', tested: true,
     style: 'Indian father in his late fifties, deep, warm, unhurried, on the phone with his daughter',
+    clone: {
+      model: 'fish-audio/drama-3',
+      ref: 'dad-algenib.mp3',
+      transcript: 'हम्म, लिख लिया। हाँ, location share आ गया है। तो कितनी देर में पहुँच जाओगी?',
+    },
   },
   {
     id: 'mom', label: 'Mom', defaultName: 'Mummy', relation: 'mother', gender: 'f',
