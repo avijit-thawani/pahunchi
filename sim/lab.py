@@ -252,19 +252,24 @@ def mix_scene(model: str, scene: dict) -> Path | None:
         f = next(folder.glob(f"{scene['id']}_{i:02d}_{line['who']}.*"), None)
         if not f:
             return None
-        clips.append((line, rms_norm(trim(load(f)), -20)))
-    total = int(sum(line["gap"] * SR + len(c) for line, c in clips) + 1.0 * SR)
+        clips.append((line["who"], line["gap"], load(f)))
+    return mix_scene_custom(clips, scene, OUT / "mix" / f"{scene['id']}__{slug(model)}.mp3")
+
+
+def mix_scene_custom(clips: list[tuple[str, float, np.ndarray]], scene: dict, out: Path) -> Path:
+    """clips = (who, silence before it in seconds, raw audio). Dad goes through the phone band."""
+    clips = [(who, gap, rms_norm(trim(x), -20)) for who, gap, x in clips]
+    total = int(sum(gap * SR + len(c) for _, gap, c in clips) + 1.0 * SR)
     near, far = np.zeros(total, np.float32), np.zeros(total, np.float32)
     t = int(0.5 * SR)
-    for line, c in clips:
-        t += int(line["gap"] * SR)
-        (near if line["who"] == "girl" else far)[t: t + len(c)] += c
+    for who, gap, c in clips:
+        t += int(gap * SR)
+        (near if who == "girl" else far)[t: t + len(c)] += c
         t += len(c)
     far = phone_band(far + bed(scene["far"], total, -42)) * 0.9
     near = near + bed(scene["near"], total, -34)
     y = near + far
     y = y / max(1.0, np.abs(y).max() / 0.95)
-    out = OUT / "mix" / f"{scene['id']}__{slug(model)}.mp3"
     out.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-",
                     "-b:a", "96k", str(out)], input=y.astype(np.float32).tobytes(), check=True)
