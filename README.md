@@ -11,8 +11,8 @@ when walking alone or riding in a cab at night. phoney places a call to an AI "d
 "mom", "brother" or "friend" who answers in a natural Indian voice (Hindi, English or
 Hinglish), reacts like a real person, and keeps quiet when she just wants to scroll.
 
-Free to use. Stack: React PWA + Supabase + Netlify + OpenRouter (one key for the LLM,
-speech-to-text and text-to-speech), same as `../mandarin`.
+Free to use. React PWA + Netlify + Supabase + OpenRouter (one key for LLM, STT and TTS).
+<p><img src="docs/media/01_home.png" width="190"> <img src="docs/media/03_call_connected.png" width="190"> <img src="docs/media/04_after_call.png" width="190"> <img src="docs/media/07_contacts.png" width="190"></p>
 
 ## The call
 
