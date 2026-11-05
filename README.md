@@ -6,7 +6,7 @@
 
 # phoney (tentative name)
 
-**Try it: <https://phoney-call.netlify.app>** · **▶ Demo calls (real latency): <https://phoney-call.netlify.app/demos/>**
+**Try it here, free: <https://phoney-call.netlify.app>**
 
 A fake phone call that talks back. In India many women call someone, or pretend to,
 when walking alone or riding in a cab at night. phoney places a call to an AI "dad",
