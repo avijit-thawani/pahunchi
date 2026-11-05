@@ -6,6 +6,8 @@
 
 # phoney (tentative name)
 
+<p><a href="docs/media/demo_cab_night.mp4"><img src="docs/media/demo_cab_night_button.png" width="330" alt="Play: cab at night"></a> <a href="docs/media/demo_walk_home.mp4"><img src="docs/media/demo_walk_home_button.png" width="330" alt="Play: walking home"></a><br><sub>Scripted Hinglish calls, Gemini TTS (Sulafat as her, Algenib as dad), phone-band audio + ambience.</sub></p>
+
 A fake phone call that talks back. In India many women call someone, or pretend to,
 when walking alone or riding in a cab at night. phoney places a call to an AI "dad",
 "mom", "brother" or "friend" who answers in a natural Indian voice (Hindi, English or
@@ -13,8 +15,6 @@ Hinglish), reacts like a real person, and keeps quiet when she just wants to scr
 
 Free to use. React PWA + Netlify + Supabase + OpenRouter (one key for LLM, STT and TTS).
 <p><img src="docs/media/01_home.png" width="190"> <img src="docs/media/03_call_connected.png" width="190"> <img src="docs/media/04_after_call.png" width="190"> <img src="docs/media/07_contacts.png" width="190"></p>
-
-**Listen** (scripted Hinglish calls, Gemini TTS: Sulafat as her, Algenib as dad, phone-band + ambience): [cab at night](docs/media/demo_cab_night.mp3) · [walking home, mostly silent](docs/media/demo_walk_home.mp3)
 
 ## The call
 
