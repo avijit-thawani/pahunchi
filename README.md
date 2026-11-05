@@ -40,7 +40,8 @@ Transcripts can drop the AI side and export just her journal.
 
 ## Status
 
-Local web app (no Supabase/Netlify yet) with a working live call, plus the voice lab.
+Live at <https://phoney-call.netlify.app> behind a shared password (ask Avi), with a working
+call loop, server-side call logging, and the voice lab. No user accounts yet.
 
 - **Call loop:** ringback -> responder picks up -> her speech is detected in the browser
   (energy VAD, 800 ms end-of-turn) -> STT `openai/gpt-4o-mini-transcribe` -> reply
@@ -67,10 +68,13 @@ mic/audio, especially on iOS; may need a native wrapper later.
 ```
 src/            React app: pages/, lib/call.ts (call loop), audio.ts (phone chain,
                 ringback, PCM playback), mic.ts (VAD -> WAV), store.ts (localStorage)
-server/         API handlers as Request -> Response (Netlify-ready): stt, reply, tts;
-                prompt.ts = responder system prompt
+server/         API handlers as Request -> Response: api.ts (stt, reply, tts, log),
+                log.ts (call logging), limits.ts (request caps), auth.ts (password
+                gate), prompt.ts (responder system prompt)
+netlify/        functions/api.ts (all of /api/*), edge-functions/gate.ts (password gate)
 shared/         personas (voice, style) and API types used by both sides
-scripts/        smoke-call.ts: a headless call through the dev server using lab clips
+scripts/        smoke-call.ts (headless call with lab clips), logs.ts (inspect call logs),
+                setup-supabase.ts (creates the log bucket)
 sim/            voice lab: scenes.json, lab.py, orlib.py; out/ + ledger gitignored
 docs/voices.md  TTS findings, scores, costs, latency
 ```
@@ -89,6 +93,32 @@ Needs `OPENROUTER_API_KEY` in `phoney/.env` or the shared `../.env` (server-side
 Models are overridable with `PHONEY_LLM_MODEL`, `PHONEY_STT_MODEL`, `PHONEY_TTS_MODEL`.
 The lab stops at `PHONEY_BUDGET_USD` (default $8); the app's calls are not budgeted.
 
+## Call logs
+
+Every call is logged server-side for debugging: per turn her WAV (as sent to STT), the
+transcript, the reply, his TTS audio as WAV, timings (STT, LLM, TTS first byte), models, and
+errors; plus the client's start/end summaries (persona, language, user agent, per-turn
+latency incl. VAD tail and her-end -> his-voice, silences, fillers). The client sends
+`X-Phoney-Session` / `X-Phoney-Turn` headers and posts to `/api/log`; failures never break a call.
+
+- **Dev:** `logs/calls/<session>/` (gitignored; session ids start with the date).
+- **Deployed:** private Supabase Storage bucket `phoney-logs` (in the `mandarin` project for
+  now; free tier is full), same layout, events as `events/*.json`. Also one `[log]` line per
+  request in the Netlify function logs.
+- `node scripts/logs.ts [latest|<id>]` shows a timeline; `--remote [<id>]` lists or
+  downloads deployed sessions into `logs/calls/`.
+
+## Deploy (Netlify)
+
+`netlify deploy --build --prod` from `phoney/` (site `phoney-call`, already linked). The edge
+function gates every path, `/api/*` included, with an HttpOnly cookie = HMAC of the password;
+the function checks it again. Caps: Netlify per-IP rate limits (300 req/min site, 120/min
+API) plus in-memory 90/min per IP and 1500 requests per call session.
+Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_URL`,
+`SUPABASE_SERVICE_ROLE_KEY`, `PHONEY_PASSWORD` (spaces or hyphens between words both work),
+`PHONEY_COOKIE_SECRET` (random hex; rotating either logs everyone out). Locally,
+`phoney/.env` holds the Supabase pair for `logs.ts --remote` and `setup-supabase.ts`.
+
 ## Roadmap
 
 - [x] Voice lab: provider audition, scripted calls, phone-call mix
@@ -97,10 +127,11 @@ The lab stops at `PHONEY_BUDGET_USD` (default $8); the app's calls are not budge
 - [ ] Try it on a phone; tune VAD thresholds, prompt, filler frequency
 - [ ] Cut latency: shorter VAD tail, Lite TTS for the first sentence, barge-in
 - [ ] Audition voices for mom / siblings / friends
-- [ ] Rate-limit /api before any public deploy (the key pays for every request)
+- [x] Rate-limit /api, password gate, call logging (local + Supabase Storage)
 - [ ] Supabase: auth, sessions, transcripts, trusted contacts (RLS)
 - [ ] "I'm safe" timer + delayed notify (Netlify scheduled function)
-- [ ] Netlify deploy
+- [x] Netlify deploy
+- [ ] Own Supabase project for phoney (logs live in `mandarin`'s for now)
 
 ## Conventions
 

@@ -11,7 +11,14 @@ export type Settings = {
   ambience: boolean
 }
 
-export type TurnMetrics = { sttMs?: number; llmMs?: number; ttsMs?: number; totalMs?: number }
+/** ttsMs = total minus the other stages; ttsFirstByteMs = reply received -> first TTS bytes. */
+export type TurnMetrics = {
+  turn?: string; speechMs?: number; vadMs?: number; sttMs?: number; llmMs?: number
+  ttsFirstByteMs?: number; ttsMs?: number; totalMs?: number
+}
+
+/** Things worth seeing when debugging a call: silences, fillers, errors. */
+export type CallEvent = { at: number; kind: string; turn?: string; detail?: string }
 
 export type Session = {
   id: string
@@ -22,6 +29,7 @@ export type Session = {
   language: Language
   turns: Turn[]
   metrics: TurnMetrics[]
+  events?: CallEvent[]
   safeAt?: number
 }
 

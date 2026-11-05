@@ -13,6 +13,7 @@ function loadServerEnv(mode: string) {
       if (!process.env[k] && v) process.env[k] = v
     }
   }
+  process.env.PHONEY_LOG ||= 'local'
 }
 
 async function toRequest(req: IncomingMessage): Promise<Request> {
@@ -42,7 +43,8 @@ async function sendResponse(res: ServerResponse, r: Response) {
   res.end()
 }
 
-// Mounts server/api.ts handlers at /api/<name>, reloaded on every request so edits apply instantly.
+// Mounts server/api.ts at /api/<name>, reloaded on every request so edits apply instantly.
+// No password gate in dev; that lives in netlify/edge-functions/gate.ts.
 function api(): Plugin {
   return {
     name: 'phoney-api',
@@ -51,12 +53,8 @@ function api(): Plugin {
         const name = (req.url || '').replace(/^\//, '').split('?')[0]
         try {
           const mod = await server.ssrLoadModule('/server/api.ts')
-          const handler = mod.handlers[name]
-          if (!handler) {
-            res.statusCode = 404
-            return res.end('not found')
-          }
-          await sendResponse(res, await handler(await toRequest(req)))
+          const defer = (p: Promise<unknown>) => void p.catch(() => undefined)
+          await sendResponse(res, await mod.handle(name, await toRequest(req), defer))
         } catch (e) {
           console.error('[api]', name, e)
           res.statusCode = 500

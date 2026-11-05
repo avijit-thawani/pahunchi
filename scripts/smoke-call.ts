@@ -13,9 +13,10 @@ if (!clips.length) throw new Error(`no lab clips for ${scene}; run: uv run sim/l
 
 type Turn = { who: 'her' | 'them' | 'event'; text: string; at: number }
 const turns: Turn[] = []
+const session = `smoke-${new Date().toISOString().slice(0, 19).replace(/\D/g, '')}` // logged like a real call
 
 async function post(path: string, body: BodyInit, type: string) {
-  const r = await fetch(`${BASE}/api/${path}`, { method: 'POST', headers: { 'Content-Type': type }, body })
+  const r = await fetch(`${BASE}/api/${path}`, { method: 'POST', headers: { 'Content-Type': type, 'X-Phoney-Session': session }, body })
   if (!r.ok) throw new Error(`${path} ${r.status} ${await r.text()}`)
   return r
 }

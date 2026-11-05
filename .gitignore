@@ -12,3 +12,8 @@ __pycache__/
 # generated audio and paid-call ledger
 sim/out/
 sim/ledger.jsonl
+
+# call logs (her voice, transcripts): never commit
+logs/
+# written by netlify deploy (edge function bundling)
+deno.lock
