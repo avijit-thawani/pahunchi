@@ -32,5 +32,6 @@ export default async (req: Request): Promise<Response | undefined> => {
 
 export const config = {
   path: '/*',
+  excludedPath: ['/demos', '/demos/*'],
   rateLimit: { windowLimit: 400, windowSize: 60, aggregateBy: ['ip'] },
 }

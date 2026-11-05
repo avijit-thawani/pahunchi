@@ -6,7 +6,7 @@
 
 # phoney (tentative name)
 
-<p><a href="docs/media/demo_cab_night.mp4"><img src="docs/media/demo_cab_night_button.png" width="330" alt="Play: cab at night"></a> <a href="docs/media/demo_walk_home.mp4"><img src="docs/media/demo_walk_home_button.png" width="330" alt="Play: walking home"></a><br><sub>Scripted Hinglish calls, Gemini TTS (Sulafat as her, Algenib as dad), phone-band audio + ambience.</sub></p>
+**▶ Listen to demo calls (real latency): <https://phoney-call.netlify.app/demos/>**
 
 A fake phone call that talks back. In India many women call someone, or pretend to,
 when walking alone or riding in a cab at night. phoney places a call to an AI "dad",
