@@ -73,42 +73,46 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section>
-        <h2 className="text-sm font-extrabold uppercase tracking-wide text-base-content/60 mb-2">Language</h2>
-        <div className="grid grid-cols-3 gap-2">
-          {LANGUAGES.map((l) => (
-            <button
-              key={l.id}
-              data-selected={settings.language === l.id}
-              onClick={() => setSettings({ ...settings, language: l.id })}
-              className="pick py-2.5 font-extrabold text-sm"
-            >
-              {l.label}
-            </button>
-          ))}
+      <details className="collapse collapse-arrow bg-base-200 rounded-box">
+        <summary className="collapse-title text-sm font-extrabold uppercase tracking-wide text-base-content/60 min-h-0 py-3">
+          More options
+        </summary>
+        <div className="collapse-content space-y-4">
+          <div>
+            <span className="text-sm font-bold text-base-content/70">Language</span>
+            <div className="grid grid-cols-3 gap-2 mt-1">
+              {LANGUAGES.map((l) => (
+                <button
+                  key={l.id}
+                  data-selected={settings.language === l.id}
+                  onClick={() => setSettings({ ...settings, language: l.id })}
+                  className="pick py-2.5 font-extrabold text-sm"
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="block">
+            <span className="text-sm font-bold text-base-content/70">Name on the call screen</span>
+            <input
+              className="input w-full mt-1 font-semibold"
+              value={settings.name}
+              placeholder={persona(settings.personaId).defaultName}
+              onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+            />
+          </label>
+          <label className="flex items-center justify-between gap-3">
+            <span className="text-sm font-bold">Background noise at their end <span className="font-semibold text-base-content/60">(TV, fan)</span></span>
+            <input
+              type="checkbox"
+              className="toggle toggle-success shrink-0"
+              checked={settings.ambience}
+              onChange={(e) => setSettings({ ...settings, ambience: e.target.checked })}
+            />
+          </label>
         </div>
-      </section>
-
-      <section className="bg-base-200 rounded-box p-4 space-y-4">
-        <label className="block">
-          <span className="text-sm font-bold text-base-content/70">Name on the call screen</span>
-          <input
-            className="input w-full mt-1 font-semibold"
-            value={settings.name}
-            placeholder={persona(settings.personaId).defaultName}
-            onChange={(e) => setSettings({ ...settings, name: e.target.value })}
-          />
-        </label>
-        <label className="flex items-center justify-between gap-3">
-          <span className="text-sm font-bold">Background noise at their end <span className="font-semibold text-base-content/60">(TV, fan)</span></span>
-          <input
-            type="checkbox"
-            className="toggle toggle-success shrink-0"
-            checked={settings.ambience}
-            onChange={(e) => setSettings({ ...settings, ambience: e.target.checked })}
-          />
-        </label>
-      </section>
+      </details>
 
       <button onClick={call} className="btn btn-success btn-chunky btn-lg w-full h-16 rounded-2xl text-lg font-extrabold gap-3">
         <Phone className="w-6 h-6" /> Call {callee}
