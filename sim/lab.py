@@ -285,51 +285,111 @@ def mix() -> None:
 
 # --------------------------------------------------------------------------- page
 
+PAGE_CSS = """
+body{font:14px/1.45 system-ui,sans-serif;margin:0;background:#f6f7f9;color:#222}
+main{max-width:1000px;margin:0 auto;padding:24px 16px 64px}
+h1{margin:0 0 4px} .sub{color:#666;margin:0 0 20px}
+section{background:#fff;border:1px solid #e3e6ea;border-radius:12px;margin:18px 0;padding:14px 16px}
+section h2{margin:0;font-size:17px} .when{color:#888;font-weight:400;font-size:13px;margin-left:6px}
+section .desc{margin:6px 0 10px;color:#555}
+.box{max-height:460px;overflow:auto;border:1px solid #eef0f2;border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{position:sticky;top:0;background:#f1f3f5;z-index:1;text-align:left;white-space:nowrap}
+td,th{padding:6px 8px;border-bottom:1px solid #eef0f2;vertical-align:middle}
+td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap} td.top{font-weight:700}
+audio{height:30px;width:165px;display:block} td:first-child{min-width:150px} small{color:#777} details{margin:4px 0}
+"""
+
+
+def _section(h: list[str], title: str, when: str, desc: str, head: list[str], rows: list[str]) -> None:
+    h.append(f"<section><h2>{title}<span class=when>{when}</span></h2><div class=desc>{desc}</div><div class=box><table>"
+             "<tr>" + "".join(f"<th>{c}</th>" for c in head) + "</tr>" + "".join(rows) + "</table></div></section>")
+
+
+def _audio(path: str) -> str:
+    return f"<audio controls preload=none src='{path}'></audio>" if (OUT / path).exists() else "<small>–</small>"
+
+
 def page() -> None:
+    """One page, newest experiment first; each experiment is a scrollable table with its scores."""
+    import statistics
     casts = json.loads((OUT / "casts.json").read_text()) if (OUT / "casts.json").exists() else {}
     results = json.loads((OUT / "audition" / "results.json").read_text())
-    h = ["<!doctype html><meta charset=utf-8><title>phoney voice lab</title>",
-         "<style>body{font:14px system-ui;max-width:1100px;margin:2em auto;padding:0 1em}"
-         "td,th{padding:4px 8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}"
-         "audio{height:30px;width:260px}.s{font-weight:600}</style>",
-         "<h1>phoney voice lab</h1>"]
+    h = ["<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>",
+         f"<title>phoney voice lab</title><style>{PAGE_CSS}</style><main><h1>phoney voice lab</h1>",
+         "<p class=sub>Newest experiments first. Scores come from a Gemini audio judge: useful for spotting bad "
+         "takes, not for ranking the top voices (they bunch together). Trust your ear.</p>"]
+    scenes = [(s["id"], s["title"]) for s in SCENES]
+
+    # 1. Full calls judged on the dad's voice (0-100), every cast that has mixes.
+    judge_path = OUT / "fullcall_judge.json"
+    judged = json.loads(judge_path.read_text()) if judge_path.exists() else []
+    keys = ("overall", "accent", "naturalness", "age_fit", "consistency")
+    def score(sl: str, k: str) -> float | None:
+        xs = [r.get(k) for r in judged if r.get("slug") == sl and isinstance(r.get(k), (int, float))]
+        return statistics.mean(xs) if xs else None
+    order = sorted(casts, key=lambda m: -(score(slug(m), "overall") or -1))
+    best = max((score(slug(m), "overall") or 0) for m in casts) if casts else 0
+    rows = []
+    for m in order:
+        sl, cast = slug(m), casts[m]
+        cells = "".join(
+            f"<td class='n{' top' if k == 'overall' and score(sl, k) == best else ''}'>"
+            f"{'' if score(sl, k) is None else f'{score(sl, k):.0f}'}</td>" for k in keys)
+        rows.append(f"<tr><td>{html.escape(m)}<br><small>dad {html.escape(str(cast['dad']))}</small></td>{cells}"
+                    + "".join(f"<td>{_audio(f'mix/{sid}__{sl}.mp3')}</td>" for sid, _ in scenes) + "</tr>")
+    transcripts = "".join(
+        f"<details><summary>{html.escape(s['title'])} transcript</summary><small>"
+        + " · ".join(f"<b>{l['who']}</b>: {html.escape(l['roman'])}" for l in s["lines"]) + "</small></details>"
+        for s in SCENES)
+    _section(h, "Full scripted calls, judged on the dad", "Nov 5 · 19:30",
+             "Same script and girl voice (Gemini Sulafat) for every row; only the dad changes. Phone-band audio, "
+             "TV room behind him, cab/street noise on her side. Scores average the 3 scenes (0–100, dad only)."
+             + transcripts,
+             ["dad voice", "overall", "accent", "natural", "age fit", "same person"] + [t for _, t in scenes], rows)
+
+    # 2. Dad voice contenders on a single line.
     cont = json.loads((SIM / "contenders.json").read_text())
-    h.append(f"<h2>Dad voice contenders</h2><p>Same line for all: <b>{html.escape(cont['line'])}</b><br>"
-             f"<small>{html.escape(cont['_note'])}</small></p><table>"
-             "<tr><th>provider</th><th>voice</th><th></th><th>score</th><th>first audio</th><th>note</th></tr>")
-    for provider, label, f, score, first, note in cont["voices"]:
-        if (OUT / f).exists():
-            h.append(f"<tr><td>{provider}</td><td>{html.escape(label)}</td><td><audio controls preload=none "
-                     f"src='{f}'></audio></td><td class=s>{score}</td><td>{first}</td><td><small>{note}</small></td></tr>")
-    h += ["</table>", "<h2>Full calls</h2>",
-          "<p>Dad is phone-band filtered with a faint TV room behind him; the girl has cab or street ambience.</p>"]
-    for scene in SCENES:
-        h.append(f"<h3>{html.escape(scene['title'])}</h3><details><summary>transcript</summary><ol>")
-        h += [f"<li><b>{l['who']}</b>: {html.escape(l['roman'])}</li>" for l in scene["lines"]]
-        h.append("</ol></details><table>")
-        for model, cast in casts.items():
-            f = OUT / "mix" / f"{scene['id']}__{slug(model)}.mp3"
-            if f.exists():
-                h.append(f"<tr><td>{model}<br><small>girl {cast['girl']}, dad {cast['dad']}</small></td>"
-                         f"<td><audio controls preload=none src='{f.relative_to(OUT)}'></audio></td></tr>")
-        h.append("</table>")
-    for role in ("girl", "dad"):
+    rows = [f"<tr><td>{p}</td><td>{html.escape(label)}</td><td>{_audio(f)}</td><td class=n>{sc}</td>"
+            f"<td class=n>{first}</td><td><small>{note}</small></td></tr>"
+            for p, label, f, sc, first, note in cont["voices"]]
+    _section(h, "Dad voice contenders, one line", "Nov 5 · 19:20",
+             f"All read <b>{html.escape(cont['line'])}</b> Score = judge (1–10); first audio = streaming time to "
+             "first sound from the US.", ["provider", "voice", "", "score", "first audio", "note"], rows)
+
+    # 3. Live pipelines with the measured delay before each reply.
+    live_path = OUT / "latency" / "live.jsonl"
+    if live_path.exists():
+        live = [json.loads(l) for l in live_path.read_text().splitlines() if l.strip()]
+        rows = []
+        for pipe in dict.fromkeys(r["pipeline"] for r in live):
+            ms = [r["measured"] for r in live if r["pipeline"] == pipe and isinstance(r.get("measured"), (int, float))]
+            delay = f"{statistics.median(ms) + 0.5:.1f} s" if ms else "–"
+            rows.append(f"<tr><td>{pipe}</td><td class=n>{delay}</td>"
+                        + "".join(f"<td>{_audio(f'latency/mix/{sid}__{pipe}.mp3')}</td>" for sid, _ in scenes) + "</tr>")
+        _section(h, "Live pipelines with real latency", "Nov 5 · 18:15",
+                 "Her recorded lines go through real STT → LLM → TTS; each reply plays after the measured delay "
+                 "(median, incl. 0.5 s to notice she stopped). Replies are generated, not scripted.",
+                 ["pipeline", "her last word → his voice"] + [t for _, t in scenes], rows)
+
+    # 4. First audition: one line per voice, both roles.
+    for role in ("dad", "girl"):
         line = AUDITION_LINES[role]
-        h.append(f"<h2>Audition: {role}</h2><p><i>{html.escape(line['roman'])}</i></p><table>"
-                 "<tr><th>score</th><th>model / voice</th><th></th><th>accent</th><th>hindi</th>"
-                 "<th>natural</th><th>fit</th><th>latency</th><th>judge notes</th></tr>")
+        rows = []
         for r in sorted((r for r in results if r["role"] == role), key=lambda r: -score_of(r)):
             if "error" in r:
-                h.append(f"<tr><td>err</td><td>{r['model']}<br>{r['voice']}</td><td colspan=7>"
-                         f"{html.escape(r['error'][:150])}</td></tr>")
                 continue
-            h.append(f"<tr><td class=s>{score_of(r):.1f}</td><td>{r['model']}<br><small>{r['voice']}</small></td>"
-                     f"<td><audio controls preload=none src='{r['file']}'></audio></td>"
-                     + "".join(f"<td>{r.get(k)}</td>" for k in
-                               ("indian_accent", "hindi_pronunciation", "naturalness", "role_fit"))
-                     + f"<td>{r.get('latency_s') or ''}</td><td>{html.escape(str(r.get('notes', '')))}"
-                       f"{' <b>(spoke extra words)</b>' if r.get('spoke_extra') else ''}</td></tr>")
-        h.append("</table>")
+            rows.append(f"<tr><td class=n>{score_of(r):.1f}</td><td>{r['model']}<br><small>{r['voice']}</small></td>"
+                        f"<td>{_audio(r['file'])}</td>"
+                        + "".join(f"<td class=n>{r.get(k)}</td>" for k in
+                                  ("indian_accent", "hindi_pronunciation", "naturalness", "role_fit"))
+                        + f"<td class=n>{r.get('latency_s') or ''}</td><td><small>{html.escape(str(r.get('notes', '')))}"
+                          f"{' (spoke extra words)' if r.get('spoke_extra') else ''}</small></td></tr>")
+        _section(h, f"First audition: {role} voices", "Nov 5 · 17:45",
+                 f"One line each: <i>{html.escape(line['roman'])}</i> Judge scores 1–10.",
+                 ["score", "model / voice", "", "accent", "hindi", "natural", "fit", "latency s", "judge notes"], rows)
+
+    h.append("</main>")
     (OUT / "index.html").write_text("\n".join(h))
     print("  page", OUT / "index.html")
 
