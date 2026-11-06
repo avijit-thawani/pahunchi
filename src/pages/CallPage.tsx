@@ -70,6 +70,14 @@ export default function CallPage() {
       </div>
       <h1 className="text-3xl font-light mt-5">{name}</h1>
       <p className="text-white/60 mt-1 tabular-nums">{status}</p>
+      {state.muted && state.phase === 'connected' && (
+        <button
+          onClick={() => engine.toggleMute()}
+          className="mt-3 flex items-center gap-2 rounded-full bg-red-500/20 text-red-200 px-4 py-1.5 text-sm font-semibold"
+        >
+          <MicOff className="w-4 h-4" /> Muted · {name} can't hear you
+        </button>
+      )}
       {state.error && <p className="text-error text-xs mt-2 text-center">{state.error}</p>}
 
       <div className="flex-1 w-full overflow-y-auto my-4">
@@ -94,7 +102,7 @@ export default function CallPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-x-10 gap-y-6 mb-10">
-        <RoundButton icon={MicOff} label="Mute" active={state.muted} onClick={() => engine.toggleMute()} />
+        <RoundButton icon={MicOff} label={state.muted ? 'Muted' : 'Mute'} active={state.muted} onClick={() => engine.toggleMute()} />
         <RoundButton icon={Grid3x3} label="Keypad" />
         <RoundButton icon={Volume2} label="Speaker" active={state.speaker} onClick={() => engine.toggleSpeaker()} />
         <RoundButton icon={UserPlus} label="Add call" />
