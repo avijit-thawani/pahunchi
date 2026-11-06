@@ -67,14 +67,14 @@ export const PERSONAS: Persona[] = [
     talk: 'Elder sister: chatty, says यार, shares a bit of gossip, never बेटा. Big-sister protective.',
   },
   {
-    id: 'friend_m', label: 'Friend (male)', defaultName: 'Rohan', relation: 'close male friend', gender: 'm',
+    id: 'friend_m', label: 'Friend (male)', defaultName: 'Dost', relation: 'close male friend', gender: 'm',
     voice: 'Sadaltager', tested: true, available: true,
     voices: [sarvam('shubh_enhi_companion'), sarvam('kabir_hi_conversational')],
     style: 'young Indian man in his twenties from Delhi, casual, friendly, on the phone with a close friend',
     talk: 'Close friend her own age: casual banter, says यार and bro-ish slang, never बेटा, never parental. Cares but plays it cool.',
   },
   {
-    id: 'friend_f', label: 'Friend (female)', defaultName: 'Ananya', relation: 'close female friend', gender: 'f',
+    id: 'friend_f', label: 'Friend (female)', defaultName: 'Saheli', relation: 'close female friend', gender: 'f',
     voice: 'Achernar', tested: true, available: true,
     voices: [sarvam('aparna_hi_customer'), sarvam('sanchita_enhi_companion')],
     style: 'young Indian woman in her twenties from Delhi, casual, friendly, on the phone with a close friend',
