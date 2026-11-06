@@ -15,7 +15,8 @@ Hinglish), reacts like a real person, and keeps quiet when she just wants to scr
 Why: women already fake "haan papa, bas pahunch rahi hoon" calls in cabs; evidence and competitors in [docs/landscape.md](docs/landscape.md).
 
 Free to use. React PWA + Netlify + Supabase + OpenRouter (one key for LLM, STT and TTS).
-<p><img src="docs/media/01_home.png" width="190"> <img src="docs/media/03_call_connected.png" width="190"> <img src="docs/media/04_after_call.png" width="190"> <img src="docs/media/07_contacts.png" width="190"></p>
+<p><a href="docs/media/phoney-demo.mp4"><img src="docs/media/phoney-demo.webp" width="300" alt="Demo: a real call with Papa, then I'm safe, contacts and Call me later"></a><br><sub>Demo with sound: <a href="docs/media/phoney-demo.mp4">full, 81 s</a> · <a href="docs/media/phoney-demo-teaser.mp4">teaser, 37 s</a>. The call audio is the real app (her lines in a Sarvam voice); reply times are measured.</sub></p>
+<p><img src="docs/media/01_home.png" width="130"> <img src="docs/media/02_call.png" width="130"> <img src="docs/media/03_reached_safely.png" width="130"> <img src="docs/media/04_call_me_later.png" width="130"> <img src="docs/media/05_trusted_contacts.png" width="130"> <img src="docs/media/06_contact_sees_call.png" width="130"></p>
 
 ## The call
 
@@ -57,7 +58,7 @@ Signed-in calls sync to `calls`; contacts see them in History per their delay (`
 - **Latency** (her last word -> his first sound, median of 8 lab turns): **~2.3-2.5 s** (was ~4.3), local and
   deployed. Real browser calls: 1.9-2.9 s. See [docs/latency.md](docs/latency.md).
 - **Cost:** voice is Sarvam ₹1 per 1,000 chars (~$0.0065 per minute of him talking); a busy call is well under $0.01/min.
-- **Screens:** pick responder + language, a dialer-style call screen (hidden transcript with per-turn latency),
+- **Screens:** pick responder + language, a dialer-style call screen (transcript behind "Text"; latency with `phoney.debug`),
   "I'm safe" + optional 👍/👎 note after the call (→ `feedback.json`), history, trusted contacts + join page.
 - **Call me later:** she picks when (5 m-1 h, or a clock time) and why: "Get me out" (a preset excuse) or "Check on
   me". At that time a Web Push (no sign-in; Netlify Blobs + per-minute `ring.ts`) or, if phoney is open, the app itself
@@ -82,6 +83,7 @@ shared/         personas (voices, style), scene.ts (call-me-later purposes), cla
 scripts/        smoke-call.ts (headless call with lab clips), logs.ts (inspect call logs),
                 setup-supabase.ts (creates the log bucket)
 sim/            voice lab: scenes.json, lab.py, orlib.py; out/ + ledger gitignored
+video/          demo video: capture.mjs (screens on demo data), take.ts (real call takes), build.py (cut)
 docs/voices.md  TTS findings, scores, costs, latency
 ```
 
@@ -128,7 +130,6 @@ Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_U
 
 - [x] Voice lab: provider audition, scripted calls, phone-call mix
 - [x] Live loop: mic -> STT -> LLM -> TTS, latency shown per turn
-- [x] PWA shell (Vite + React + Tailwind/daisyUI), dialer-style call screen
 - [ ] Try it on a phone; tune VAD thresholds, prompt, filler frequency
 - [x] Cut latency: streamed reply, per-clause Fish TTS, speculative turn detection (4.3 -> 2.3 s)
 - [ ] Barge-in; re-measure latency from an Indian network
@@ -137,7 +138,6 @@ Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_U
 - [x] Supabase: Google auth, trusted contacts + invite links (RLS); [ ] sessions, transcripts
 - [x] Call me later: scheduled "Get me out" / "Check on me" call via Web Push; [ ] alert contacts if unanswered
 - [ ] "I'm safe" timer + delayed notify (Netlify scheduled function)
-- [x] Netlify deploy
 - [ ] Move the logs bucket from `mandarin` into the `phoney` project (accounts already live there)
 
 ## Conventions

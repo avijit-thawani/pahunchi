@@ -4,6 +4,7 @@
 import { CallEngine } from './call.ts'
 import type { Settings } from './store.ts'
 import type { Scene } from '../../shared/scene.ts'
+import { demoCall } from './demoCall.ts'
 
 let active: CallEngine | null = null
 
@@ -15,6 +16,8 @@ export function startCall(settings: Settings, scene?: Scene): CallEngine {
 }
 
 export function activeCall(): CallEngine | null {
+  const demo = new URLSearchParams(location.search).get('demo')
+  if (demo) return demoCall(demo) as unknown as CallEngine
   return active
 }
 
