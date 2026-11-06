@@ -31,10 +31,6 @@ export default function ContactsPage() {
         <h1 className="text-3xl font-extrabold tracking-tight">Trusted contacts</h1>
         <span className="badge badge-warning font-extrabold">Beta</span>
       </div>
-      <p className="text-base-content/70 font-semibold">
-        People who should hear if something seems wrong: as soon as a call starts, or only if you don't
-        tap <b>I'm safe</b> in time.
-      </p>
       {!supabase ? (
         <Notice>Accounts aren't configured on this build.</Notice>
       ) : session === undefined ? (
@@ -162,9 +158,6 @@ function SignedIn({ session }: { session: Session }) {
 
   return (
     <>
-      <p className="text-xs text-base-content/60 font-semibold">
-        They see your calls in their phoney History tab. They aren't sent a text or notification yet.
-      </p>
       <div className="flex items-center gap-2 text-sm font-semibold text-base-content/70">
         <span className="flex-1 truncate">Signed in as {userName(session)}</span>
         <button className="btn btn-ghost btn-xs gap-1" onClick={() => signOut()}>
