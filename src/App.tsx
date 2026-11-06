@@ -7,10 +7,12 @@ import HistoryPage from './pages/HistoryPage.tsx'
 import ContactsPage from './pages/ContactsPage.tsx'
 import JoinPage from './pages/JoinPage.tsx'
 import PrivacyPage from './pages/PrivacyPage.tsx'
+import IncomingPage from './pages/IncomingPage.tsx'
+import { useRingWhenDue } from './lib/later.ts'
 
 function Nav() {
   const { pathname } = useLocation()
-  if (pathname.startsWith('/call') || pathname.startsWith('/after')) return null
+  if (pathname.startsWith('/call') || pathname.startsWith('/incoming')) return null
   const item = (to: string, label: string, Icon: typeof Phone) => {
     const active = to === '/' ? pathname === '/' : pathname.startsWith(to)
     return (
@@ -38,12 +40,19 @@ function Nav() {
   )
 }
 
+function RingWhenDue() {
+  useRingWhenDue()
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <RingWhenDue />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/call" element={<CallPage />} />
+        <Route path="/incoming" element={<IncomingPage />} />
         <Route path="/after/:id" element={<AfterCallPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/contacts" element={<ContactsPage />} />

@@ -83,7 +83,7 @@ export default function AfterCallPage() {
   }
 
   return (
-    <main className="max-w-md mx-auto px-6 min-h-dvh flex flex-col justify-center gap-6 text-center py-8">
+    <main className="max-w-md mx-auto px-6 min-h-dvh flex flex-col justify-center gap-6 text-center pt-8 pb-28">
       {session.safeAt ? (
         <>
           <div className="mx-auto w-24 h-24 rounded-full bg-success/15 grid place-items-center">
