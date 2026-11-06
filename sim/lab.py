@@ -297,7 +297,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}
 th{position:sticky;top:0;background:#f1f3f5;z-index:1;text-align:left;white-space:nowrap}
 td,th{padding:6px 8px;border-bottom:1px solid #eef0f2;vertical-align:middle}
 td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap} td.top{font-weight:700}
-audio{height:30px;width:165px;display:block} td:first-child{min-width:150px} small{color:#777} details{margin:4px 0}
+audio{height:30px;width:140px;display:block} td:first-child{min-width:150px} small{color:#777} details{margin:4px 0}
 """
 
 
