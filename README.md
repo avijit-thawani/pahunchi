@@ -146,5 +146,5 @@ Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_U
 - Lab paid calls go through `orlib` so they are logged and budget-checked.
 - The OpenRouter key stays server-side (`server/`); the browser only calls `/api/*`.
 - Before committing: `npm run build && npm run lint`, and `wc -l README.md` <= 150.
-- Hindi text for TTS is written in Devanagari (better pronunciation); keep a roman
-  transcript beside it for display.
+- After a notable app change (new feature, persona, voice, flow): update this README, the GitHub repo (description, homepage, screenshots in `docs/media/`) and, if needed, the in-app home copy and instructions.
+- TTS text: Hindi in Devanagari (better pronunciation), with a roman transcript beside it for display.
