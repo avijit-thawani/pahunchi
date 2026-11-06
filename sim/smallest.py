@@ -21,7 +21,9 @@ import requests
 
 import orlib
 
-BASE = "https://api.smallest.ai/waves/v1"
+# Pinned to Mumbai: from the US the default host routes to Oregon, where lightning_v3.1 rejects
+# every language with LANGUAGE_NOT_ENABLED_IN_REGION.
+BASE = "https://api.india.smallest.ai/waves/v1"
 OUT = orlib.SIM / "out" / "smallest"
 MODELS = ["lightning_v3.1", "lightning_v3.1_pro"]
 DAD_LINES = json.loads((orlib.SIM / "scenes.json").read_text())["scenes"][0]["lines"]
@@ -57,9 +59,7 @@ def list_voices():
 def tts(text: str, voice: str, model: str, out: Path) -> dict:
     t0 = time.time()
     ttfb, data = None, bytearray()
-    # Plain "hi" on lightning_v3.1 is region-blocked from the US ("LANGUAGE_NOT_ENABLED_IN_REGION").
-    lang = "hi" if model.endswith("_pro") else "auto"
-    body = {"text": text, "voice_id": voice, "model": model, "language": lang, "sample_rate": 24000,
+    body = {"text": text, "voice_id": voice, "model": model, "language": "hi", "sample_rate": 24000,
             "output_format": "wav"}
     with requests.post(f"{BASE}/tts", headers=headers(), json=body, stream=True, timeout=60) as r:
         if not r.ok:
