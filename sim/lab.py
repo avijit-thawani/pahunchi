@@ -297,7 +297,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}
 th{position:sticky;top:0;background:#f1f3f5;z-index:1;text-align:left;white-space:nowrap}
 td,th{padding:6px 8px;border-bottom:1px solid #eef0f2;vertical-align:middle}
 td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap} td.top{font-weight:700}
-audio{height:30px;width:140px;display:block} td:first-child{min-width:150px} small{color:#777} details{margin:4px 0}
+audio{height:30px;width:140px;display:block} td.name{min-width:150px} td.wide{min-width:260px} small{color:#777} details{margin:4px 0}
 """
 
 
@@ -317,8 +317,28 @@ def page() -> None:
     results = json.loads((OUT / "audition" / "results.json").read_text())
     h = ["<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>",
          f"<title>phoney voice lab</title><style>{PAGE_CSS}</style><main><h1>phoney voice lab</h1>",
-         "<p class=sub>Newest experiments first. Scores come from a Gemini audio judge: useful for spotting bad "
-         "takes, not for ranking the top voices (they bunch together). Trust your ear.</p>"]
+         "<p class=sub>Newest experiments first. Scores come from a Gemini audio judge. The v2 judge (role tables) "
+         "estimates age and gender and tests hard lines, so its scores spread out; older tables used v1, which "
+         "bunched good voices near the top. Either way, trust your ear.</p>"]
+    # 0. Family voices cast with the v2 judge (age/gender estimated, hard lines), one table per role.
+    roles = json.loads((SIM / "roles.json").read_text())["roles"]
+    for role in ("mom", "sister", "brother"):
+        path = OUT / "roles" / f"{role}.json"
+        if not path.exists():
+            continue
+        spec = roles[role]
+        rows = [f"<tr><td class='n top'>{r['score']}</td><td>{r['provider']}</td><td class=name>{html.escape(r['voice'])}</td>"
+                f"<td>{_audio(r['file'])}</td><td class=n>{r.get('est_gender', '')[:1]} {r.get('est_age', '')}</td>"
+                + "".join(f"<td class=n>{r.get(k, '')}</td>" for k in ("accent", "hard_bits", "naturalness"))
+                + f"<td>{r.get('sounds_like', '')}</td><td class=wide><small>{html.escape(str(r.get('issues', '')))}</small></td></tr>"
+                for r in json.loads(path.read_text()) if "error" not in r]
+        _section(h, f"Top contenders: {role}", "Nov 5 · 19:45",
+                 f"Target: {spec['gender']}, judge-estimated age {spec['age'][0]}–{spec['age'][1]} ({spec['desc']}). "
+                 f"Hard line: <i>{html.escape(spec['line'])}</i> Score 0–100 = accent, hard bits (हम्म, pauses, laugh, "
+                 "numbers) and naturalness, scaled down when age, gender or 'sounds like' miss the role; average of 2 runs.",
+                 ["score", "provider", "voice", "", "est. age", "accent", "hard bits", "natural", "sounds like",
+                  "worst moment"], rows)
+
     short = {"cab_night": "Cab (Hinglish)", "walk_scroll": "Walk (Hinglish)", "cab_english": "Cab (English)"}
     scenes = [(s["id"], short.get(s["id"], s["title"])) for s in SCENES]
 
@@ -337,7 +357,7 @@ def page() -> None:
         cells = "".join(
             f"<td class='n{' top' if k == 'overall' and score(sl, k) == best else ''}'>"
             f"{'' if score(sl, k) is None else f'{score(sl, k):.0f}'}</td>" for k in keys)
-        rows.append(f"<tr><td>{html.escape(m)}<br><small>dad {html.escape(str(cast['dad']))}</small></td>{cells}"
+        rows.append(f"<tr><td class=name>{html.escape(m)}<br><small>dad {html.escape(str(cast['dad']))}</small></td>{cells}"
                     + "".join(f"<td>{_audio(f'mix/{sid}__{sl}.mp3')}</td>" for sid, _ in scenes) + "</tr>")
     transcripts = "".join(
         f"<details><summary>{html.escape(s['title'])} transcript</summary><small>"

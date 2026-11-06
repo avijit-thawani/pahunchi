@@ -1,0 +1,41 @@
+{
+  "_note": "Audition lines per role: deliberately hard for TTS (हम्म, pauses, a laugh, numbers, English words, a question). Used by sim/roles.py and sim/judge.py. Age ranges are in the judge's terms: calibrated on known voices, it places older men ~8 years younger than they sound (Sarvam Girish/Sumit -> 45-48), so ranges are shifted down.",
+  "roles": {
+    "dad": {
+      "gender": "male",
+      "age": [
+        42,
+        65
+      ],
+      "desc": "her father, late 50s, warm, unhurried",
+      "line": "हाँ बेटा, बोल... हम्म। अच्छा, cab में बैठ गई? number बता ज़रा — डी एल थ्री सी, हाँ? ठीक है, लिख लिया। मैं line पे हूँ, तू आराम से बैठ।"
+    },
+    "mom": {
+      "gender": "female",
+      "age": [
+        40,
+        60
+      ],
+      "desc": "her mother, early 50s, warm, a little fussy",
+      "line": "हाँ बेटा, बोल... हम्म। खाना खाया तूने? अच्छा सुन, cab का number भेज दे मुझे — और पहुँच के missed call दे देना, ठीक है? अरे हाँ, पापा पूछ रहे थे, कल सुबह छह बजे की train है ना?"
+    },
+    "sister": {
+      "gender": "female",
+      "age": [
+        20,
+        34
+      ],
+      "desc": "her elder sister, late 20s, casual and chatty",
+      "line": "हाँ बोल ना, क्या हुआ? हम्म... अच्छा wait, मैं location देख रही हूँ। उफ़्फ़, इतना traffic? चल कोई बात नहीं, मैं line पे हूँ। और सुन, कल वाली party का plan cancel, ठीक है? हाहा।"
+    },
+    "brother": {
+      "gender": "male",
+      "age": [
+        20,
+        34
+      ],
+      "desc": "her elder brother, late 20s, relaxed, teasing but caring",
+      "line": "हाँ बोल, क्या scene है? हम्म... अच्छा, Uber है या Ola? number भेज ज़रा — डी एल थ्री सी, हाँ? बस, मैं phone पे हूँ, tension मत ले। अरे वो match देखा कल? बीस रन से जीते यार।"
+    }
+  }
+}
