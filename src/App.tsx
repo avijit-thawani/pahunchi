@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { History, Phone, Users } from 'lucide-react'
 import QuickCallPage from './pages/QuickCallPage.tsx'
 import HomePage from './pages/HomePage.tsx'
@@ -10,8 +10,6 @@ import JoinPage from './pages/JoinPage.tsx'
 import PrivacyPage from './pages/PrivacyPage.tsx'
 import IncomingPage from './pages/IncomingPage.tsx'
 import { useRingWhenDue } from './lib/later.ts'
-import { launchIntoCall } from './lib/install.ts'
-
 function Nav() {
   const { pathname } = useLocation()
   if (pathname.startsWith('/call') || pathname.startsWith('/incoming') || pathname === '/go') return null
@@ -52,7 +50,7 @@ export default function App() {
     <BrowserRouter>
       <RingWhenDue />
       <Routes>
-        <Route path="/" element={launchIntoCall() ? <Navigate to="/go" replace /> : <HomePage />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/go" element={<QuickCallPage />} />
         <Route path="/call" element={<CallPage />} />
         <Route path="/incoming" element={<IncomingPage />} />

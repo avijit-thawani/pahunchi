@@ -12,10 +12,7 @@ export type Settings = {
   language: Language
   ambience: boolean
   /** EXCUSES id used when a scheduled "Get me out" call rings. */
-  excuse?: string
-  /** Opening phoney from the home screen goes straight to a call (/go). On unless set to false. */
-  quickLaunch?: boolean
-}
+  excuse?: string}
 
 /**
  * totalMs = her last word -> his first sound. vadMs = silence before the pipeline started (the

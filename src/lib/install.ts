@@ -2,7 +2,6 @@
 // iPhone has no prompt API and needs Share -> Add to Home Screen by hand.
 
 import { useEffect, useState } from 'react'
-import { getSettings } from './store.ts'
 
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> }
 
@@ -23,12 +22,28 @@ window.addEventListener('appinstalled', () => {
 export const isStandalone = () =>
   matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true
 
-/** Decided once per app launch and cleared by /go, so going back to Home later doesn't redial. */
-let pendingLaunch = location.pathname === '/' && !location.search && isStandalone() && getSettings().quickLaunch !== false
-export const launchIntoCall = () => pendingLaunch
-export const launchDone = () => void (pendingLaunch = false)
+export const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent)
 
-const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent)
+/**
+ * While mounted, the page advertises the separate "Call" app (public/call.webmanifest), so Add to Home Screen
+ * here makes a second icon that opens /go instead of another copy of phoney.
+ */
+export function useCallManifest() {
+  useEffect(() => {
+    const swap = (selector: string, attr: string, value: string) => {
+      const el = document.querySelector(selector)
+      const old = el?.getAttribute(attr)
+      el?.setAttribute(attr, value)
+      return () => old != null && el?.setAttribute(attr, old)
+    }
+    const restore = [
+      swap('link[rel="manifest"]', 'href', '/call.webmanifest'),
+      swap('link[rel="apple-touch-icon"]', 'href', '/icon-call-192.png'),
+      swap('meta[name="apple-mobile-web-app-title"]', 'content', 'Call'),
+    ]
+    return () => restore.forEach((f) => f())
+  }, [])
+}
 
 /** 'prompt': we can show the browser's install dialog. 'ios': show instructions. null: installed or unsupported. */
 export function useInstall(): ['prompt' | 'ios' | null, () => Promise<boolean>] {

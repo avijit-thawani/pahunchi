@@ -191,18 +191,6 @@ export default function HomePage() {
               {EXCUSES.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
             </select>
           </label>
-          <label className="flex items-center justify-between gap-3">
-            <span className="text-sm font-bold">
-              Home-screen icon calls right away{' '}
-              <span className="font-semibold text-base-content/70">(otherwise it opens this page)</span>
-            </span>
-            <input
-              type="checkbox"
-              className="toggle toggle-success shrink-0"
-              checked={settings.quickLaunch !== false}
-              onChange={(e) => setSettings({ ...settings, quickLaunch: e.target.checked })}
-            />
-          </label>
           <ThemePicker />
         </div>
       </details>
