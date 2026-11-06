@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Home, ShieldCheck, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { Home, PhoneOff, ShieldCheck, ThumbsDown, ThumbsUp, UserPlus } from 'lucide-react'
 import { getSession, markSafe, setFeedback, useContacts, type Feedback } from '../lib/store.ts'
 import { sendFeedback } from '../lib/api.ts'
+import { supabase, useSession } from '../lib/supabase.ts'
+import InstallCard from './InstallCard.tsx'
 
 /** Optional: thumbs up/down, then an optional note. Goes to the call's server log and local history. */
 function CallFeedback({ id, initial }: { id: string; initial?: Feedback }) {
@@ -69,17 +71,59 @@ function CallFeedback({ id, initial }: { id: string; initial?: Feedback }) {
   )
 }
 
+/** Contacts saved on this phone plus, when signed in, those on the account. undefined while loading. */
+function useContactCount() {
+  const [local] = useContacts()
+  const account = useSession()
+  const [remote, setRemote] = useState<number>()
+  useEffect(() => {
+    if (!account || !supabase) return
+    supabase.from('trusted_contacts').select('id', { count: 'exact', head: true })
+      .then(({ count }) => setRemote(count ?? 0))
+  }, [account])
+  if (account === undefined || (account && remote === undefined)) return undefined
+  return local.length + (account ? remote ?? 0 : 0)
+}
+
 export default function AfterCallPage() {
   const { id = '' } = useParams()
   const [session, setSession] = useState(() => getSession(id))
-  const [contacts] = useContacts()
+  const contactCount = useContactCount()
 
   if (!session) return <main className="p-6">Call not found. <Link className="link" to="/">Home</Link></main>
+  if (contactCount === undefined) return null
 
   const minutes = Math.max(1, Math.round(((session.endedAt ?? session.startedAt) - session.startedAt) / 60000))
   const safe = () => {
     markSafe(id)
     setSession(getSession(id))
+  }
+
+  if (!contactCount) {
+    return (
+      <main className="max-w-md mx-auto px-6 min-h-dvh flex flex-col justify-center gap-6 text-center pt-8 pb-28">
+        <div className="mx-auto w-20 h-20 rounded-full bg-base-200 grid place-items-center">
+          <PhoneOff className="w-9 h-9 text-base-content/70" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-extrabold">Call ended</h1>
+          <p className="text-base-content/70 font-semibold mt-1">{minutes} min with {session.name}</p>
+        </div>
+        <CallFeedback id={id} initial={session.feedback} />
+        <InstallCard name={session.name} />
+        <Link to="/" className="btn btn-success btn-chunky btn-lg rounded-2xl font-extrabold gap-2">
+          <Home className="w-5 h-5" /> Home
+        </Link>
+        <div className="bg-base-200 rounded-box p-4 space-y-2">
+          <p className="text-sm font-semibold text-base-content/70">
+            Want someone to check on you if you don't reach safely?
+          </p>
+          <Link to="/contacts" className="btn btn-outline btn-sm rounded-xl font-extrabold gap-1.5">
+            <UserPlus className="w-4 h-4" /> Add a trusted contact
+          </Link>
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -97,8 +141,7 @@ export default function AfterCallPage() {
           <div className="text-6xl">🏠</div>
           <h1 className="text-3xl font-extrabold">Did you reach safely?</h1>
           <p className="text-base-content/70 font-semibold">
-            {minutes} min with {session.name}.{' '}
-            {contacts.length ? "Contacts get a nudge if you don't confirm (coming soon)." : ''}
+            {minutes} min with {session.name}. Alerts to contacts aren't live yet.
           </p>
           <button onClick={safe} className="btn btn-success btn-chunky btn-lg h-16 rounded-2xl text-lg font-extrabold">
             I'm safe
@@ -106,6 +149,7 @@ export default function AfterCallPage() {
         </>
       )}
       <CallFeedback id={id} initial={session.feedback} />
+      <InstallCard name={session.name} />
       {session.safeAt ? (
         <Link to="/" className="btn btn-chunky btn-lg rounded-2xl font-extrabold gap-2">
           <Home className="w-5 h-5" /> Home

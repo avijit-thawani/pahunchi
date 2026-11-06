@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { Captions, Grid3x3, MicOff, Pause, PhoneOff, UserPlus, Volume2 } from 'lucide-react'
+import { Captions, MicOff, PhoneOff, Volume2 } from 'lucide-react'
 import { activeCall, clearCall } from '../lib/activeCall.ts'
 import type { CallState } from '../lib/call.ts'
 import { SILENT } from '../../shared/api.ts'
@@ -28,6 +28,9 @@ function RoundButton({ icon: Icon, label, active, onClick }: {
     </button>
   )
 }
+
+/** Latency and mic-level readouts, for development: `localStorage['phoney.debug'] = '1'`. */
+const DEBUG = localStorage.getItem('phoney.debug') === '1'
 
 const noSubscribe = () => () => {}
 const noState = () => undefined
@@ -61,10 +64,6 @@ export default function CallPage() {
 
   return (
     <main className="call-bg fixed inset-0 text-white flex flex-col items-center px-6 pt-[max(3rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-      <button onClick={() => setShowText(!showText)} className="absolute top-4 right-4 opacity-30" aria-label="transcript">
-        <Captions size={20} />
-      </button>
-
       <div className="w-24 h-24 rounded-full bg-gradient-to-br from-sky-600 to-indigo-800 grid place-items-center text-4xl font-light mt-8">
         {name.slice(0, 1).toUpperCase()}
       </div>
@@ -78,20 +77,25 @@ export default function CallPage() {
           <MicOff className="w-4 h-4" /> Muted · {name} can't hear you
         </button>
       )}
-      {state.error && <p className="text-error text-xs mt-2 text-center">{state.error}</p>}
+      {state.error && (
+        <p role="alert" className="mt-3 rounded-full bg-red-500/20 text-red-200 px-4 py-1.5 text-sm font-semibold text-center">{state.error}</p>
+      )}
 
       <div className="flex-1 w-full overflow-y-auto my-4">
         {showText && (
           <div className="text-sm space-y-1.5 bg-black/30 rounded-xl p-3">
-            <div className="flex items-center gap-2 text-xs text-white/50">
-              <span>{state.activity}</span>
-              <progress className="progress w-24 h-1.5" value={Math.min(1, engine.level / (engine.threshold * 2 || 1))} max={1} />
-              {last?.totalMs && (
-                <span>
-                  last reply {(last.totalMs / 1000).toFixed(1)}s (stt {last.sttMs}, llm {last.llmMs}, tts {last.ttsMs} ms)
-                </span>
-              )}
-            </div>
+            {DEBUG && (
+              <div className="flex items-center gap-2 text-xs text-white/50">
+                <span>{state.activity}</span>
+                <progress className="progress w-24 h-1.5" value={Math.min(1, engine.level / (engine.threshold * 2 || 1))} max={1} />
+                {last?.totalMs && (
+                  <span>
+                    last reply {(last.totalMs / 1000).toFixed(1)}s (stt {last.sttMs}, llm {last.llmMs}, tts {last.ttsMs} ms)
+                  </span>
+                )}
+              </div>
+            )}
+            {!visible.length && <p className="text-white/50 text-xs">Nothing said yet.</p>}
             {visible.map((t, i) => (
               <p key={i} className={t.who === 'event' ? 'text-white/40 italic text-xs' : t.who === 'her' ? 'text-sky-300' : ''}>
                 {t.who === 'event' ? `[${t.text}]` : t.text}
@@ -101,12 +105,9 @@ export default function CallPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-x-10 gap-y-6 mb-10">
+      <div className="grid grid-cols-3 gap-x-10 mb-10">
         <RoundButton icon={MicOff} label={state.muted ? 'Muted' : 'Mute'} active={state.muted} onClick={() => engine.toggleMute()} />
-        <RoundButton icon={Grid3x3} label="Keypad" />
         <RoundButton icon={Volume2} label="Speaker" active={state.speaker} onClick={() => engine.toggleSpeaker()} />
-        <RoundButton icon={UserPlus} label="Add call" />
-        <RoundButton icon={Pause} label="Hold" />
         <RoundButton icon={Captions} label="Text" active={showText} onClick={() => setShowText(!showText)} />
       </div>
 

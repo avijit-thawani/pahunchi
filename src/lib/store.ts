@@ -13,6 +13,8 @@ export type Settings = {
   ambience: boolean
   /** EXCUSES id used when a scheduled "Get me out" call rings. */
   excuse?: string
+  /** Opening phoney from the home screen goes straight to a call (/go). On unless set to false. */
+  quickLaunch?: boolean
 }
 
 /**

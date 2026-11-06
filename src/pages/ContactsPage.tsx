@@ -5,11 +5,12 @@ import { useContacts } from '../lib/store.ts'
 import { signInWithGoogle, signOut, supabase, userName, useSession } from '../lib/supabase.ts'
 
 const DELAYS = [
-  { min: 0, label: 'As soon as a call starts' },
-  { min: 30, label: 'If I don\'t tap "I\'m safe" within 30 min' },
-  { min: 60, label: 'Within 1 hour' },
-  { min: 180, label: 'Within 3 hours' },
+  { min: 0, label: 'Right away, when a call starts' },
+  { min: 30, label: 'If I don\'t check in within 30 min' },
+  { min: 60, label: 'If I don\'t check in within 1 hour' },
+  { min: 180, label: 'If I don\'t check in within 3 hours' },
 ]
+const WAITS = [30, 60, 180]
 
 let movingLocal = false
 
@@ -31,6 +32,9 @@ export default function ContactsPage() {
         <h1 className="text-3xl font-extrabold tracking-tight">Trusted contacts</h1>
         <span className="badge badge-warning font-extrabold">Beta</span>
       </div>
+      <p className="text-sm font-semibold text-base-content/70">
+        They'll see your call if you don't check in. <b>Alerts aren't live yet</b>, so nobody is notified for now.
+      </p>
       {!supabase ? (
         <Notice>Accounts aren't configured on this build.</Notice>
       ) : session === undefined ? (
@@ -57,7 +61,7 @@ function SignedOut() {
   return (
     <section className="space-y-3 bg-base-200 rounded-box p-4">
       <p className="font-semibold">
-        Alerts have to come from our server, so it needs to know who you are. Calls still work without an account.
+        Sign in so your contacts can be told if you don't check in. Calls work without an account.
       </p>
       {local.length > 0 && (
         <p className="text-sm text-base-content/70 font-semibold">
@@ -196,7 +200,7 @@ function SignedIn({ session }: { session: Session }) {
               <Send className="w-4 h-4" /> {copied === c.id ? 'Copied' : 'Invite'}
             </button>
           )}
-          <button className="btn btn-ghost btn-sm btn-circle" aria-label="Remove" onClick={() => remove(c.id)}>
+          <button className="btn btn-ghost btn-sm btn-circle" aria-label="Remove" onClick={() => confirm(`Remove ${c.name}?`) && remove(c.id)}>
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
@@ -210,9 +214,24 @@ function SignedIn({ session }: { session: Session }) {
         <p className="text-xs text-base-content/60 font-semibold">
           With an email they're linked automatically when they sign up; otherwise send them the invite link.
         </p>
-        <select className="select w-full font-semibold" value={delayMin} onChange={(e) => setDelayMin(Number(e.target.value))}>
-          {DELAYS.map((d) => <option key={d.min} value={d.min}>{d.label}</option>)}
-        </select>
+        <div className="grid grid-cols-2 gap-2">
+          <button data-selected={delayMin === 0} onClick={() => setDelayMin(0)} className="pick py-2 text-sm font-extrabold">
+            Right away
+          </button>
+          <button data-selected={delayMin > 0} onClick={() => delayMin === 0 && setDelayMin(30)} className="pick py-2 text-sm font-extrabold">
+            If I don't check in
+          </button>
+        </div>
+        {delayMin > 0 && (
+          <div className="flex items-center gap-2 text-sm font-semibold text-base-content/70">
+            <span>within</span>
+            {WAITS.map((m) => (
+              <button key={m} data-selected={delayMin === m} onClick={() => setDelayMin(m)} className="pick px-3 py-1 text-sm font-extrabold">
+                {m < 60 ? `${m}m` : `${m / 60}h`}
+              </button>
+            ))}
+          </div>
+        )}
         <button className="btn btn-primary btn-chunky w-full rounded-2xl font-extrabold gap-2" onClick={add}>
           <UserPlus className="w-5 h-5" /> Add contact
         </button>
