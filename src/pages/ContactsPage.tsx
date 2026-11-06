@@ -162,10 +162,9 @@ function SignedIn({ session }: { session: Session }) {
 
   return (
     <>
-      <Notice>
-        No messages or notifications yet: contacts who joined see your calls and transcripts in their History
-        tab, following the timing you pick below.
-      </Notice>
+      <p className="text-xs text-base-content/60 font-semibold">
+        They see your calls in their phoney History tab. They aren't sent a text or notification yet.
+      </p>
       <div className="flex items-center gap-2 text-sm font-semibold text-base-content/70">
         <span className="flex-1 truncate">Signed in as {userName(session)}</span>
         <button className="btn btn-ghost btn-xs gap-1" onClick={() => signOut()}>
