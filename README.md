@@ -54,7 +54,7 @@ Signed-in calls sync to `calls`; contacts see them in History per their delay (`
   only once the silence reaches 600 ms and drops it all if she resumes (mostly caught during STT).
 - **Voices (A/B, all Sarvam Bulbul v4 Flash):** 2 per role, one picked at random per call and logged (`voiceId`):
   dad sumit/girish, mom shreya/suchitra, sister aparna/sanchita, brother shubh/kabir; Dost/Saheli reuse the
-  sibling voices with their own prompt note (`shared/personas.ts`). Fallbacks: Fish clone of Algenib (dad), then Gemini. Optional 👍/👎 + note after the call → `feedback.json`.
+  sibling voices with their own prompt note (`shared/personas.ts`). Fallbacks: Fish clone of Algenib (dad), then Smallest AI `lightning_v3.1` (needs `SMALLEST_API_KEY`), then two Gemini voices. Optional 👍/👎 + note after the call → `feedback.json`.
 - **Latency** (her last word -> his first sound, median of 8 lab turns): **~2.3-2.5 s** (was ~4.3), local and
   deployed. Real browser calls: 1.9-2.9 s. See [docs/latency.md](docs/latency.md).
 - **Cost:** voice is Sarvam ₹1 per 1,000 chars (~$0.0065 per minute of him talking); a busy call is well under $0.01/min.
@@ -109,9 +109,10 @@ timings (STT, LLM first clause, TTS first byte), models, TTS engine and errors; 
 `X-Phoney-Turn` headers and posts to `/api/log`; failures never break a call.
 
 - **Dev:** `logs/calls/<session>/` (gitignored; session ids start with the date).
-- **Deployed:** private Supabase Storage bucket `phoney-logs` (in the `mandarin` project for
-  now; free tier is full), same layout, events as `events/*.json`. Also one `[log]` line per
-  request in the Netlify function logs.
+- **Deployed:** private Supabase Storage bucket `phoney-logs` in the phoney project (same one as
+  accounts, so "Delete all my data" reaches both), same layout, events as `events/*.json`. Also
+  one `[log]` line per request in the Netlify function logs. `scripts/move-logs.ts` copied the
+  bucket over from the old `mandarin` project.
 - `node scripts/logs.ts [latest|<id>]` shows a timeline; `--remote [<id>]` lists or
   downloads deployed sessions into `logs/calls/`.
 

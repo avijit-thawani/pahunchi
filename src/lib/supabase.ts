@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient, type Session } from '@supabase/supabase-js'
+import { handleAuthRedirects, isNative, nativeSignIn } from './native.ts'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
@@ -21,7 +22,10 @@ export function useSession(): Session | null | undefined {
   return session
 }
 
+if (supabase) handleAuthRedirects(supabase)
+
 export function signInWithGoogle() {
+  if (supabase && isNative) return nativeSignIn(supabase)
   return supabase?.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + window.location.pathname },

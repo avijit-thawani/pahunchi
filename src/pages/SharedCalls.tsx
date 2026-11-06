@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { PhoneCall, ShieldAlert, ShieldCheck } from 'lucide-react'
 import type { Turn } from '../../shared/api.ts'
 import { SILENT } from '../../shared/api.ts'
 import { supabase, useSession } from '../lib/supabase.ts'
+
+const CallMap = lazy(() => import('./CallMap.tsx'))
 
 type SharedCall = {
   owner_name: string
@@ -21,6 +23,13 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'nume
 export default function SharedCalls() {
   const session = useSession()
   const [calls, setCalls] = useState<SharedCall[]>([])
+  const [open, setOpen] = useState<Set<string>>(new Set())
+  const toggle = (id: string, on: boolean) => setOpen((o) => {
+    const n = new Set(o)
+    if (on) n.add(id)
+    else n.delete(id)
+    return n
+  })
 
   useEffect(() => {
     if (!supabase || !session) return
@@ -43,7 +52,8 @@ export default function SharedCalls() {
             ? { Icon: PhoneCall, cls: 'text-info', text: 'On a call now' }
             : { Icon: ShieldAlert, cls: 'text-warning', text: `Call ended ${time(c.ended_at)}, not marked safe` }
         return (
-          <details key={c.id} className="collapse collapse-arrow bg-base-200 border-2 border-warning/50 rounded-box">
+          <details key={c.id} onToggle={(e) => toggle(c.id, e.currentTarget.open)}
+            className="collapse collapse-arrow bg-base-200 border-2 border-warning/50 rounded-box">
             <summary className="collapse-title">
               <div className="flex items-center gap-2">
                 <status.Icon className={`w-5 h-5 ${status.cls}`} />
@@ -57,6 +67,7 @@ export default function SharedCalls() {
               </div>
             </summary>
             <div className="collapse-content text-sm space-y-1.5">
+              {open.has(c.id) && <Suspense><CallMap callId={c.id} live={!c.ended_at && !c.safe_at} /></Suspense>}
               {!c.turns.length && <p className="text-base-content/50 italic text-xs">No words yet.</p>}
               {c.turns
                 .filter((t) => !(t.who === 'them' && t.text === SILENT))

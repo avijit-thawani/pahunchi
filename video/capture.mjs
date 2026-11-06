@@ -82,6 +82,13 @@ const SHARED_CALL = [{
   safe_at: null, delay_min: 30, turns: cabTurns(now - 58 * MIN).slice(0, 6),
 }]
 
+// her cab ride: Connaught Place -> Lajpat Nagar, a point a minute
+const SHARED_PATH = [
+  [28.6315, 77.2167], [28.6268, 77.2195], [28.6205, 77.2238], [28.6129, 77.2295], [28.6062, 77.2321],
+  [28.5994, 77.2335], [28.5921, 77.2349], [28.5858, 77.2381], [28.5801, 77.2410], [28.5745, 77.2422],
+  [28.5698, 77.2436], [28.5677, 77.2431],
+].map(([lat, lng], i) => ({ at: iso(now - 58 * MIN + i * 2 * MIN), lat, lng, accuracy_m: 12 + (i % 3) * 6 }))
+
 /** Answers for the fake Supabase backend, keyed by path suffix. */
 function supabaseRoutes(viewer) {
   const contact = viewer === 'contact'
@@ -91,6 +98,7 @@ function supabaseRoutes(viewer) {
       ? [{ link_id: 'l1', owner_name: 'Priya Sharma', added_back: false }]
       : [{ link_id: 'l2', owner_name: 'Riya Mehta', added_back: true }],
     '/rest/v1/rpc/shared_calls': contact ? SHARED_CALL : [],
+    '/rest/v1/rpc/shared_call_path': contact ? SHARED_PATH : [],
     '/rest/v1/rpc/invite_info': [{ owner_name: 'Priya Sharma', joined: false, mine: false }],
     '/rest/v1/calls': [],
     '/auth/v1/user': authToken(contact ? CONTACT_USER : USER).user,
@@ -158,9 +166,11 @@ const STILLS = {
   }, '/'],
   '10_incoming': [{}, '/incoming?id=&p=dad&n=Papa&l=hinglish&s=escape&x=unwell'],
   '11_contacts_signed_out': [{}, '/contacts'],
-  '12_contacts_signed_in': [{ viewer: 'owner' }, '/contacts'],
-  '13_contact_history_shared': [{ viewer: 'contact', seed: { 'phoney.sessions': [] } }, '/history',
-    (p) => p.evaluate(() => { const d = document.querySelector('details'); if (d) d.open = true })],
+  '12_contacts_signed_in': [{ viewer: 'owner', seed: { 'phoney.settings': { ...BASE_SEED['phoney.settings'], shareLocation: true } } }, '/contacts'],
+  '13_contact_history_shared': [{ viewer: 'contact', seed: { 'phoney.sessions': [] } }, '/history', async (p) => {
+    await p.evaluate(() => { const d = document.querySelector('details'); if (d) d.open = true })
+    await sleep(2500)
+  }],
   '14_join_invite': [{ viewer: 'contact' }, '/join/demo1'],
   '15_quick_call': [{}, '/go'],
 }

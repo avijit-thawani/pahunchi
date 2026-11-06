@@ -3,10 +3,11 @@
 
 import { handle } from '../../server/api.ts'
 import { isAuthed } from '../../server/auth.ts'
+import { withCors } from '../../server/cors.ts'
 
 type Context = { waitUntil?: (p: Promise<unknown>) => void }
 
-export default async (req: Request, context: Context): Promise<Response> => {
+export default (req: Request, context: Context): Promise<Response> => withCors(req, async () => {
   const { PHONEY_PASSWORD, PHONEY_COOKIE_SECRET, PHONEY_PUBLIC } = process.env
   if (PHONEY_PUBLIC !== '1' && (!PHONEY_PASSWORD || !PHONEY_COOKIE_SECRET || !(await isAuthed(req, PHONEY_PASSWORD, PHONEY_COOKIE_SECRET)))) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 })
@@ -20,7 +21,7 @@ export default async (req: Request, context: Context): Promise<Response> => {
   const res = await handle(name, req, defer)
   if (!context.waitUntil) await Promise.allSettled(pending)
   return res
-}
+})
 
 export const config = {
   path: '/api/*',

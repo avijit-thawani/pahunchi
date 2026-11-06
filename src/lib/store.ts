@@ -12,7 +12,10 @@ export type Settings = {
   language: Language
   ambience: boolean
   /** EXCUSES id used when a scheduled "Get me out" call rings. */
-  excuse?: string}
+  excuse?: string
+  /** Send her location to trusted contacts during calls (signed in only; location.ts). */
+  shareLocation?: boolean
+}
 
 /**
  * totalMs = her last word -> his first sound. vadMs = silence before the pipeline started (the

@@ -9,7 +9,7 @@
 // defaults to local). Logging never throws:
 // every failure is caught and printed, so it cannot break a call.
 
-import { appendFile, mkdir, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 export const BUCKET = 'phoney-logs'
@@ -21,6 +21,8 @@ export type LogEvent = { kind: string; turn?: string; [k: string]: unknown }
 interface Sink {
   event(session: string, e: LogEvent & { at: string }): Promise<void>
   file(session: string, name: string, bytes: Uint8Array, type: string): Promise<void>
+  /** Remove everything stored for the session. */
+  forget(session: string): Promise<void>
 }
 
 const localSink = (root: string): Sink => ({
@@ -32,16 +34,35 @@ const localSink = (root: string): Sink => ({
     await mkdir(path.join(root, session), { recursive: true })
     await writeFile(path.join(root, session, name), bytes)
   },
+  forget: (session) => rm(path.join(root, session), { recursive: true, force: true }),
 })
 
 function supabaseSink(url: string, key: string): Sink {
+  const auth = { Authorization: `Bearer ${key}`, apikey: key }
   const put = async (objectPath: string, body: Uint8Array | string, type: string) => {
     const r = await fetch(`${url}/storage/v1/object/${BUCKET}/${objectPath}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, apikey: key, 'Content-Type': type, 'x-upsert': 'true' },
+      headers: { ...auth, 'Content-Type': type, 'x-upsert': 'true' },
       body: typeof body === 'string' ? body : new Blob([body as BlobPart]),
     })
     if (!r.ok) throw new Error(`storage ${r.status}: ${(await r.text()).slice(0, 200)}`)
+  }
+  const storage = async (method: string, route: string, body: object) => {
+    const r = await fetch(`${url}/storage/v1/object/${route}`, {
+      method, headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    })
+    if (!r.ok) throw new Error(`storage ${r.status}: ${(await r.text()).slice(0, 200)}`)
+    return r.json() as Promise<{ name: string; id: string | null }[]>
+  }
+  /** Storage listing is one level deep (events/ is a subfolder) and at most 1000 per page. */
+  const clear = async (prefix: string): Promise<void> => {
+    for (;;) {
+      const items = await storage('POST', `list/${BUCKET}`, { prefix, limit: 1000 })
+      const files = items.filter((i) => i.id).map((i) => prefix + i.name)
+      for (const dir of items.filter((i) => !i.id)) await clear(`${prefix}${dir.name}/`)
+      if (!files.length) return
+      await storage('DELETE', BUCKET, { prefixes: files })
+    }
   }
   return {
     event: (session, e) => put(
@@ -49,6 +70,7 @@ function supabaseSink(url: string, key: string): Sink {
       JSON.stringify(e), 'application/json',
     ),
     file: (session, name, bytes, type) => put(`${session}/${name}`, bytes, type),
+    forget: (session) => clear(`${session}/`),
   }
 }
 
@@ -101,6 +123,14 @@ export class CallLog {
     if (!s || !this.session) return
     this.defer(safe(`file ${name}`, async () => s.file(this.session!, name, await bytes, type)))
   }
+}
+
+/** Delete these sessions' logs. Unlike logging this throws, so a failed deletion is reported. */
+export async function forgetSessions(sessions: string[]): Promise<number> {
+  const s = getSink()
+  const valid = sessions.filter((id) => SESSION_RE.test(id))
+  if (s) for (const id of valid) await s.forget(id)
+  return valid.length
 }
 
 /** Wrap 16-bit mono PCM in a WAV header. */

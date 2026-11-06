@@ -5,6 +5,7 @@ import { CallEngine } from './call.ts'
 import type { Settings } from './store.ts'
 import type { Scene } from '../../shared/scene.ts'
 import { demoCall } from './demoCall.ts'
+import { startSharing, stopSharing } from './location.ts'
 
 let active: CallEngine | null = null
 
@@ -12,6 +13,8 @@ export function startCall(settings: Settings, scene?: Scene): CallEngine {
   active?.hangup()
   active = new CallEngine(settings, scene)
   void active.start()
+  if (settings.shareLocation) void startSharing(active.sessionId)
+  else stopSharing()
   return active
 }
 
@@ -23,4 +26,5 @@ export function activeCall(): CallEngine | null {
 
 export function clearCall() {
   active = null
+  stopSharing()
 }

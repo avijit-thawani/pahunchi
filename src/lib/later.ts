@@ -76,6 +76,15 @@ export function cancelCall(id: string) {
   if (p?.pushed) void post({ op: 'cancel', id }).catch(() => undefined)
 }
 
+/** "Delete all my data": cancel every scheduled call on the server and drop the push subscription. */
+export async function cancelAll() {
+  const pushed = read().filter((p) => p.pushed)
+  write([])
+  await Promise.all(pushed.map((p) => post({ op: 'cancel', id: p.id })))
+  const reg = await navigator.serviceWorker?.getRegistration()
+  await (await reg?.pushManager?.getSubscription())?.unsubscribe()
+}
+
 /** It rang (in the app or via the notification): forget it and clear the notification. */
 export function rang(id: string) {
   if (read().some((x) => x.id === id)) write(read().filter((x) => x.id !== id))

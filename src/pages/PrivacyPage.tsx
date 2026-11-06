@@ -28,7 +28,13 @@ export default function PrivacyPage() {
         Supabase, OpenRouter and its AI providers) or when the law requires it.
       </Section>
       <Section title="Deleting your data">
-        Remove contacts at any time on the Contacts page. To delete your account or your call recordings, email{' '}
+        Remove contacts at any time on the Contacts page. To delete everything, tap "Delete all my data" under
+        More options on the home screen. It removes, right away and for good: the recordings, transcripts and
+        feedback of every call made on this phone or while signed in, your scheduled calls, your account and
+        trusted contacts, and everything phoney saved on this phone. If someone added you as a trusted contact,
+        they keep the name and email they typed, but are no longer linked to your account. Short server logs at
+        our host expire on their own. What AI providers keep is up to their own policies. Questions, or calls made
+        on a phone you no longer have: email{' '}
         <a className="link" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
       </Section>
       <Link to="/" className="link link-hover text-sm font-semibold text-base-content/60 block">Back to phoney</Link>

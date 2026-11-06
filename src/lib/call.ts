@@ -7,7 +7,8 @@ import { persona, pickVoice } from '../../shared/personas.ts'
 import type { Scene } from '../../shared/scene.ts'
 import * as api from './api.ts'
 import { CallAudio } from './audio.ts'
-import { END_MS, Mic, PAUSE_MS } from './mic.ts'
+import { END_MS, Mic, openMic, PAUSE_MS } from './mic.ts'
+import { canRoute, setSpeaker, startRoute, stopRoute } from './route.ts'
 import { saveSession, type CallEvent, type Session, type Settings, type TurnMetrics } from './store.ts'
 import { syncCall } from './sync.ts'
 
@@ -31,7 +32,6 @@ const FILLERS: Record<string, string[]> = {
   english: ['Hmm.', 'Haan.', 'Okay.'],
 }
 const fillerCache = new Map<string, { bytes: Uint8Array; rate: number }[]>()
-const RINGS = 2
 const FILLER_AT_MS = 2500 // after her last word, if he hasn't started talking
 
 const silenceGap = () => 35000 + Math.random() * 40000
@@ -60,7 +60,7 @@ function newSessionId() {
 }
 
 export class CallEngine {
-  state: CallState = { phase: 'idle', activity: 'listening', turns: [], metrics: [], muted: false, speaker: true }
+  state: CallState = { phase: 'idle', activity: 'listening', turns: [], metrics: [], muted: false, speaker: !canRoute }
   level = 0
   threshold = 0
   private listeners = new Set<() => void>()
@@ -94,6 +94,10 @@ export class CallEngine {
 
   get name() {
     return this.settings.name
+  }
+
+  get sessionId() {
+    return this.session.id
   }
 
   subscribe = (fn: () => void) => {
@@ -136,6 +140,14 @@ export class CallEngine {
       name: this.settings.name, language: this.settings.language, ambience: this.settings.ambience, scene: this.scene,
       screen: `${screen.width}x${screen.height}`, standalone: matchMedia('(display-mode: standalone)').matches,
     })
+    // In the Android WebView, audio only follows the call route (earpiece / Bluetooth) if the mic is
+    // already open when the AudioContext is created; otherwise it plays as media on the loudspeaker.
+    let stream: Promise<MediaStream> | undefined
+    if (canRoute) {
+      stream = openMic()
+      await stream.catch(() => undefined)
+      await startRoute(this.state.speaker)
+    }
     this.audio = new CallAudio()
     await this.audio.resume()
     this.set({ phase: 'ringing' })
@@ -153,7 +165,7 @@ export class CallEngine {
     })
     this.mic.paused = true
     try {
-      await this.mic.start()
+      await this.mic.start(await stream)
     } catch (e) {
       this.logEvent('error', `mic: ${e}`)
       this.set({ error: 'Microphone permission is needed for the call.' })
@@ -163,7 +175,11 @@ export class CallEngine {
     const connected: Omit<Turn, 'at'> = { who: 'event', text: this.scene ? 'she answered' : 'call connected' }
     const opening = this.prepare('00', connected)
     this.push(connected)
-    if (!this.scene) await this.audio.ringback(RINGS)
+    if (!this.scene) {
+      const stopRing = this.audio.ringback()
+      await opening.stream.clip(0).catch(() => null)
+      stopRing()
+    }
     if (this.state.phase !== 'ringing') return
     this.set({ phase: 'connected', connectedAt: Date.now() })
     if (this.settings.ambience) void this.audio.startAmbience('/ambience/tv.mp3').catch(() => undefined)
@@ -352,7 +368,8 @@ export class CallEngine {
 
   toggleSpeaker() {
     const speaker = !this.state.speaker
-    this.audio?.setVolume(speaker ? 1 : 0.5)
+    if (canRoute) void setSpeaker(speaker)
+    else this.audio?.setVolume(speaker ? 1 : 0.5)
     this.set({ speaker })
   }
 
@@ -363,6 +380,7 @@ export class CallEngine {
     clearInterval(this.timer)
     this.mic?.stop()
     this.audio?.close()
+    void stopRoute()
     void this.wakeLock?.release().catch(() => undefined)
     this.set({ phase: 'ended' })
     this.logEvent('hangup')

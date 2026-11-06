@@ -26,6 +26,10 @@ export type Persona = {
   available: boolean
   /** Primary voices, A/B tested: one is picked at random per call and logged. Falls back to `clone`, then Gemini. */
   voices?: VoiceOption[]
+  /** Smallest AI Lightning voice id, tried after Sarvam (and `clone`) fail. */
+  smallest: string
+  /** Second Gemini voice, the last resort after `voice`. */
+  backupVoice: string
 }
 
 const sarvam = (speaker: string): VoiceOption =>
@@ -35,7 +39,7 @@ const sarvam = (speaker: string): VoiceOption =>
 export const PERSONAS: Persona[] = [
   {
     id: 'dad', label: 'Dad', defaultName: 'Papa', relation: 'father', gender: 'm',
-    voice: 'Algenib', tested: true, available: true,
+    voice: 'Algenib', backupVoice: 'Gacrux', smallest: 'ranbir', tested: true, available: true,
     voices: [sarvam('sumit_hi_conversational'), sarvam('girish_hi_devotional')],
     style: 'Indian father in his late fifties, deep, warm, unhurried, on the phone with his daughter',
     talk: 'Call her बेटा now and then. Calm and a little protective; a father of few words.',
@@ -47,35 +51,35 @@ export const PERSONAS: Persona[] = [
   },
   {
     id: 'mom', label: 'Mom', defaultName: 'Mummy', relation: 'mother', gender: 'f',
-    voice: 'Sulafat', tested: true, available: true,
+    voice: 'Sulafat', backupVoice: 'Kore', smallest: 'irisha', tested: true, available: true,
     voices: [sarvam('shreya_hi_conversational'), sarvam('suchitra_hi_ecomm')],
     style: 'Indian mother in her fifties, warm, a little fussy, on the phone with her daughter',
     talk: 'Call her बेटा. Warm and a little fussy: food, sleep, "पहुँच के बताना".',
   },
   {
     id: 'brother', label: 'Brother', defaultName: 'Bhaiya', relation: 'elder brother', gender: 'm',
-    voice: 'Orus', tested: true, available: true,
+    voice: 'Orus', backupVoice: 'Sadaltager', smallest: 'aneer', tested: true, available: true,
     voices: [sarvam('shubh_enhi_companion'), sarvam('kabir_hi_conversational')],
     style: 'Indian man in his late twenties, relaxed, teasing but caring, on the phone with his younger sister',
     talk: 'Elder brother: light teasing, call her by name or छोटी, never बेटा. Protective underneath the jokes.',
   },
   {
     id: 'sister', label: 'Sister', defaultName: 'Didi', relation: 'elder sister', gender: 'f',
-    voice: 'Leda', tested: true, available: true,
+    voice: 'Leda', backupVoice: 'Achernar', smallest: 'ishani', tested: true, available: true,
     voices: [sarvam('aparna_hi_customer'), sarvam('sanchita_enhi_companion')],
     style: 'Indian woman in her late twenties from Delhi, casual and chatty, on the phone with her younger sister',
     talk: 'Elder sister: chatty, says यार, shares a bit of gossip, never बेटा. Big-sister protective.',
   },
   {
     id: 'friend_m', label: 'Friend (male)', defaultName: 'Dost', relation: 'close male friend', gender: 'm',
-    voice: 'Sadaltager', tested: true, available: true,
+    voice: 'Sadaltager', backupVoice: 'Orus', smallest: 'vaibhav', tested: true, available: true,
     voices: [sarvam('shubh_enhi_companion'), sarvam('kabir_hi_conversational')],
     style: 'young Indian man in his twenties from Delhi, casual, friendly, on the phone with a close friend',
     talk: 'Close friend her own age: casual banter, says यार and bro-ish slang, never बेटा, never parental. Cares but plays it cool.',
   },
   {
     id: 'friend_f', label: 'Friend (female)', defaultName: 'Saheli', relation: 'close female friend', gender: 'f',
-    voice: 'Achernar', tested: true, available: true,
+    voice: 'Achernar', backupVoice: 'Leda', smallest: 'zoya', tested: true, available: true,
     voices: [sarvam('aparna_hi_customer'), sarvam('sanchita_enhi_companion')],
     style: 'young Indian woman in her twenties from Delhi, casual, friendly, on the phone with a close friend',
     talk: 'Close friend her own age: easy chatter, says यार, small gossip and plans, never बेटा, never parental.',

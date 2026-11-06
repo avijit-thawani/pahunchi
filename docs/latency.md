@@ -81,11 +81,36 @@ production (the 2.9 s turn had a 1.1 s STT). Without speculation the same pipeli
 What's left is mostly STT (0.5-1.2 s) and the LLM's first clause (0.6-0.9 s); the reply is usually
 one or two short sentences, so the first clause arrives only ~50 ms before the whole reply.
 
+## Re-run on Sarvam (Nov 5 evening)
+
+The app now uses Scribe v2 STT (with a `hi`/`en` hint) and Sarvam Bulbul v4 Flash dad voices streamed
+as `linear16`. Same 9 turns; `live app-sarvam-sumit app-sarvam-girish scribe-fish-clone`. Rows now
+record `conn`: requests reuse one connection per host (like the app's server); `COLD=1` reproduces the
+earlier fresh-connection runs.
+
+| Pipeline | Conn | STT | LLM clause | TTS 1st byte | Measured | +300 ms (app's speculative wait) |
+|---|---|---|---|---|---|---|
+| Sarvam sumit (app) | cold | 0.78 | 0.62 | 0.82 | 2.36 | 2.7 |
+| Sarvam sumit (app) | warm | 0.58 | 0.65 | 0.39 | 1.68 | **2.0** |
+| Sarvam girish (app) | warm | 0.58 | 0.59 | 0.38 | 1.60 | **1.9** |
+| Fish clone, Scribe STT (control) | warm | 0.68 | 0.64 | 0.23 | 1.55 | 1.85 |
+
+- **Connection reuse matters most for Sarvam.** Its servers are ~0.2 s away from the US; a new TLS
+  connection costs ~0.5 s more before the first byte (0.85-1.05 s cold vs 0.37-0.42 s warm, across
+  all 8 app voices and every codec). OpenRouter voices barely change (Fish 0.26 -> 0.23 s). Cold
+  turns happen after a function cold start or an idle connection; the first opening line and fillers
+  usually warm it.
+- With `linear16` the first body bytes arrive ~0.2 s after the headers on a cold connection; `mp3`
+  arrives with the headers. Warm, both arrive together.
+- Fish stays ~0.15 s faster to first audio; Sarvam is the pick for accent, not speed.
+- One reply ended in a stray `</h3>` from the LLM; the TTS input isn't sanitised for markup.
+
 ## Caveats
 
 - Measured from the US. From India, each serial hop (browser -> server -> OpenRouter -> provider) adds
   round trips; the cascade has 3 hops per turn, speech-to-speech 1. Re-measure from an Indian network
   and pick a server region close to the providers.
-- In the live runs the English scene used the Hinglish prompt, so replies there were Hinglish.
+- Before the Sarvam re-run, the English scene used the Hinglish prompt. It now gets the English
+  prompt, but replies still come out as romanized Hinglish ("Achha, number plate bheja kya tune?").
 - Clean TTS clips are easier than a real street mic; real STT will be slower and noisier. With the
   lab clips STT sometimes renders English words in Marathi-style Devanagari ("व्हाईट डिझायर आहे").

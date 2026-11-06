@@ -5,7 +5,7 @@ import { persona, type Language, type Persona, type VoiceOption } from '../share
 import type { ReplyChunk, ReplyRequest, SttResponse } from '../shared/api.ts'
 import { SILENT } from '../shared/api.ts'
 import { Clauses, speakable, stripMarkup } from '../shared/clauses.ts'
-import { CallLog, collect, pcmToWav } from './log.ts'
+import { CallLog, collect, forgetSessions, pcmToWav } from './log.ts'
 import { clientIp, overLimit } from './limits.ts'
 import { systemPrompt } from './prompt.ts'
 import { schedule } from './schedule.ts'
@@ -197,7 +197,7 @@ export async function reply(req: Request, log: CallLog): Promise<Response> {
 }
 
 type Engine = {
-  name: 'sarvam' | 'clone' | 'gemini'; model: string; voice: string; timeoutMs: number
+  name: 'sarvam' | 'clone' | 'smallest' | 'gemini'; model: string; voice: string; timeoutMs: number
   url: string; headers: () => Record<string, string>; body: () => Promise<object>
   /** Fixed output rate; OpenRouter engines report theirs in Content-Type. */
   rate?: number
@@ -222,13 +222,32 @@ function primary(v: VoiceOption, text: string, language: Language): Engine {
   }
 }
 
+// Pinned to Mumbai: the default host routes US traffic to Oregon, where lightning_v3.1 rejects Hindi.
+function smallest(voice: string, text: string, language: Language): Engine {
+  const model = 'lightning_v3.1'
+  return {
+    name: 'smallest', model, voice, timeoutMs: 4000, rate: PCM_RATE,
+    url: 'https://api.india.smallest.ai/waves/v1/tts',
+    headers: () => {
+      const key = process.env.SMALLEST_API_KEY
+      if (!key) throw new Error('SMALLEST_API_KEY is not set')
+      return { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }
+    },
+    body: async () => ({
+      text, voice_id: voice, model, language: language === 'english' ? 'en' : 'hi', sample_rate: PCM_RATE,
+      output_format: 'pcm',
+    }),
+  }
+}
+
 function engines(p: Persona, text: string, language: Language, voiceId?: string): Engine[] {
   const openrouter = { url: `${BASE}/audio/speech`, headers: headers }
-  const gemini: Engine = {
-    ...openrouter, name: 'gemini', model: TTS_MODEL, voice: p.voice, timeoutMs: 15000,
-    body: async () => ({ model: TTS_MODEL, input: text, voice: p.voice, instructions: p.style, response_format: 'pcm' }),
-  }
-  if (process.env.PHONEY_TTS_ENGINE === 'gemini') return [gemini]
+  const gemini = (voice: string): Engine => ({
+    ...openrouter, name: 'gemini', model: TTS_MODEL, voice, timeoutMs: 15000,
+    body: async () => ({ model: TTS_MODEL, input: text, voice, instructions: p.style, response_format: 'pcm' }),
+  })
+  const geminis = [gemini(p.voice), gemini(p.backupVoice)]
+  if (process.env.PHONEY_TTS_ENGINE === 'gemini') return geminis
   const list: Engine[] = []
   const v = p.voices?.find((x) => x.id === voiceId) ?? p.voices?.[0]
   if (v) list.push(primary(v, text, language))
@@ -239,11 +258,11 @@ function engines(p: Persona, text: string, language: Language, voiceId?: string)
       body: async () => ({ model: clone.model, input: text, response_format: 'pcm', input_references: await inputReferences(clone) }),
     })
   }
-  return [...list, gemini]
+  return [...list, smallest(p.smallest, text, language), ...geminis]
 }
 
 // POST { personaId, text, voiceId?, language? } -> raw 16-bit mono PCM; sample rate in X-Sample-Rate.
-// The call's chosen Sarvam voice first, then the Fish clone (dad), then Gemini.
+// The call's chosen Sarvam voice first, then the Fish clone (dad), then Smallest, then two Gemini voices.
 export async function tts(req: Request, log: CallLog): Promise<Response> {
   const { personaId, text, voiceId, language = 'hinglish' } =
     (await req.json()) as { personaId: string; text: string; voiceId?: string; language?: Language }
@@ -314,7 +333,19 @@ export async function logSession(req: Request, log: CallLog): Promise<Response> 
   return json({ ok: true })
 }
 
-export const handlers: Record<string, Handler> = { stt, reply, tts, log: logSession, schedule }
+// POST { sessions: [id, ...] }: "Delete all my data" wipes these calls' logs (audio, transcripts,
+// feedback). The ids are unguessable and only her phone and her account know them.
+const MAX_FORGET = 500
+async function forget(req: Request): Promise<Response> {
+  const body = (await req.json()) as { sessions?: unknown }
+  const ids = Array.isArray(body.sessions) ? body.sessions.filter((s): s is string => typeof s === 'string') : []
+  if (ids.length > MAX_FORGET) return json({ error: 'too many' }, 413)
+  const deleted = await forgetSessions(ids)
+  console.log(`[forget] ${deleted} sessions`)
+  return json({ deleted })
+}
+
+export const handlers: Record<string, Handler> = { stt, reply, tts, log: logSession, schedule, forget }
 
 /** Route /api/<name>; `defer` keeps background log writes alive after the response. */
 export async function handle(name: string, req: Request, defer: (p: Promise<unknown>) => void): Promise<Response> {

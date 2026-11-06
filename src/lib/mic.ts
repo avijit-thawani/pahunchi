@@ -60,10 +60,8 @@ export class Mic {
     this.blockSize = Math.round((this.rate * BLOCK_MS) / 1000)
   }
 
-  async start() {
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
-    })
+  async start(stream?: MediaStream) {
+    this.stream = stream ?? (await openMic())
     const url = URL.createObjectURL(new Blob([WORKLET], { type: 'application/javascript' }))
     await this.ctx.audioWorklet.addModule(url)
     URL.revokeObjectURL(url)
@@ -146,6 +144,12 @@ export class Mic {
     this.node?.disconnect()
     this.stream?.getTracks().forEach((t) => t.stop())
   }
+}
+
+export function openMic() {
+  return navigator.mediaDevices.getUserMedia({
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+  })
 }
 
 function encodeWav(chunks: Float32Array[], rate: number, outRate = 16000): Blob {

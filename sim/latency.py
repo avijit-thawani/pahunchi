@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import re
 import statistics
 import subprocess
@@ -49,7 +50,10 @@ TTS_CANDIDATES = [
     ("elevenlabs/eleven-flash-v2.5", "brian", None),
     ("elevenlabs/eleven-v3", "brian", None),
     ("fish-audio/drama-3", None, "older Indian man, deep warm voice, phone call"),
-]
+] + [("sarvam/bulbul:v4-flash", s, None) for s in (  # the app's voices (shared/personas.ts)
+    "sumit_hi_conversational", "girish_hi_devotional", "shreya_hi_conversational", "suchitra_hi_ecomm",
+    "shubh_enhi_companion", "kabir_hi_conversational", "aparna_hi_customer", "sanchita_enhi_companion")]
+SARVAM_URL = "https://api.sarvam.ai/text-to-speech/stream"
 STT_MODELS = ["openai/gpt-4o-mini-transcribe", "x-ai/grok-stt-1.0", "openai/whisper-large-v3-turbo",
               "nvidia/nemotron-3.5-asr-streaming-multilingual-0.6b"]
 LLM_MODELS = ["google/gemini-3.5-flash-lite", "google/gemini-2.5-flash-lite", "openai/gpt-4.1-nano",
@@ -59,6 +63,21 @@ S2S_MODELS = [("openai/gpt-audio-mini", "ash"), ("openai/gpt-audio", "ash")]
 REASONING = {"google/gemini-3.5-flash-lite": {"effort": "minimal"}}
 
 CLAUSE = re.compile(r"[.?!।]|,(?=\s)")
+
+# Reused connections, like the app's server. A new TLS connection to Sarvam (India) costs ~0.5 s from
+# the US; COLD=1 opens a fresh one per request, as runs before Nov 5 evening did.
+COLD = os.environ.get("COLD") == "1"
+HTTP = requests if COLD else requests.Session()
+CONN = "cold" if COLD else "warm"
+
+
+def warm_up():
+    if not COLD:
+        for url in (f"{orlib.BASE}/models?limit=1", "https://api.sarvam.ai/"):
+            try:
+                HTTP.get(url, timeout=10).close()
+            except requests.RequestException:
+                pass
 
 
 def system_prompt(language: str = "hinglish") -> str:
@@ -100,7 +119,7 @@ def sse(body: dict, label: str, estimate: float = 0.003):
     orlib._guard(estimate, label)
     t0 = time.time()
     body = {**body, "stream": True, "usage": {"include": True}}
-    with requests.post(f"{orlib.BASE}/chat/completions", headers=orlib._headers(), json=body,
+    with HTTP.post(f"{orlib.BASE}/chat/completions", headers=orlib._headers(), json=body,
                        stream=True, timeout=120) as r:
         if not r.ok:
             raise RuntimeError(f"{label}: HTTP {r.status_code} {r.text[:300]}")
@@ -152,8 +171,35 @@ def clone_reference() -> list[dict]:
             {"type": "text", "text": CLONE_TEXT}]
 
 
+def sarvam_stream(model: str, speaker: str, text: str, out: Path | None, lang: str = "hi-IN") -> dict:
+    """Same request as server/api.ts: raw 16-bit PCM at 24 kHz."""
+    body = {"text": text, "model": model.removeprefix("sarvam/"), "speaker": speaker, "target_language_code": lang,
+            "speech_sample_rate": 24000, "output_audio_codec": "linear16"}
+    t0 = time.time()
+    data, ttfb = bytearray(), None
+    with HTTP.post(SARVAM_URL, headers={"api-subscription-key": orlib._env("SARVAM_API_KEY")}, json=body,
+                       stream=True, timeout=60) as r:
+        if not r.ok:
+            raise RuntimeError(f"sarvam {speaker}: HTTP {r.status_code} {r.text[:200]}")
+        for chunk in r.iter_content(2048):
+            ttfb = ttfb or time.time() - t0
+            data += chunk
+    total = time.time() - t0
+    orlib._record(kind="tts", model=model, voice=speaker, label="latency", status="ok", chars=len(text),
+                  estimate_usd=0, cost_usd=None, latency_s=round(total, 2))
+    if out:
+        import wave
+        out = out.with_suffix(".wav")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with wave.open(str(out), "wb") as w:
+            w.setnchannels(1), w.setsampwidth(2), w.setframerate(24000), w.writeframes(bytes(data))
+    return {"ttfb": ttfb, "total": total, "bytes": len(data), "path": str(out) if out else None}
+
+
 def tts_stream(model: str, voice: str | None, style: str | None, text: str, out: Path | None = None,
-               clone: bool = False) -> dict:
+               clone: bool = False, lang: str = "hi-IN") -> dict:
+    if model.startswith("sarvam/"):
+        return sarvam_stream(model, voice, text, out, lang)
     fmt = "pcm" if model.startswith(("google/", "microsoft/", "elevenlabs/")) else "mp3"
     body = {"model": model, "input": text, "response_format": fmt}
     if voice:
@@ -165,7 +211,7 @@ def tts_stream(model: str, voice: str | None, style: str | None, text: str, out:
     orlib._guard(0.002, f"tts {model}")
     t0 = time.time()
     data, ttfb = bytearray(), None
-    with requests.post(f"{orlib.BASE}/audio/speech", headers=orlib._headers(), json=body, stream=True,
+    with HTTP.post(f"{orlib.BASE}/audio/speech", headers=orlib._headers(), json=body, stream=True,
                        timeout=120) as r:
         if not r.ok:
             raise RuntimeError(f"tts {model}: HTTP {r.status_code} {r.text[:200]}")
@@ -189,11 +235,13 @@ def tts_stream(model: str, voice: str | None, style: str | None, text: str, out:
     return {"ttfb": ttfb, "total": total, "bytes": len(data), "path": str(out) if out else None}
 
 
-def stt_once(model: str, wav: Path) -> dict:
+def stt_once(model: str, wav: Path, language: str | None = None) -> dict:
     orlib._guard(0.001, f"stt {model}")
     t0 = time.time()
-    r = requests.post(f"{orlib.BASE}/audio/transcriptions", headers=orlib._headers(), timeout=60, json={
-        "model": model, "input_audio": {"data": base64.b64encode(wav.read_bytes()).decode(), "format": "wav"}})
+    body = {"model": model, "input_audio": {"data": base64.b64encode(wav.read_bytes()).decode(), "format": "wav"}}
+    if language:
+        body["language"] = language
+    r = HTTP.post(f"{orlib.BASE}/audio/transcriptions", headers=orlib._headers(), timeout=60, json=body)
     dt = time.time() - t0
     j = r.json() if r.ok else {}
     orlib._record(kind="stt", model=model, label="latency", status="ok" if r.ok else "error",
@@ -229,9 +277,11 @@ TTS_TEXTS = {"clause": "अच्छा, कौन सी गाड़ी है
              "sentence": "अच्छा, ठीक है। cab का number क्या है? मैं line पे हूँ, तू आराम से बैठ।"}
 
 
-def bench_tts(runs: int = 3):
+def bench_tts(only: list[str] | None = None, runs: int = 3):
+    """`only` filters by substring of model or voice, e.g. `tts sarvam`."""
+    cands = [c for c in TTS_CANDIDATES if not only or any(o in f"{c[0]} {c[1]}" for o in only)]
     for _ in range(runs):
-        for model, voice, style in TTS_CANDIDATES:
+        for model, voice, style in cands:
             for kind, text in TTS_TEXTS.items():
                 try:
                     r = tts_stream(model, voice, style, text)
@@ -311,16 +361,28 @@ PIPELINES = {
     "cascade-eleven-flash": dict(stt=STT, llm=LLM, tts=TTS_CANDIDATES[5]),
     "cascade-fish-clone": dict(stt=STT, llm=LLM, tts=("fish-audio/drama-3", None, None), clone=True),
     "s2s-gpt-audio-mini": dict(s2s=S2S_MODELS[0]),
+    # The app since the Sarvam switch: Scribe v2 with a language hint, Sarvam streaming dad voices.
+    # scribe-fish-clone is the same-day control: the previous voice behind today's STT.
+    "app-sarvam-sumit": dict(stt="elevenlabs/scribe-v2", llm=LLM, tts=TTS_CANDIDATES[8], lang=True),
+    "app-sarvam-girish": dict(stt="elevenlabs/scribe-v2", llm=LLM, tts=TTS_CANDIDATES[9], lang=True),
+    "scribe-fish-clone": dict(stt="elevenlabs/scribe-v2", llm=LLM, tts=("fish-audio/drama-3", None, None),
+                              clone=True, lang=True),
 }
 
 
 def live(only: list[str] | None = None):
     """Run each pipeline turn by turn on every scene. History = the pipeline's own replies."""
-    sp = system_prompt()
+    prompts = {lang: system_prompt(lang) for lang in ("hinglish", "english")}
+    warm_up()
     for name, cfg in PIPELINES.items():
         if only and name not in only:
             continue
         for scene in SCENES:
+            english = scene["id"].endswith("english")
+            # Older pipelines ran every scene on the Hinglish prompt; keep that so their rows stay comparable.
+            sp = prompts["english" if english and cfg.get("lang") else "hinglish"]
+            stt_lang = ("en" if english else "hi") if cfg.get("lang") else None
+            tts_lang = "en-IN" if english else "hi-IN"
             msgs = [{"role": "system", "content": sp + (S2S_STYLE if "s2s" in cfg else "")},
                     {"role": "user", "content": "[call connected]"}, {"role": "assistant", "content": "हाँ बेटा, बोल।"}]
             for i, line in enumerate(scene["lines"]):
@@ -328,7 +390,7 @@ def live(only: list[str] | None = None):
                     continue
                 wav = next(LINES.glob(f"{scene['id']}_{i:02d}_girl.*"))
                 out = LAT / "live" / name / f"{scene['id']}_{i:02d}"
-                row = {"pipeline": name, "scene": scene["id"], "i": i}
+                row = {"pipeline": name, "scene": scene["id"], "i": i, "conn": CONN}
                 if "s2s" in cfg:
                     r = s2s_once(*cfg["s2s"], msgs, wav, out)
                     msgs += [{"role": "user", "content": line["text"]}, {"role": "assistant", "content": r["text"]}]
@@ -336,7 +398,7 @@ def live(only: list[str] | None = None):
                                her=line["text"], path=r["path"])
                 else:
                     if cfg["stt"]:
-                        s = stt_once(cfg["stt"], wav)
+                        s = stt_once(cfg["stt"], wav, stt_lang)
                         her, stt_s = s["text"], s["s"]
                         turn = {"role": "user", "content": her}
                     else:
@@ -353,12 +415,13 @@ def live(only: list[str] | None = None):
                         log("live", row)
                         print(f"  {name:24} {scene['id']}:{i} (stays silent)")
                         continue
-                    first = tts_stream(*cfg["tts"], r["clause"], out.with_name(out.name + "_a"), clone=clone)
+                    first = tts_stream(*cfg["tts"], r["clause"], out.with_name(out.name + "_a"), clone=clone,
+                                       lang=tts_lang)
                     rest = r["text"][len(r["clause"]):].strip()
                     paths = [first["path"]]
                     if rest:
                         paths.append(tts_stream(*cfg["tts"], rest, out.with_name(out.name + "_b"),
-                                                clone=clone)["path"])
+                                                clone=clone, lang=tts_lang)["path"])
                     msgs += [{"role": "user", "content": her}, {"role": "assistant", "content": r["text"]}]
                     row.update(stt=stt_s, llm_clause=r["first_clause"], tts_ttfb=first["ttfb"],
                                measured=stt_s + r["first_clause"] + first["ttfb"], text=r["text"], her=her,
@@ -422,14 +485,15 @@ def report():
     lines = ["# Latency report", "", f"Turn-detection tails added on top: {TAILS}", ""]
     t = rows("tts")
     if t:
-        lines += ["## TTS: first audio byte (median, s)", "", "| model | clause | sentence | streams? |", "|---|---|---|---|"]
-        for model, *_ in TTS_CANDIDATES:
-            c = [r for r in t if r["model"] == model]
+        lines += ["## TTS: first audio byte (median, s)", "", "| model | voice | clause | sentence | streams? |",
+                  "|---|---|---|---|---|"]
+        for model, voice, _ in TTS_CANDIDATES:
+            c = [r for r in t if r["model"] == model and r.get("voice") == voice]
             if not c:
                 continue
             cl, se = med([r["ttfb"] for r in c if r["kind"] == "clause"]), med([r["ttfb"] for r in c if r["kind"] == "sentence"])
             ratio = med([r["ttfb"] / r["total"] for r in c if r["kind"] == "sentence"])
-            lines.append(f"| {model} | {cl:.2f} | {se:.2f} | {'yes' if ratio < 0.7 else 'no'} ({ratio:.0%} of total) |")
+            lines.append(f"| {model} | {voice or ''} | {cl:.2f} | {se:.2f} | {'yes' if ratio < 0.7 else 'no'} ({ratio:.0%} of total) |")
     for name, title in (("stt", "STT (median s)"), ("llm", "LLM streaming (median s)"),
                         ("audiollm", "Audio-in LLM (median s)"), ("s2s", "Speech-to-speech (median s)")):
         rs = rows(name)
@@ -454,17 +518,18 @@ def report():
     lv, jd = rows("live"), rows("judge")
     if lv:
         lines += ["", "## Live pipelines: her last word -> his first sound (median s)", "",
-                  "| pipeline | stt | llm clause | tts first byte | measured | " + " | ".join(TAILS)
+                  "conn: cold = new connection per request, warm = reused (like the app's server).", "",
+                  "| pipeline | conn | stt | llm clause | tts first byte | measured | " + " | ".join(TAILS)
                   + " | voice score | silent turns |",
-                  "|---|---|---|---|---|" + "---|" * len(TAILS) + "---|---|"]
-        for name in PIPELINES:
-            r = [x for x in lv if x["pipeline"] == name]
+                  "|---|---|---|---|---|---|" + "---|" * len(TAILS) + "---|---|"]
+        for name, conn in [(n, c) for n in PIPELINES for c in ("cold", "warm")]:
+            r = [x for x in lv if x["pipeline"] == name and x.get("conn", "cold") == conn]
             if not r:
                 continue
             m = med([x["measured"] for x in r])
             sc = med([j["score"] for j in jd if j["pipeline"] == name])
             silent = sum(1 for x in r if x.get("measured") is None)
-            lines.append(f"| {name} | {med([x['stt'] for x in r]):.2f} | {med([x['llm_clause'] for x in r]):.2f} | "
+            lines.append(f"| {name} | {conn} | {med([x['stt'] for x in r]):.2f} | {med([x['llm_clause'] for x in r]):.2f} | "
                          f"{med([x['tts_ttfb'] for x in r]):.2f} | {m:.2f} | "
                          + " | ".join(f"{m + tail:.2f}" for tail in TAILS.values())
                          + f" | {sc:.1f} | {silent}/{len(r)} |")
@@ -474,7 +539,7 @@ def report():
 
 if __name__ == "__main__":
     stage = sys.argv[1] if len(sys.argv) > 1 else "report"
-    fn = {"tts": bench_tts, "stt": bench_stt, "llm": bench_llm, "audiollm": bench_audiollm, "s2s": bench_s2s,
+    fn = {"tts": lambda: bench_tts(sys.argv[2:] or None), "stt": bench_stt, "llm": bench_llm, "audiollm": bench_audiollm, "s2s": bench_s2s,
           "live": lambda: live(sys.argv[2:] or None), "judge": judge_live, "render": render,
           "report": report}[stage]
     fn()

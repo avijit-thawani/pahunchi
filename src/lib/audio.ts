@@ -41,13 +41,13 @@ export class CallAudio {
     src.onended = () => this.sources.delete(src)
   }
 
-  /** Indian ringback: 400 Hz tone, 0.4 s on, 0.2 s off, 0.4 s on, 2 s off. */
-  ringback(cycles: number): Promise<void> {
-    const t0 = this.ctx.currentTime + 0.1
+  /** Indian ringback: 400 Hz tone, 0.4 s on, 0.2 s off, 0.4 s on, 2 s off. Rings until the returned stop is called. */
+  ringback(maxCycles = 20): () => void {
+    const t0 = this.ctx.currentTime + 0.05
     const osc = new OscillatorNode(this.ctx, { frequency: 400 })
     const env = new GainNode(this.ctx, { gain: 0 })
     osc.connect(env).connect(this.input)
-    for (let i = 0; i < cycles; i++) {
+    for (let i = 0; i < maxCycles; i++) {
       const c = t0 + i * 3
       for (const [on, off] of [[0, 0.4], [0.6, 1.0]]) {
         env.gain.setValueAtTime(0.18, c + on)
@@ -55,9 +55,18 @@ export class CallAudio {
       }
     }
     osc.start(t0)
-    osc.stop(t0 + cycles * 3)
+    osc.stop(t0 + maxCycles * 3)
     this.track(osc)
-    return new Promise((resolve) => setTimeout(resolve, (cycles * 3 - 1.6) * 1000))
+    return () => {
+      const now = this.ctx.currentTime
+      env.gain.cancelScheduledValues(now)
+      env.gain.setTargetAtTime(0, now, 0.005)
+      try {
+        osc.stop(now + 0.03)
+      } catch {
+        // already stopped
+      }
+    }
   }
 
   async startAmbience(url: string, gain = 0.06) {

@@ -58,8 +58,10 @@ function api(): Plugin {
         const name = (req.url || '').replace(/^\//, '').split('?')[0]
         try {
           const mod = await server.ssrLoadModule('/server/api.ts')
+          const { withCors } = await server.ssrLoadModule('/server/cors.ts')
           const defer = (p: Promise<unknown>) => void p.catch(() => undefined)
-          await sendResponse(res, await mod.handle(name, await toRequest(req), defer))
+          const request = await toRequest(req)
+          await sendResponse(res, await withCors(request, () => mod.handle(name, request, defer)))
         } catch (e) {
           console.error('[api]', name, e)
           res.statusCode = 500

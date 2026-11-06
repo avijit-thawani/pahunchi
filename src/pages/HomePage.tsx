@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Clock, MicOff, Monitor, Moon, Pause, Phone, Play, Sun, X } from 'lucide-react'
+import { Clock, MicOff, Monitor, Moon, Pause, Phone, Play, Sun, Trash2, X } from 'lucide-react'
 import { LaterPanel, PendingCalls } from './CallLater.tsx'
 import InstallCard from './InstallCard.tsx'
 import { EXCUSES, excuse } from '../../shared/scene.ts'
 import { DEFAULT_PERSONA, LANGUAGES, PERSONAS, persona, type Language } from '../../shared/personas.ts'
 import { useSessions, useSettings } from '../lib/store.ts'
 import { startCall } from '../lib/activeCall.ts'
+import { deleteAllData } from '../lib/forget.ts'
 import { getThemePref, setThemePref, type ThemePref } from '../lib/theme.ts'
 
 const EMOJI: Record<string, string> = {
@@ -40,6 +41,47 @@ function ThemePicker() {
           </button>
         ))}
       </div>
+    </div>
+  )
+}
+
+function DeleteData() {
+  const [step, setStep] = useState<'idle' | 'confirm' | 'busy'>('idle')
+  const [error, setError] = useState('')
+  const run = async () => {
+    setStep('busy')
+    setError('')
+    try {
+      await deleteAllData()
+      window.location.assign('/')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setStep('idle')
+    }
+  }
+  return (
+    <div className="pt-2 border-t border-base-300">
+      {step === 'idle' ? (
+        <button onClick={() => setStep('confirm')} className="btn btn-ghost btn-sm text-error font-extrabold gap-1.5 px-0">
+          <Trash2 className="w-4 h-4" /> Delete all my data
+        </button>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-base-content/80">
+            This deletes your call recordings, transcripts and feedback, scheduled calls, your account and trusted
+            contacts, and everything phoney saved on this phone. It can't be undone.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={run} disabled={step === 'busy'} className="btn btn-error btn-sm font-extrabold flex-1">
+              {step === 'busy' ? <span className="loading loading-spinner loading-xs" /> : 'Delete everything'}
+            </button>
+            <button onClick={() => setStep('idle')} disabled={step === 'busy'} className="btn btn-ghost btn-sm font-extrabold">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {error && <p role="alert" className="text-sm font-bold text-error mt-1">{error}</p>}
     </div>
   )
 }
@@ -192,6 +234,7 @@ export default function HomePage() {
             </select>
           </label>
           <ThemePicker />
+          <DeleteData />
         </div>
       </details>
 

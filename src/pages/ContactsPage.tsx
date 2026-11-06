@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { LogOut, Send, Trash2, UserPlus } from 'lucide-react'
+import { LogOut, MapPin, Send, Trash2, UserPlus } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
-import { useContacts } from '../lib/store.ts'
+import { Capacitor } from '@capacitor/core'
+import { useContacts, useSettings } from '../lib/store.ts'
+import { askPermission } from '../lib/location.ts'
+import { siteUrl } from '../lib/native.ts'
 import { signInWithGoogle, signOut, supabase, userName, useSession } from '../lib/supabase.ts'
 
 const DELAYS = [
@@ -72,6 +75,33 @@ function SignedOut() {
         Sign in with Google
       </button>
     </section>
+  )
+}
+
+function ShareLocation() {
+  const [settings, setSettings] = useSettings()
+  const [note, setNote] = useState('')
+  const toggle = async (on: boolean) => {
+    setNote('')
+    if (on && !(await askPermission())) {
+      return setNote('Location is blocked for phoney. Allow it in your phone\'s settings, then try again.')
+    }
+    setSettings({ ...settings, shareLocation: on })
+  }
+  return (
+    <label className="flex items-start gap-3 bg-base-200 rounded-box p-4 cursor-pointer">
+      <MapPin className="w-5 h-5 mt-0.5 text-secondary shrink-0" />
+      <span className="flex-1">
+        <span className="block font-extrabold">Share my location during calls</span>
+        <span className="block text-xs font-semibold text-base-content/60">
+          Contacts see it on a map with the call, following the same delay.
+          {!Capacitor.isNativePlatform() && ' On the website it only updates while phoney is on screen.'}
+        </span>
+        {note && <span role="alert" className="block text-xs font-bold text-error mt-1">{note}</span>}
+      </span>
+      <input type="checkbox" className="toggle toggle-secondary" checked={!!settings.shareLocation}
+        onChange={(e) => toggle(e.target.checked)} />
+    </label>
   )
 }
 
@@ -148,7 +178,7 @@ function SignedIn({ session }: { session: Session }) {
   }
 
   const invite = async (r: Row) => {
-    const link = `${window.location.origin}/join/${r.invite_token}`
+    const link = `${siteUrl}/join/${r.invite_token}`
     const text = `I've added you as my trusted contact on phoney, the app I use for calls when I'm out alone. `
       + `Please accept so you can be told if I need help: ${link}`
     if (navigator.share) {
@@ -169,6 +199,8 @@ function SignedIn({ session }: { session: Session }) {
         </button>
       </div>
       {error && <div role="alert" className="alert alert-error text-sm font-semibold">{error}</div>}
+
+      <ShareLocation />
 
       {rows === null && !error && <div className="flex justify-center py-4"><span className="loading loading-dots" /></div>}
       {rows?.map((c) => (
