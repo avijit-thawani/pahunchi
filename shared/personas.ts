@@ -17,6 +17,8 @@ export type Persona = {
   /** Gemini TTS voice: the default, and the fallback when `clone` fails. */
   voice: string
   style: string
+  /** How this person talks to her (forms of address, tone); added to the system prompt. */
+  talk: string
   /** Preferred engine (fast, streams); falls back to Gemini `voice` on error. */
   clone?: ClonedVoice
   tested: boolean
@@ -36,6 +38,7 @@ export const PERSONAS: Persona[] = [
     voice: 'Algenib', tested: true, available: true,
     voices: [sarvam('sumit_hi_conversational'), sarvam('girish_hi_devotional')],
     style: 'Indian father in his late fifties, deep, warm, unhurried, on the phone with his daughter',
+    talk: 'Call her बेटा now and then. Calm and a little protective; a father of few words.',
     clone: {
       model: 'fish-audio/drama-3',
       ref: 'dad-algenib.mp3',
@@ -47,28 +50,35 @@ export const PERSONAS: Persona[] = [
     voice: 'Sulafat', tested: true, available: true,
     voices: [sarvam('shreya_hi_conversational'), sarvam('suchitra_hi_ecomm')],
     style: 'Indian mother in her fifties, warm, a little fussy, on the phone with her daughter',
+    talk: 'Call her बेटा. Warm and a little fussy: food, sleep, "पहुँच के बताना".',
   },
   {
     id: 'brother', label: 'Brother', defaultName: 'Bhaiya', relation: 'elder brother', gender: 'm',
     voice: 'Orus', tested: true, available: true,
     voices: [sarvam('shubh_enhi_companion'), sarvam('kabir_hi_conversational')],
     style: 'Indian man in his late twenties, relaxed, teasing but caring, on the phone with his younger sister',
+    talk: 'Elder brother: light teasing, call her by name or छोटी, never बेटा. Protective underneath the jokes.',
   },
   {
     id: 'sister', label: 'Sister', defaultName: 'Didi', relation: 'elder sister', gender: 'f',
     voice: 'Leda', tested: true, available: true,
     voices: [sarvam('aparna_hi_customer'), sarvam('sanchita_enhi_companion')],
     style: 'Indian woman in her late twenties from Delhi, casual and chatty, on the phone with her younger sister',
+    talk: 'Elder sister: chatty, says यार, shares a bit of gossip, never बेटा. Big-sister protective.',
   },
   {
     id: 'friend_m', label: 'Friend (male)', defaultName: 'Rohan', relation: 'close male friend', gender: 'm',
-    voice: 'Sadaltager', tested: false, available: false,
+    voice: 'Sadaltager', tested: true, available: true,
+    voices: [sarvam('shubh_enhi_companion'), sarvam('kabir_hi_conversational')],
     style: 'young Indian man in his twenties from Delhi, casual, friendly, on the phone with a close friend',
+    talk: 'Close friend her own age: casual banter, says यार and bro-ish slang, never बेटा, never parental. Cares but plays it cool.',
   },
   {
     id: 'friend_f', label: 'Friend (female)', defaultName: 'Ananya', relation: 'close female friend', gender: 'f',
-    voice: 'Achernar', tested: false, available: false,
+    voice: 'Achernar', tested: true, available: true,
+    voices: [sarvam('aparna_hi_customer'), sarvam('sanchita_enhi_companion')],
     style: 'young Indian woman in her twenties from Delhi, casual, friendly, on the phone with a close friend',
+    talk: 'Close friend her own age: easy chatter, says यार, small gossip and plans, never बेटा, never parental.',
   },
 ]
 
