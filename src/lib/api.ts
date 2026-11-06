@@ -16,8 +16,8 @@ async function ok(r: Response): Promise<Response> {
   return r
 }
 
-export async function transcribe(wav: Blob, turn: string, signal?: AbortSignal): Promise<SttResponse> {
-  const r = await ok(await fetch('/api/stt', { method: 'POST', headers: hdrs(turn, wav.type), body: wav, signal }))
+export async function transcribe(wav: Blob, turn: string, language: string, signal?: AbortSignal): Promise<SttResponse> {
+  const r = await ok(await fetch(`/api/stt?lang=${language}`, { method: 'POST', headers: hdrs(turn, wav.type), body: wav, signal }))
   return r.json()
 }
 

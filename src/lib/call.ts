@@ -236,7 +236,7 @@ export class CallEngine {
     if (spec) spec.turn = turn
     else this.set({ activity: 'thinking' })
     try {
-      const r = await api.transcribe(wav, turn, spec?.ctl.signal)
+      const r = await api.transcribe(wav, turn, this.settings.language, spec?.ctl.signal)
       if (spec?.withdrawn) return
       const text = r.text.trim()
       if (!text || /^[\s.,!?।]*$/.test(text)) {

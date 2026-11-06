@@ -12,7 +12,8 @@ import { inputReferences } from './voices.ts'
 
 const BASE = 'https://openrouter.ai/api/v1'
 const LLM_MODEL = process.env.PHONEY_LLM_MODEL || 'google/gemini-3.5-flash-lite'
-const STT_MODEL = process.env.PHONEY_STT_MODEL || 'openai/gpt-4o-mini-transcribe'
+// Scribe v2 + a language hint writes her Hindi in Devanagari; gpt-4o-mini-transcribe wrote it as Urdu.
+const STT_MODEL = process.env.PHONEY_STT_MODEL || 'elevenlabs/scribe-v2'
 const TTS_MODEL = process.env.PHONEY_TTS_MODEL || 'google/gemini-3.8-flash-tts'
 const MAX_TTS_CHARS = 400
 const MAX_AUDIO_BYTES = 5_000_000
@@ -45,19 +46,21 @@ export async function stt(req: Request, log: CallLog): Promise<Response> {
   if (!buf.length || buf.length > MAX_AUDIO_BYTES) return json({ error: 'bad audio size' }, 400)
   const format = (req.headers.get('Content-Type') || 'audio/wav').split('/')[1].split(';')[0]
   log.file(`${log.turn}_her.${format}`, buf, `audio/${format}`)
+  const language = new URL(req.url).searchParams.get('lang') === 'english' ? 'en' : 'hi'
   const t0 = Date.now()
   const r = await fetch(`${BASE}/audio/transcriptions`, {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({
       model: STT_MODEL,
+      language,
       input_audio: { data: Buffer.from(buf).toString('base64'), format },
     }),
   })
   if (!r.ok) return upstreamError('stt', r, log)
   const data = await r.json()
   const out: SttResponse = { text: (data.text || '').trim(), ms: Date.now() - t0, model: STT_MODEL }
-  log.event({ kind: 'stt', text: out.text, ms: out.ms, model: STT_MODEL, bytes: buf.length })
+  log.event({ kind: 'stt', text: out.text, ms: out.ms, model: STT_MODEL, language, bytes: buf.length })
   return json(out)
 }
 
