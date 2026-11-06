@@ -53,20 +53,20 @@ she shares a `/join/<token>` link; they link on accepting or on signing up with 
 - **Turn detection (speculative):** at 300 ms of silence the app sends STT + reply + TTS; it plays
   only once the silence reaches 600 ms and drops it all if she resumes (mostly caught during STT).
 - **Voices (A/B, all Sarvam Bulbul v4 Flash):** 2 per role, one picked at random per call and logged (`voiceId`):
-  dad sumit/girish, mom shreya/suchitra, sister aparna/sanchita, brother shubh/kabir (`shared/personas.ts`).
+  dad sumit/girish, mom shreya/suchitra, sister aparna/sanchita, brother shubh/kabir; Dost/Saheli reuse the
+  sibling voices with their own prompt note (`shared/personas.ts`).
   Fallbacks: Fish clone of Algenib (dad), then Gemini. Optional 👍/👎 + note after the call → `feedback.json`.
 - **Latency** (her last word -> his first sound, median of 8 lab turns): **~2.3-2.5 s**, was
   ~4.3-4.4 s, local and deployed. Real browser calls: 1.9-2.9 s. See [docs/latency.md](docs/latency.md).
-- **Cost:** a busy call is roughly $0.01/min all-in (Gemini voice $0.0136 per minute of him
-  talking; Fish lists ~10x cheaper per character), a mostly-silent one far less.
+- **Cost:** voice is Sarvam ₹1 per 1,000 chars (~$0.0065 per minute of him talking); a busy call is
+  well under $0.01/min all-in, a mostly-silent one far less.
 - **Screens:** pick responder + language, a dialer-style call screen (hidden transcript
   with per-turn latency), "I'm safe" after the call, history, trusted contacts + join page.
-- **Voice lab** (`sim/`): 34 voices across 9 TTS models auditioned; picks are Sulafat (her,
-  for simulations) and Algenib (dad). Findings: [docs/voices.md](docs/voices.md).
+- **Voice lab** (`sim/`): OpenRouter, Smallest and Sarvam voices auditioned; roles cast with a v2 judge
+  (estimated age/gender, hard lines) in `sim/roles.py`; page `sim/out/index.html`. See [docs/voices.md](docs/voices.md).
 
-Voices other than dad (mom, siblings, friends) are untested guesses in
-`shared/personas.ts`. A PWA in the background (she switches apps to scroll) may lose
-mic/audio, especially on iOS; may need a native wrapper later.
+A PWA in the background (she switches apps to scroll) may lose mic/audio, especially on iOS;
+may need a native wrapper later.
 
 ## Layout
 
