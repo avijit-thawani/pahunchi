@@ -1,6 +1,7 @@
 import { ShieldAlert, ShieldCheck } from 'lucide-react'
 import { useSessions } from '../lib/store.ts'
 import { SILENT } from '../../shared/api.ts'
+import SharedCalls from './SharedCalls.tsx'
 
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b)
@@ -13,6 +14,7 @@ export default function HistoryPage() {
   return (
     <main className="max-w-md mx-auto px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-28 space-y-3">
       <h1 className="text-3xl font-extrabold tracking-tight">History</h1>
+      <SharedCalls />
       {!sessions.length && (
         <div className="bg-base-200 rounded-box p-6 text-center text-base-content/60 font-semibold">
           No calls yet. Your calls and transcripts show up here.

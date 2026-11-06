@@ -8,6 +8,7 @@ import * as api from './api.ts'
 import { CallAudio } from './audio.ts'
 import { END_MS, Mic, PAUSE_MS } from './mic.ts'
 import { saveSession, type CallEvent, type Session, type Settings, type TurnMetrics } from './store.ts'
+import { syncCall } from './sync.ts'
 
 export type Phase = 'idle' | 'ringing' | 'connected' | 'ended'
 export type Activity = 'listening' | 'hearing' | 'thinking' | 'speaking'
@@ -104,6 +105,7 @@ export class CallEngine {
 
   private push(turn: Omit<Turn, 'at'>) {
     this.set({ turns: [...this.state.turns, { ...turn, at: Date.now() }] })
+    syncCall({ ...this.session, turns: this.state.turns }, 3000)
   }
 
   private nextTurn() {
@@ -122,6 +124,7 @@ export class CallEngine {
   /** Call from the tap handler: audio and mic permissions need a user gesture. */
   async start() {
     api.setSession(this.session.id, this.session.voiceId, this.settings.language)
+    syncCall(this.session)
     api.logSession('start', {
       startedAt: new Date(this.session.startedAt).toISOString(), personaId: this.settings.personaId,
       voiceId: this.session.voiceId,

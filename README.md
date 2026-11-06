@@ -41,9 +41,9 @@ Later: make call time useful (voice journal, a listener); export just her side o
 
 ## Status
 
-Live at <https://phoney-call.netlify.app> (public; per-IP rate limits + OpenRouter key cap), with a working
-call loop, server-side call logging, and the voice lab. Google sign-in (Supabase Auth) gates trusted contacts:
-she shares a `/join/<token>` link; they link on accepting or on signing up with the email she typed. No alerts yet.
+Live at <https://phoney-call.netlify.app> (public; rate limits + key cap): call loop, server-side call logging, voice
+lab. Google sign-in (Supabase Auth) gates trusted contacts, linked via a `/join/<token>` link or the email she typed.
+Signed-in calls sync to `calls`; contacts see them in History per their delay (`shared_calls()`). No push/email yet.
 
 - **Call loop:** ringback -> responder picks up -> browser VAD -> STT `openai/gpt-4o-mini-transcribe`
   -> reply `google/gemini-3.5-flash-lite` (reasoning `minimal`), streamed -> TTS per clause as
@@ -74,7 +74,7 @@ may need a native wrapper later.
 src/            React app: pages/, lib/call.ts (call loop, speculative turns), api.ts (streamed
                 reply -> per-clause TTS), audio.ts (phone chain, ringback, PCM playback),
                 mic.ts (VAD -> WAV), store.ts (localStorage), supabase.ts (auth client)
-supabase/       migrations/ (trusted_contacts table, RLS, invite + email-link functions)
+supabase/       migrations/ (trusted_contacts + calls, RLS, invite/email-link/shared_calls functions)
 server/         API handlers as Request -> Response: api.ts (stt, reply as NDJSON stream, tts
                 with fallback, log), voices/ (clone reference clips), log.ts (call logging),
                 limits.ts (request caps), auth.ts (password gate), prompt.ts (system prompt)

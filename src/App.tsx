@@ -5,6 +5,8 @@ import CallPage from './pages/CallPage.tsx'
 import AfterCallPage from './pages/AfterCallPage.tsx'
 import HistoryPage from './pages/HistoryPage.tsx'
 import ContactsPage from './pages/ContactsPage.tsx'
+import JoinPage from './pages/JoinPage.tsx'
+import PrivacyPage from './pages/PrivacyPage.tsx'
 
 function Nav() {
   const { pathname } = useLocation()
@@ -45,6 +47,8 @@ export default function App() {
         <Route path="/after/:id" element={<AfterCallPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
+        <Route path="/join/:token" element={<JoinPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
       </Routes>
       <Nav />
     </BrowserRouter>

@@ -1,9 +1,10 @@
-// Local-only persistence (localStorage). Trusted contacts move to Supabase on sign-in
-// (ContactsPage); settings and sessions are still local.
+// Local persistence (localStorage). While signed in, sessions are also mirrored to Supabase
+// (sync.ts) and trusted contacts live there (ContactsPage); settings stay local.
 
 import { useCallback, useState } from 'react'
 import type { Turn } from '../../shared/api.ts'
 import type { Language } from '../../shared/personas.ts'
+import { syncCall } from './sync.ts'
 
 export type Settings = {
   personaId: string
@@ -89,6 +90,7 @@ export function getSettings(): Settings {
 export function saveSession(s: Session) {
   const all = read<Session[]>(KEYS.sessions, []).filter((x) => x.id !== s.id)
   write(KEYS.sessions, [s, ...all].slice(0, 200))
+  syncCall(s)
 }
 
 export function getSession(id: string): Session | undefined {

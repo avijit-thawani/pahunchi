@@ -3,6 +3,9 @@ dist/
 .env
 .env.local
 .env.*.local
+# OAuth client secrets (Google's download is client_secret_<id>.apps.googleusercontent.com.json)
+secrets/
+client_secret*.json
 .netlify
 .DS_Store
 *.log
