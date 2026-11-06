@@ -319,7 +319,8 @@ def page() -> None:
          f"<title>phoney voice lab</title><style>{PAGE_CSS}</style><main><h1>phoney voice lab</h1>",
          "<p class=sub>Newest experiments first. Scores come from a Gemini audio judge: useful for spotting bad "
          "takes, not for ranking the top voices (they bunch together). Trust your ear.</p>"]
-    scenes = [(s["id"], s["title"]) for s in SCENES]
+    short = {"cab_night": "Cab (Hinglish)", "walk_scroll": "Walk (Hinglish)", "cab_english": "Cab (English)"}
+    scenes = [(s["id"], short.get(s["id"], s["title"])) for s in SCENES]
 
     # 1. Full calls judged on the dad's voice (0-100), every cast that has mixes.
     judge_path = OUT / "fullcall_judge.json"
