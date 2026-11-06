@@ -45,7 +45,7 @@ Live at <https://phoney-call.netlify.app> (public; rate limits + key cap): call 
 lab. Google sign-in (Supabase Auth) gates trusted contacts, linked via a `/join/<token>` link or the email she typed.
 Signed-in calls sync to `calls`; contacts see them in History per their delay (`shared_calls()`). No push/email yet.
 
-- **Call loop:** ringback -> responder picks up -> browser VAD -> STT `openai/gpt-4o-mini-transcribe`
+- **Call loop:** ringback -> responder picks up -> browser VAD -> STT Sarvam `saaras:v4` (Scribe fallback)
   -> reply `google/gemini-3.5-flash-lite` (reasoning `minimal`), streamed -> TTS per clause as
   soon as it is complete -> phone-band filter with a TV room behind. A cached "हम्म / हाँ" plays
   if he hasn't started 2.5 s after she stops. Long silences ask the model, which usually stays

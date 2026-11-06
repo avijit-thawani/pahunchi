@@ -4,7 +4,7 @@
 import { persona, type Language, type Persona, type VoiceOption } from '../shared/personas.ts'
 import type { ReplyChunk, ReplyRequest, SttResponse } from '../shared/api.ts'
 import { SILENT } from '../shared/api.ts'
-import { Clauses, speakable } from '../shared/clauses.ts'
+import { Clauses, speakable, stripMarkup } from '../shared/clauses.ts'
 import { CallLog, collect, pcmToWav } from './log.ts'
 import { clientIp, overLimit } from './limits.ts'
 import { systemPrompt } from './prompt.ts'
@@ -12,7 +12,9 @@ import { inputReferences } from './voices.ts'
 
 const BASE = 'https://openrouter.ai/api/v1'
 const LLM_MODEL = process.env.PHONEY_LLM_MODEL || 'google/gemini-3.5-flash-lite'
-// Scribe v2 + a language hint writes her Hindi in Devanagari; gpt-4o-mini-transcribe wrote it as Urdu.
+// Primary STT is Sarvam Saaras; Scribe (via OpenRouter) is the fallback. gpt-4o-mini-transcribe
+// wrote her Hindi as Urdu script.
+const SARVAM_STT_MODEL = 'saaras:v4'
 const STT_MODEL = process.env.PHONEY_STT_MODEL || 'elevenlabs/scribe-v2'
 const TTS_MODEL = process.env.PHONEY_TTS_MODEL || 'google/gemini-3.8-flash-tts'
 const MAX_TTS_CHARS = 400
@@ -48,6 +50,14 @@ export async function stt(req: Request, log: CallLog): Promise<Response> {
   log.file(`${log.turn}_her.${format}`, buf, `audio/${format}`)
   const language = new URL(req.url).searchParams.get('lang') === 'english' ? 'en' : 'hi'
   const t0 = Date.now()
+  try {
+    const text = await sarvamStt(buf, format, language)
+    const out: SttResponse = { text, ms: Date.now() - t0, model: SARVAM_STT_MODEL }
+    log.event({ kind: 'stt', text, ms: out.ms, model: SARVAM_STT_MODEL, language, bytes: buf.length })
+    return json(out)
+  } catch (err) {
+    log.event({ kind: 'error', api: 'stt', model: SARVAM_STT_MODEL, detail: String(err).slice(0, 200) })
+  }
   const r = await fetch(`${BASE}/audio/transcriptions`, {
     method: 'POST',
     headers: headers(),
@@ -60,8 +70,25 @@ export async function stt(req: Request, log: CallLog): Promise<Response> {
   if (!r.ok) return upstreamError('stt', r, log)
   const data = await r.json()
   const out: SttResponse = { text: (data.text || '').trim(), ms: Date.now() - t0, model: STT_MODEL }
-  log.event({ kind: 'stt', text: out.text, ms: out.ms, model: STT_MODEL, language, bytes: buf.length })
+  log.event({ kind: 'stt', text: out.text, ms: out.ms, model: STT_MODEL, language, bytes: buf.length, fallback: true })
   return json(out)
+}
+
+// Saaras keeps short Hindi lines in Hindi; Scribe turned "हां, क्या नाम है?" into "How can I help?".
+// `codemix` mode is avoided for the same reason (it rendered that clip as "Okay, now.").
+async function sarvamStt(buf: Uint8Array, format: string, language: 'en' | 'hi'): Promise<string> {
+  const key = process.env.SARVAM_API_KEY
+  if (!key) throw new Error('SARVAM_API_KEY is not set')
+  const form = new FormData()
+  form.append('file', new Blob([new Uint8Array(buf)], { type: `audio/${format}` }), `her.${format}`)
+  form.append('model', SARVAM_STT_MODEL)
+  form.append('mode', 'transcribe')
+  form.append('language_code', language === 'en' ? 'en-IN' : 'hi-IN')
+  const r = await fetch('https://api.sarvam.ai/speech-to-text', {
+    method: 'POST', headers: { 'api-subscription-key': key }, body: form, signal: AbortSignal.timeout(4000),
+  })
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`)
+  return String((await r.json()).transcript || '').trim()
 }
 
 /** Yields the `data:` payloads of a server-sent-events stream. */
@@ -85,7 +112,7 @@ export async function reply(req: Request, log: CallLog): Promise<Response> {
   const body = (await req.json()) as ReplyRequest
   const p = persona(body.personaId)
   const messages = [
-    { role: 'system', content: systemPrompt(p, body.name || p.defaultName, body.language) },
+    { role: 'system', content: systemPrompt(p, body.name || p.defaultName, body.language, body.scene) },
     ...body.turns.slice(-30).map((t) => ({
       role: t.who === 'them' ? 'assistant' : 'user',
       content: t.who === 'event' ? `[${t.text}]` : t.text,
@@ -133,7 +160,7 @@ export async function reply(req: Request, log: CallLog): Promise<Response> {
           if (firstClauseMs === undefined && clauses.push(d).length) firstClauseMs = Date.now() - t0
           send({ d })
         }
-        let text = raw.trim().replace(/^["“]|["”]$/g, '').trim()
+        let text = stripMarkup(raw).replace(/^["“]|["”]$/g, '').trim()
         if (!text || !speakable(text)) text = SILENT
         const ms = Date.now() - t0
         if (firstClauseMs === undefined && text !== SILENT) firstClauseMs = ms
