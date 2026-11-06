@@ -17,12 +17,14 @@ export type Persona = {
   /** Preferred engine (fast, streams); falls back to Gemini `voice` on error. */
   clone?: ClonedVoice
   tested: boolean
+  /** Selectable in the app; the rest show as "coming soon" until their voice is chosen. */
+  available: boolean
 }
 
 export const PERSONAS: Persona[] = [
   {
     id: 'dad', label: 'Dad', defaultName: 'Papa', relation: 'father', gender: 'm',
-    voice: 'Algenib', tested: true,
+    voice: 'Algenib', tested: true, available: true,
     style: 'Indian father in his late fifties, deep, warm, unhurried, on the phone with his daughter',
     clone: {
       model: 'fish-audio/drama-3',
@@ -32,27 +34,27 @@ export const PERSONAS: Persona[] = [
   },
   {
     id: 'mom', label: 'Mom', defaultName: 'Mummy', relation: 'mother', gender: 'f',
-    voice: 'Sulafat', tested: false,
+    voice: 'Sulafat', tested: false, available: false,
     style: 'Indian mother in her fifties, warm, a little fussy, on the phone with her daughter',
   },
   {
     id: 'brother', label: 'Brother', defaultName: 'Bhaiya', relation: 'elder brother', gender: 'm',
-    voice: 'Orus', tested: false,
+    voice: 'Orus', tested: false, available: false,
     style: 'Indian man in his late twenties, relaxed, teasing but caring, on the phone with his younger sister',
   },
   {
     id: 'sister', label: 'Sister', defaultName: 'Didi', relation: 'elder sister', gender: 'f',
-    voice: 'Leda', tested: false,
+    voice: 'Leda', tested: false, available: false,
     style: 'Indian woman in her late twenties from Delhi, casual and chatty, on the phone with her younger sister',
   },
   {
     id: 'friend_m', label: 'Friend (male)', defaultName: 'Rohan', relation: 'close male friend', gender: 'm',
-    voice: 'Sadaltager', tested: false,
+    voice: 'Sadaltager', tested: false, available: false,
     style: 'young Indian man in his twenties from Delhi, casual, friendly, on the phone with a close friend',
   },
   {
     id: 'friend_f', label: 'Friend (female)', defaultName: 'Ananya', relation: 'close female friend', gender: 'f',
-    voice: 'Achernar', tested: false,
+    voice: 'Achernar', tested: false, available: false,
     style: 'young Indian woman in her twenties from Delhi, casual, friendly, on the phone with a close friend',
   },
 ]
@@ -62,6 +64,8 @@ export const LANGUAGES: { id: Language; label: string }[] = [
   { id: 'hindi', label: 'Hindi' },
   { id: 'english', label: 'English (Indian)' },
 ]
+
+export const DEFAULT_PERSONA = 'dad'
 
 export function persona(id: string): Persona {
   return PERSONAS.find((p) => p.id === id) ?? PERSONAS[0]

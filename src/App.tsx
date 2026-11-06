@@ -9,17 +9,29 @@ import ContactsPage from './pages/ContactsPage.tsx'
 function Nav() {
   const { pathname } = useLocation()
   if (pathname.startsWith('/call') || pathname.startsWith('/after')) return null
-  const item = (to: string, label: string, Icon: typeof Phone) => (
-    <NavLink to={to} end className={({ isActive }) => `flex flex-col items-center gap-0.5 text-xs ${isActive ? 'text-primary' : 'opacity-60'}`}>
-      <Icon size={20} />
-      {label}
-    </NavLink>
-  )
+  const item = (to: string, label: string, Icon: typeof Phone) => {
+    const active = to === '/' ? pathname === '/' : pathname.startsWith(to)
+    return (
+      <NavLink
+        to={to}
+        end
+        data-active={active}
+        className={`nav-tab flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+          active ? 'text-secondary bg-base-300/40' : 'text-base-content/60'
+        }`}
+      >
+        <Icon className="nav-tab-icon w-6 h-6" />
+        <span className={`text-xs mt-1 ${active ? 'font-extrabold' : 'font-semibold'}`}>{label}</span>
+      </NavLink>
+    )
+  }
   return (
-    <nav className="fixed bottom-0 inset-x-0 bg-base-200 border-t border-base-300 flex justify-around py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      {item('/', 'Call', Phone)}
-      {item('/history', 'History', History)}
-      {item('/contacts', 'Contacts', Users)}
+    <nav className="fixed bottom-0 inset-x-0 bg-base-200 border-t-2 border-base-300 z-50 safe-bottom">
+      <div className="flex justify-around items-center h-16 max-w-md mx-auto">
+        {item('/', 'Call', Phone)}
+        {item('/history', 'History', History)}
+        {item('/contacts', 'Contacts', Users)}
+      </div>
     </nav>
   )
 }
