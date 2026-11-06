@@ -80,6 +80,47 @@ def latency(candidates: list[str]):
                     print(f"  ERR {str(e)[:150]}")
 
 
+FULL_CALL_VOICES = {  # cast key (shown on the lab page) -> how to voice dad's lines
+    "sarvam/bulbul:v4-flash sumit": ("sarvam", "bulbul:v4-flash", "sumit_hi_conversational"),
+    "sarvam/bulbul:v4-flash ratan": ("sarvam", "bulbul:v4-flash", "ratan_hi_latenight_warm"),
+    "sarvam/bulbul:v4-flash girish": ("sarvam", "bulbul:v4-flash", "girish_hi_devotional"),
+    "fish-audio/drama-3 algenib-clone": ("fish-clone", None, None),
+}
+
+
+def full_calls():
+    """Voice dad's lines of every scripted scene; her lines reuse the Gemini Sulafat takes."""
+    import shutil
+    from lab import OUT as LAB_OUT, SCENES, slug
+    import latency
+    girl_dir = LAB_OUT / "lines" / "google-gemini-3-8-flash-tts"
+    casts = json.loads((LAB_OUT / "casts.json").read_text())
+    for key, (engine, model, speaker) in FULL_CALL_VOICES.items():
+        folder = LAB_OUT / "lines" / slug(key)
+        folder.mkdir(parents=True, exist_ok=True)
+        for scene in SCENES:
+            for i, line in enumerate(scene["lines"]):
+                stem = f"{scene['id']}_{i:02d}_{line['who']}"
+                if any(folder.glob(stem + ".*")):
+                    continue
+                if line["who"] == "girl":
+                    src = next(girl_dir.glob(stem + ".*"))
+                    shutil.copy(src, folder / src.name)
+                elif engine == "sarvam":
+                    lang = "en-IN" if scene["id"].endswith("english") else "hi-IN"
+                    body = {"text": line["text"], "target_language_code": lang, "model": model,
+                            "speaker": speaker, "speech_sample_rate": 24000}
+                    r = requests.post(URL, headers={"api-subscription-key": orlib._env("SARVAM_API_KEY")},
+                                      json=body, timeout=60)
+                    r.raise_for_status()
+                    (folder / f"{stem}.wav").write_bytes(base64.b64decode("".join(r.json()["audios"])))
+                else:
+                    latency.tts_stream("fish-audio/drama-3", None, None, line["text"], folder / stem, clone=True)
+        casts[key] = {"girl": "Sulafat (Gemini)", "dad": speaker or "Algenib clone"}
+        print("  voiced", key)
+    (LAB_OUT / "casts.json").write_text(json.dumps(casts, indent=1))
+
+
 def first():
     r = tts(LINE, "bulbul:v4-flash", "ratan_hi_latenight_warm", OUT / "first.wav")
     print(f"ok: {r['bytes']} bytes of wav in {r['s']}s -> {r['path'].relative_to(orlib.ROOT)}")
@@ -107,5 +148,7 @@ if __name__ == "__main__":
         first()
     elif stage == "latency":
         latency(sys.argv[2:])
+    elif stage == "calls":
+        full_calls()
     else:
         audition(sys.argv[2:] or DEFAULT_CANDIDATES)
