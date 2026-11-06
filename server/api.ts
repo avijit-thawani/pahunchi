@@ -169,37 +169,27 @@ export async function reply(req: Request, log: CallLog): Promise<Response> {
 }
 
 type Engine = {
-  name: 'sarvam' | 'smallest' | 'clone' | 'gemini'; model: string; voice: string; timeoutMs: number
+  name: 'sarvam' | 'clone' | 'gemini'; model: string; voice: string; timeoutMs: number
   url: string; headers: () => Record<string, string>; body: () => Promise<object>
   /** Fixed output rate; OpenRouter engines report theirs in Content-Type. */
   rate?: number
 }
 
-function keyed(name: string, header: string, prefix = ''): () => Record<string, string> {
+function keyed(name: string, header: string): () => Record<string, string> {
   return () => {
     const key = process.env[name]
     if (!key) throw new Error(`${name} is not set`)
-    return { [header]: prefix + key, 'Content-Type': 'application/json' }
+    return { [header]: key, 'Content-Type': 'application/json' }
   }
 }
 
 function primary(v: VoiceOption, text: string, language: Language): Engine {
-  if (v.provider === 'sarvam') {
-    return {
-      name: 'sarvam', model: v.model, voice: v.speaker, timeoutMs: 4000, rate: PCM_RATE,
-      url: 'https://api.sarvam.ai/text-to-speech/stream', headers: keyed('SARVAM_API_KEY', 'api-subscription-key'),
-      body: async () => ({
-        text, model: v.model, speaker: v.speaker, target_language_code: language === 'english' ? 'en-IN' : 'hi-IN',
-        speech_sample_rate: PCM_RATE, output_audio_codec: 'linear16',
-      }),
-    }
-  }
-  // Smallest's default host routes US traffic to Oregon, where Hindi is disabled; pin Mumbai.
   return {
-    name: 'smallest', model: v.model, voice: v.speaker, timeoutMs: 5000, rate: PCM_RATE,
-    url: 'https://api.india.smallest.ai/waves/v1/tts', headers: keyed('SMALLEST_API_KEY', 'Authorization', 'Bearer '),
+    name: 'sarvam', model: v.model, voice: v.speaker, timeoutMs: 4000, rate: PCM_RATE,
+    url: 'https://api.sarvam.ai/text-to-speech/stream', headers: keyed('SARVAM_API_KEY', 'api-subscription-key'),
     body: async () => ({
-      text, voice_id: v.speaker, model: v.model, language: 'hi', sample_rate: PCM_RATE, output_format: 'pcm',
+      text, model: v.model, speaker: v.speaker, target_language_code: language === 'english' ? 'en-IN' : 'hi-IN',
+      speech_sample_rate: PCM_RATE, output_audio_codec: 'linear16',
     }),
   }
 }
@@ -225,7 +215,7 @@ function engines(p: Persona, text: string, language: Language, voiceId?: string)
 }
 
 // POST { personaId, text, voiceId?, language? } -> raw 16-bit mono PCM; sample rate in X-Sample-Rate.
-// The call's chosen Sarvam/Smallest voice first, then the Fish clone (dad), then Gemini.
+// The call's chosen Sarvam voice first, then the Fish clone (dad), then Gemini.
 export async function tts(req: Request, log: CallLog): Promise<Response> {
   const { personaId, text, voiceId, language = 'hinglish' } =
     (await req.json()) as { personaId: string; text: string; voiceId?: string; language?: Language }

@@ -5,8 +5,8 @@ export type Language = 'hinglish' | 'hindi' | 'english'
 /** A cloned voice: the TTS model imitates `ref` (an mp3 in server/voices/) whose words are `transcript`. */
 export type ClonedVoice = { model: string; ref: string; transcript: string }
 
-/** A voice from an Indian TTS provider (called directly, not via OpenRouter). Each call picks one at random. */
-export type VoiceOption = { id: string; provider: 'sarvam' | 'smallest'; model: string; speaker: string }
+/** A Sarvam Bulbul voice (called directly, not via OpenRouter). Each call picks one at random. */
+export type VoiceOption = { id: string; provider: 'sarvam'; model: string; speaker: string }
 
 export type Persona = {
   id: string
@@ -28,8 +28,7 @@ export type Persona = {
 
 const sarvam = (speaker: string): VoiceOption =>
   ({ id: `sarvam:${speaker}`, provider: 'sarvam', model: 'bulbul:v4-flash', speaker })
-const smallest = (speaker: string): VoiceOption =>
-  ({ id: `smallest:${speaker}`, provider: 'smallest', model: 'lightning_v3.1', speaker })
+
 
 export const PERSONAS: Persona[] = [
   {
@@ -52,7 +51,7 @@ export const PERSONAS: Persona[] = [
   {
     id: 'brother', label: 'Brother', defaultName: 'Bhaiya', relation: 'elder brother', gender: 'm',
     voice: 'Orus', tested: true, available: true,
-    voices: [sarvam('shubh_enhi_companion'), smallest('aneer')],
+    voices: [sarvam('shubh_enhi_companion'), sarvam('kabir_hi_conversational')],
     style: 'Indian man in his late twenties, relaxed, teasing but caring, on the phone with his younger sister',
   },
   {

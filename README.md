@@ -52,8 +52,8 @@ she shares a `/join/<token>` link; they link on accepting or on signing up with 
   quiet. Mic is ignored while the responder talks (no barge-in yet).
 - **Turn detection (speculative):** at 300 ms of silence the app sends STT + reply + TTS; it plays
   only once the silence reaches 600 ms and drops it all if she resumes (mostly caught during STT).
-- **Voices (A/B):** 2 per role, one picked at random per call and logged (`voiceId`): dad Sarvam sumit/girish,
-  mom shreya/suchitra, sister aparna/sanchita, brother Sarvam shubh / Smallest aneer (`shared/personas.ts`).
+- **Voices (A/B, all Sarvam Bulbul v4 Flash):** 2 per role, one picked at random per call and logged (`voiceId`):
+  dad sumit/girish, mom shreya/suchitra, sister aparna/sanchita, brother shubh/kabir (`shared/personas.ts`).
   Fallbacks: Fish clone of Algenib (dad), then Gemini. Optional 👍/👎 + note after the call → `feedback.json`.
 - **Latency** (her last word -> his first sound, median of 8 lab turns): **~2.3-2.5 s**, was
   ~4.3-4.4 s, local and deployed. Real browser calls: 1.9-2.9 s. See [docs/latency.md](docs/latency.md).
