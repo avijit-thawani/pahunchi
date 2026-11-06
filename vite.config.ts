@@ -44,11 +44,16 @@ async function sendResponse(res: ServerResponse, r: Response) {
 }
 
 // Mounts server/api.ts at /api/<name>, reloaded on every request so edits apply instantly.
-// No password gate in dev; that lives in netlify/edge-functions/gate.ts.
+// No password gate in dev; that lives in netlify/edge-functions/gate.ts. Also stands in for the
+// per-minute netlify/functions/ring.ts that sends due "Call me later" pushes.
 function api(): Plugin {
   return {
     name: 'phoney-api',
     configureServer(server: ViteDevServer) {
+      const ring = setInterval(() => {
+        server.ssrLoadModule('/server/schedule.ts').then((m) => m.deliverDue()).catch((e) => console.error('[schedule]', e))
+      }, 15_000)
+      server.httpServer?.on('close', () => clearInterval(ring))
       server.middlewares.use('/api', async (req, res) => {
         const name = (req.url || '').replace(/^\//, '').split('?')[0]
         try {

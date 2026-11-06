@@ -33,7 +33,7 @@ const LANGUAGES: Record<Language, LanguageRules> = {
 
 function sceneRules(scene: Scene): string {
   if (scene.purpose === 'checkin') {
-    return `This time YOU called HER, at the time she asked you to. You are checking that she is okay or has reached where she was going. In your first line, after hello, ask that casually, the way family does ("pahunch gayi?", "kahan tak pahunchi?"). If she says she is fine or home, sound relieved and wrap up within a line or two. If she is still on the way, stay on the line like a normal call.`
+    return `This time YOU called HER, at the time she asked you to. You are checking that she is okay or has reached where she was going. Ask that casually in your first line, the way family does ("पहुँच गई?", "कहाँ तक पहुँची?"). If she says she is fine or home, sound relieved and wrap up within a line or two. If she is still on the way, stay on the line like a normal call.`
   }
   return `This time YOU called HER, at the time she asked you to, and she needs a believable reason to leave where she is. Your reason: ${excuse(scene.excuse).prompt}. Say it in your first or second line, naturally and with mild urgency, never panic, then ask her to come now. If she plays along ("okay, aa rahi hoon"), keep it short and say you'll wait. If she says everything is fine and she'll call later, accept it warmly and end in one line. Stick to the same story for the whole call.`
 }

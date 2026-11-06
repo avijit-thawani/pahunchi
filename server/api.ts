@@ -8,6 +8,7 @@ import { Clauses, speakable, stripMarkup } from '../shared/clauses.ts'
 import { CallLog, collect, pcmToWav } from './log.ts'
 import { clientIp, overLimit } from './limits.ts'
 import { systemPrompt } from './prompt.ts'
+import { schedule } from './schedule.ts'
 import { inputReferences } from './voices.ts'
 
 const BASE = 'https://openrouter.ai/api/v1'
@@ -313,7 +314,7 @@ export async function logSession(req: Request, log: CallLog): Promise<Response> 
   return json({ ok: true })
 }
 
-export const handlers: Record<string, Handler> = { stt, reply, tts, log: logSession }
+export const handlers: Record<string, Handler> = { stt, reply, tts, log: logSession, schedule }
 
 /** Route /api/<name>; `defer` keeps background log writes alive after the response. */
 export async function handle(name: string, req: Request, defer: (p: Promise<unknown>) => void): Promise<Response> {

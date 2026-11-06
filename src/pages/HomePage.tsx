@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Monitor, Moon, Phone, Sun } from 'lucide-react'
+import { Clock, Monitor, Moon, Phone, Sun } from 'lucide-react'
+import { CallLaterSheet, PendingCalls } from './CallLater.tsx'
 import { DEFAULT_PERSONA, LANGUAGES, PERSONAS, persona } from '../../shared/personas.ts'
 import { useSettings } from '../lib/store.ts'
 import { startCall } from '../lib/activeCall.ts'
@@ -34,6 +35,7 @@ export default function HomePage() {
     ? stored
     : { ...stored, personaId: DEFAULT_PERSONA, name: persona(DEFAULT_PERSONA).defaultName }
   const callee = settings.name.trim() || persona(settings.personaId).defaultName
+  const [later, setLater] = useState(false)
 
   const call = () => {
     startCall({ ...settings, name: callee })
@@ -51,6 +53,8 @@ export default function HomePage() {
         </div>
         <ThemeButton />
       </header>
+
+      <PendingCalls />
 
       <section>
         <h2 className="text-sm font-extrabold uppercase tracking-wide text-base-content/60 mb-2">Who picks up</h2>
@@ -117,6 +121,15 @@ export default function HomePage() {
       <button onClick={call} className="btn btn-success btn-chunky btn-lg w-full h-16 rounded-2xl text-lg font-extrabold gap-3">
         <Phone className="w-6 h-6" /> Call {callee}
       </button>
+      <button onClick={() => setLater(true)} className="btn btn-outline w-full h-12 rounded-2xl font-extrabold gap-2 -mt-2">
+        <Clock className="w-5 h-5" /> Call me later
+      </button>
+      {later && (
+        <CallLaterSheet
+          onClose={() => setLater(false)}
+          ring={{ personaId: settings.personaId, name: callee, language: settings.language }}
+        />
+      )}
       <p className="text-center text-xs text-base-content/50 font-semibold -mt-3">Free · beta: calls are recorded to improve the voice</p>
     </main>
   )

@@ -4,6 +4,7 @@
 import type { Turn } from '../../shared/api.ts'
 import { SILENT } from '../../shared/api.ts'
 import { persona, pickVoice } from '../../shared/personas.ts'
+import type { Scene } from '../../shared/scene.ts'
 import * as api from './api.ts'
 import { CallAudio } from './audio.ts'
 import { END_MS, Mic, PAUSE_MS } from './mic.ts'
@@ -79,8 +80,12 @@ export class CallEngine {
   private timer?: ReturnType<typeof setInterval>
   private wakeLock?: WakeLockSentinel
 
-  constructor(settings: Settings) {
+  /** Set for a scheduled call: he rings her, so no ringback and he speaks first. */
+  private scene?: Scene
+
+  constructor(settings: Settings, scene?: Scene) {
     this.settings = settings
+    this.scene = scene
     this.session = {
       id: newSessionId(), startedAt: Date.now(), personaId: settings.personaId, name: settings.name,
       language: settings.language, turns: [], metrics: [], voiceId: pickVoice(persona(settings.personaId))?.id,
@@ -128,7 +133,7 @@ export class CallEngine {
     api.logSession('start', {
       startedAt: new Date(this.session.startedAt).toISOString(), personaId: this.settings.personaId,
       voiceId: this.session.voiceId,
-      name: this.settings.name, language: this.settings.language, ambience: this.settings.ambience,
+      name: this.settings.name, language: this.settings.language, ambience: this.settings.ambience, scene: this.scene,
       screen: `${screen.width}x${screen.height}`, standalone: matchMedia('(display-mode: standalone)').matches,
     })
     this.audio = new CallAudio()
@@ -155,10 +160,10 @@ export class CallEngine {
     }
     void this.loadFillers()
 
-    const connected: Omit<Turn, 'at'> = { who: 'event', text: 'call connected' }
+    const connected: Omit<Turn, 'at'> = { who: 'event', text: this.scene ? 'she answered' : 'call connected' }
     const opening = this.prepare('00', connected)
     this.push(connected)
-    await this.audio.ringback(RINGS)
+    if (!this.scene) await this.audio.ringback(RINGS)
     if (this.state.phase !== 'ringing') return
     this.set({ phase: 'connected', connectedAt: Date.now() })
     if (this.settings.ambience) void this.audio.startAmbience('/ambience/tv.mp3').catch(() => undefined)
@@ -263,6 +268,7 @@ export class CallEngine {
     const turns = [...this.state.turns, { ...next, at: Date.now() }]
     const stream = new api.ReplyStream({
       personaId: this.settings.personaId, name: this.settings.name, language: this.settings.language, turns,
+      scene: this.scene,
     }, turn, ctl.signal)
     return { my, stream, ctl, startedAt: Date.now() }
   }

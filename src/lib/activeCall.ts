@@ -3,12 +3,13 @@
 
 import { CallEngine } from './call.ts'
 import type { Settings } from './store.ts'
+import type { Scene } from '../../shared/scene.ts'
 
 let active: CallEngine | null = null
 
-export function startCall(settings: Settings): CallEngine {
+export function startCall(settings: Settings, scene?: Scene): CallEngine {
   active?.hangup()
-  active = new CallEngine(settings)
+  active = new CallEngine(settings, scene)
   void active.start()
   return active
 }

@@ -43,30 +43,29 @@ Later: make call time useful (voice journal, a listener); export just her side o
 
 Live at <https://phoney-call.netlify.app> (public; rate limits + key cap): call loop, server-side call logging, voice
 lab. Google sign-in (Supabase Auth) gates trusted contacts, linked via a `/join/<token>` link or the email she typed.
-Signed-in calls sync to `calls`; contacts see them in History per their delay (`shared_calls()`). No push/email yet.
+Signed-in calls sync to `calls`; contacts see them in History per their delay (`shared_calls()`). No contact alerts yet.
 
-- **Call loop:** ringback -> responder picks up -> browser VAD -> STT Sarvam `saaras:v4` (Scribe fallback)
-  -> reply `google/gemini-3.5-flash-lite` (reasoning `minimal`), streamed -> TTS per clause as
-  soon as it is complete -> phone-band filter with a TV room behind. A cached "हम्म / हाँ" plays
-  if he hasn't started 2.5 s after she stops. Long silences ask the model, which usually stays
-  quiet. Mic is ignored while the responder talks (no barge-in yet).
+- **Call loop:** ringback -> responder picks up -> browser VAD -> STT Sarvam `saaras:v4` (Scribe fallback) -> reply
+  `google/gemini-3.5-flash-lite` (reasoning `minimal`), streamed -> TTS per clause as soon as it is complete ->
+  phone-band filter with a TV room behind. A cached "हम्म / हाँ" plays if he hasn't started 2.5 s after she stops.
+  Long silences ask the model, which usually stays quiet. Mic is ignored while he talks (no barge-in yet).
 - **Turn detection (speculative):** at 300 ms of silence the app sends STT + reply + TTS; it plays
   only once the silence reaches 600 ms and drops it all if she resumes (mostly caught during STT).
 - **Voices (A/B, all Sarvam Bulbul v4 Flash):** 2 per role, one picked at random per call and logged (`voiceId`):
   dad sumit/girish, mom shreya/suchitra, sister aparna/sanchita, brother shubh/kabir; Dost/Saheli reuse the
-  sibling voices with their own prompt note (`shared/personas.ts`).
-  Fallbacks: Fish clone of Algenib (dad), then Gemini. Optional 👍/👎 + note after the call → `feedback.json`.
-- **Latency** (her last word -> his first sound, median of 8 lab turns): **~2.3-2.5 s**, was
-  ~4.3-4.4 s, local and deployed. Real browser calls: 1.9-2.9 s. See [docs/latency.md](docs/latency.md).
-- **Cost:** voice is Sarvam ₹1 per 1,000 chars (~$0.0065 per minute of him talking); a busy call is
-  well under $0.01/min all-in, a mostly-silent one far less.
-- **Screens:** pick responder + language, a dialer-style call screen (hidden transcript
-  with per-turn latency), "I'm safe" after the call, history, trusted contacts + join page.
+  sibling voices with their own prompt note (`shared/personas.ts`). Fallbacks: Fish clone of Algenib (dad), then Gemini. Optional 👍/👎 + note after the call → `feedback.json`.
+- **Latency** (her last word -> his first sound, median of 8 lab turns): **~2.3-2.5 s** (was ~4.3), local and
+  deployed. Real browser calls: 1.9-2.9 s. See [docs/latency.md](docs/latency.md).
+- **Cost:** voice is Sarvam ₹1 per 1,000 chars (~$0.0065 per minute of him talking); a busy call is well under $0.01/min.
+- **Screens:** pick responder + language, a dialer-style call screen (hidden transcript with per-turn latency),
+  "I'm safe" + optional 👍/👎 note after the call (→ `feedback.json`), history, trusted contacts + join page.
+- **Call me later:** she picks when (5 m-1 h, or a clock time) and why: "Get me out" (a preset excuse) or "Check on
+  me". At that time a Web Push (no sign-in; Netlify Blobs + per-minute `ring.ts`) or, if phoney is open, the app itself
+  rings; she answers on `/incoming` and he speaks first. iPhone: push needs Add to Home Screen.
 - **Voice lab** (`sim/`): OpenRouter, Smallest and Sarvam voices auditioned; roles cast with a v2 judge
   (estimated age/gender, hard lines) in `sim/roles.py`; page `sim/out/index.html`. See [docs/voices.md](docs/voices.md).
 
-A PWA in the background (she switches apps to scroll) may lose mic/audio, especially on iOS;
-may need a native wrapper later.
+A PWA in the background (she switches apps to scroll) may lose mic/audio, especially on iOS; native wrapper later.
 
 ## Layout
 
@@ -77,9 +76,9 @@ src/            React app: pages/, lib/call.ts (call loop, speculative turns), a
 supabase/       migrations/ (trusted_contacts + calls, RLS, invite/email-link/shared_calls functions)
 server/         API handlers as Request -> Response: api.ts (stt, reply as NDJSON stream, tts
                 with fallback, log), voices/ (clone reference clips), log.ts (call logging),
-                limits.ts (request caps), auth.ts (password gate), prompt.ts (system prompt)
-netlify/        functions/api.ts (all of /api/*), edge-functions/gate.ts (password gate)
-shared/         personas (voices, style), clauses.ts (reply splitter), API types
+                limits.ts (request caps), auth.ts (password gate), prompt.ts, schedule.ts (call me later)
+netlify/        functions/api.ts (all of /api/*), ring.ts (due pushes), edge-functions/gate.ts (password gate)
+shared/         personas (voices, style), scene.ts (call-me-later purposes), clauses.ts, API types
 scripts/        smoke-call.ts (headless call with lab clips), logs.ts (inspect call logs),
                 setup-supabase.ts (creates the log bucket)
 sim/            voice lab: scenes.json, lab.py, orlib.py; out/ + ledger gitignored
@@ -102,11 +101,10 @@ The lab stops at `PHONEY_BUDGET_USD` (default $8); the app's calls are not budge
 
 ## Call logs
 
-Every call is logged server-side for debugging: per turn her WAV (as sent to STT), the
-transcript, the reply, his TTS audio as WAV, timings (STT, LLM first clause, TTS first byte), models
-and TTS engine (clone or Gemini fallback), and errors; plus the client's start/end summaries
-(persona, language, user agent, per-turn latency incl. VAD tail and her-end -> his-voice, silences, fillers). The client sends
-`X-Phoney-Session` / `X-Phoney-Turn` headers and posts to `/api/log`; failures never break a call.
+Every call is logged server-side for debugging: per turn her WAV (as sent to STT), transcript, reply, his TTS audio,
+timings (STT, LLM first clause, TTS first byte), models, TTS engine and errors; plus the client's start/end summaries
+(persona, language, user agent, per-turn latency, silences, fillers). The client sends `X-Phoney-Session` /
+`X-Phoney-Turn` headers and posts to `/api/log`; failures never break a call.
 
 - **Dev:** `logs/calls/<session>/` (gitignored; session ids start with the date).
 - **Deployed:** private Supabase Storage bucket `phoney-logs` (in the `mandarin` project for
@@ -122,7 +120,8 @@ and TTS engine (clone or Gemini fallback), and errors; plus the client's start/e
 API) plus in-memory 150/min per IP and 2500 requests per call session.
 Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_URL`,
 `SUPABASE_SERVICE_ROLE_KEY`, `PHONEY_PASSWORD` (spaces or hyphens between words both work),
-`PHONEY_COOKIE_SECRET` (random hex; rotating either logs everyone out). Locally,
+`PHONEY_COOKIE_SECRET` (random hex; rotating either logs everyone out), `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY`
+(Web Push; `npx web-push generate-vapid-keys`; changing them breaks existing subscriptions). Locally,
 `phoney/.env` holds the Supabase pair for `logs.ts --remote` and `setup-supabase.ts`.
 
 ## Roadmap
@@ -136,6 +135,7 @@ Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_U
 - [ ] Audition voices for mom / siblings / friends
 - [x] Rate-limit /api, password gate, call logging (local + Supabase Storage)
 - [x] Supabase: Google auth, trusted contacts + invite links (RLS); [ ] sessions, transcripts
+- [x] Call me later: scheduled "Get me out" / "Check on me" call via Web Push; [ ] alert contacts if unanswered
 - [ ] "I'm safe" timer + delayed notify (Netlify scheduled function)
 - [x] Netlify deploy
 - [ ] Move the logs bucket from `mandarin` into the `phoney` project (accounts already live there)
