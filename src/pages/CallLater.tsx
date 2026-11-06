@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Clock, PhoneIncoming, X } from 'lucide-react'
-import { DELAYS_MIN, EXCUSES, PURPOSES, incomingUrl, type Purpose, type Ring } from '../../shared/scene.ts'
+import { DELAYS_MIN, PURPOSES, incomingUrl, type Purpose, type Ring } from '../../shared/scene.ts'
 import { cancelCall, pushSupport, scheduleCall, usePending } from '../lib/later.ts'
 
 const clock = (at: number) => new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
@@ -21,10 +21,10 @@ function atClock(hhmm: string): number {
 }
 
 const NOTICE = {
-  'ios-install': 'On iPhone, add phoney to your Home Screen (Share → Add to Home Screen) and open it from there so the call can ring while phoney is closed. Until then it only rings if phoney is open.',
-  denied: 'Notifications are blocked for phoney, so it can only ring while phoney is open. Allow them in your browser settings.',
-  none: "This browser can't ring in the background. Keep phoney open and it will ring on time.",
-  ok: "You'll get a notification at that time; tap it to answer. The first time, allow notifications.",
+  'ios-install': 'On iPhone, add phoney to your Home Screen (Share → Add to Home Screen) so it can ring while closed. Until then it only rings if phoney is open.',
+  denied: 'Notifications are blocked for phoney, so it only rings while phoney is open.',
+  none: 'This browser only rings while phoney is open.',
+  ok: '',
 }
 
 /** Cards for scheduled calls, at the top of the home screen. */
@@ -53,16 +53,15 @@ export function PendingCalls() {
   )
 }
 
-/** Bottom sheet: when, why, and (for "Get me out") which excuse. Mount only while open. */
-export function CallLaterSheet({ ring, onClose }: { ring: Omit<Ring, 'scene'>; onClose: () => void }) {
+/** Opens under the Call row: when, and a two-way "get me out / check on me" toggle. Mount only while open. */
+export function LaterPanel({ ring, excuse, onDone }: { ring: Omit<Ring, 'scene'>; excuse?: string; onDone: () => void }) {
   const [delay, setDelay] = useState<number | 'clock'>(15)
   const [time, setTime] = useState('')
   const [purpose, setPurpose] = useState<Purpose>('escape')
-  const [excuseId, setExcuseId] = useState(EXCUSES[0].id)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [now, setNow] = useState(() => Date.now())
-  const support = pushSupport()
+  const notice = NOTICE[pushSupport()]
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 10_000)
@@ -74,9 +73,9 @@ export function CallLaterSheet({ ring, onClose }: { ring: Omit<Ring, 'scene'>; o
     setBusy(true)
     setError('')
     try {
-      const scene = purpose === 'escape' ? { purpose, excuse: excuseId } : { purpose }
+      const scene = purpose === 'escape' ? { purpose, excuse } : { purpose }
       await scheduleCall({ ...ring, scene }, delay === 'clock' ? atClock(time) : Date.now() + delay * 60_000)
-      onClose()
+      onDone()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -85,57 +84,30 @@ export function CallLaterSheet({ ring, onClose }: { ring: Omit<Ring, 'scene'>; o
   }
 
   return (
-    <div className="modal modal-bottom sm:modal-middle modal-open">
-      <div className="modal-box max-w-md space-y-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-        <h3 className="text-xl font-extrabold">{ring.name} calls you</h3>
-
-        <section>
-          <h4 className="text-sm font-extrabold uppercase tracking-wide text-base-content/60 mb-2">When</h4>
-          <div className="grid grid-cols-5 gap-2">
-            {DELAYS_MIN.map((m) => (
-              <button key={m} data-selected={delay === m} onClick={() => setDelay(m)} className="pick py-2 text-sm font-extrabold">
-                {m < 60 ? `${m}m` : `${m / 60}h`}
-              </button>
-            ))}
-            <button data-selected={delay === 'clock'} onClick={() => setDelay('clock')} className="pick py-2 text-sm font-extrabold">At…</button>
-          </div>
-          {delay === 'clock' && (
-            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="input w-full mt-2 font-semibold" />
-          )}
-        </section>
-
-        <section>
-          <h4 className="text-sm font-extrabold uppercase tracking-wide text-base-content/60 mb-2">Why</h4>
-          <div className="grid grid-cols-2 gap-2">
-            {PURPOSES.map((p) => (
-              <button key={p.id} data-selected={purpose === p.id} onClick={() => setPurpose(p.id)} className="pick p-3 text-left">
-                <span className="block font-extrabold text-sm">{p.label}</span>
-                <span className="block text-xs font-semibold text-base-content/60 mt-0.5">{p.hint}</span>
-              </button>
-            ))}
-          </div>
-          {purpose === 'escape' && (
-            <div className="grid grid-cols-1 gap-1.5 mt-2">
-              {EXCUSES.map((x) => (
-                <button key={x.id} data-selected={excuseId === x.id} onClick={() => setExcuseId(x.id)} className="pick py-2 px-3 text-left text-sm font-bold">
-                  {x.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <p className={`text-xs font-semibold ${support === 'ok' ? 'text-base-content/60' : 'text-warning'}`}>{NOTICE[support]}</p>
-        {error && <p className="text-xs font-semibold text-error">{error}</p>}
-
-        <div className="flex gap-2">
-          <button onClick={onClose} className="btn btn-ghost flex-1 font-bold">Cancel</button>
-          <button onClick={submit} disabled={busy || !at} className="btn btn-success btn-chunky flex-[2] font-extrabold gap-2">
-            <PhoneIncoming className="w-5 h-5" /> {at ? `Ring me at ${clock(at)}` : 'Pick a time'}
+    <section className="bg-base-200 rounded-box p-3 space-y-3 -mt-3">
+      <div className="grid grid-cols-5 gap-2">
+        {DELAYS_MIN.map((m) => (
+          <button key={m} data-selected={delay === m} onClick={() => setDelay(m)} className="pick py-2 text-sm font-extrabold">
+            {m < 60 ? `${m}m` : `${m / 60}h`}
           </button>
-        </div>
+        ))}
+        <button data-selected={delay === 'clock'} onClick={() => setDelay('clock')} className="pick py-2 text-sm font-extrabold">At…</button>
       </div>
-      <button className="modal-backdrop" onClick={onClose} aria-label="Close" />
-    </div>
+      {delay === 'clock' && (
+        <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="input w-full font-semibold" />
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        {PURPOSES.map((p) => (
+          <button key={p.id} data-selected={purpose === p.id} onClick={() => setPurpose(p.id)} className="pick py-2 text-sm font-extrabold">
+            {p.label}
+          </button>
+        ))}
+      </div>
+      {notice && <p className="text-xs font-semibold text-warning">{notice}</p>}
+      {error && <p className="text-xs font-semibold text-error">{error}</p>}
+      <button onClick={submit} disabled={busy || !at} className="btn btn-success btn-chunky w-full font-extrabold gap-2">
+        <PhoneIncoming className="w-5 h-5" /> {at ? `Ring me at ${clock(at)}` : 'Pick a time'}
+      </button>
+    </section>
   )
 }

@@ -28,9 +28,9 @@ export function parseIncoming(search: string): Ring | null {
   return { personaId: p, name: q.get('n') || '', language: l, scene: { purpose: s, excuse: q.get('x') || undefined } }
 }
 
-export const PURPOSES: { id: Purpose; label: string; hint: string }[] = [
-  { id: 'escape', label: 'Get me out', hint: 'He calls with a reason you have to leave now' },
-  { id: 'checkin', label: 'Check on me', hint: '"Pahunch gayi? Sab theek?"' },
+export const PURPOSES: { id: Purpose; label: string }[] = [
+  { id: 'escape', label: 'Get me out' },
+  { id: 'checkin', label: 'Check on me' },
 ]
 
 /** `label` is shown to her; `prompt` tells the responder what the story is. */

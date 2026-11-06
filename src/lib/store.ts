@@ -11,6 +11,8 @@ export type Settings = {
   name: string
   language: Language
   ambience: boolean
+  /** EXCUSES id used when a scheduled "Get me out" call rings. */
+  excuse?: string
 }
 
 /**

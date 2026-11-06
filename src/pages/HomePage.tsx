@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Clock, Monitor, Moon, Phone, Sun } from 'lucide-react'
-import { CallLaterSheet, PendingCalls } from './CallLater.tsx'
+import { LaterPanel, PendingCalls } from './CallLater.tsx'
+import { EXCUSES, excuse } from '../../shared/scene.ts'
 import { DEFAULT_PERSONA, LANGUAGES, PERSONAS, persona } from '../../shared/personas.ts'
 import { useSettings } from '../lib/store.ts'
 import { startCall } from '../lib/activeCall.ts'
@@ -115,18 +116,38 @@ export default function HomePage() {
               onChange={(e) => setSettings({ ...settings, ambience: e.target.checked })}
             />
           </label>
+          <label className="block">
+            <span className="text-sm font-bold text-base-content/70">When he calls to get you out, his reason</span>
+            <select
+              className="select w-full mt-1 font-semibold"
+              value={excuse(settings.excuse).id}
+              onChange={(e) => setSettings({ ...settings, excuse: e.target.value })}
+            >
+              {EXCUSES.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+            </select>
+          </label>
         </div>
       </details>
 
-      <button onClick={call} className="btn btn-success btn-chunky btn-lg w-full h-16 rounded-2xl text-lg font-extrabold gap-3">
-        <Phone className="w-6 h-6" /> Call {callee}
-      </button>
-      <button onClick={() => setLater(true)} className="btn btn-outline w-full h-12 rounded-2xl font-extrabold gap-2 -mt-2">
-        <Clock className="w-5 h-5" /> Call me later
-      </button>
+      <div className="flex gap-2">
+        <button onClick={call} className="btn btn-success btn-chunky btn-lg flex-1 h-16 rounded-2xl text-lg font-extrabold gap-3">
+          <Phone className="w-6 h-6" /> Call
+        </button>
+        <button
+          onClick={() => setLater(!later)}
+          data-selected={later}
+          className="pick w-16 h-16 rounded-2xl grid place-items-center"
+          aria-label="Call me later"
+          aria-expanded={later}
+          title="Call me later"
+        >
+          <Clock className="w-7 h-7" />
+        </button>
+      </div>
       {later && (
-        <CallLaterSheet
-          onClose={() => setLater(false)}
+        <LaterPanel
+          onDone={() => setLater(false)}
+          excuse={settings.excuse}
           ring={{ personaId: settings.personaId, name: callee, language: settings.language }}
         />
       )}
