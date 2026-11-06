@@ -292,8 +292,17 @@ def page() -> None:
          "<style>body{font:14px system-ui;max-width:1100px;margin:2em auto;padding:0 1em}"
          "td,th{padding:4px 8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}"
          "audio{height:30px;width:260px}.s{font-weight:600}</style>",
-         "<h1>phoney voice lab</h1><h2>Full calls</h2>",
-         "<p>Dad is phone-band filtered with a faint TV room behind him; the girl has cab or street ambience.</p>"]
+         "<h1>phoney voice lab</h1>"]
+    cont = json.loads((SIM / "contenders.json").read_text())
+    h.append(f"<h2>Dad voice contenders</h2><p>Same line for all: <b>{html.escape(cont['line'])}</b><br>"
+             f"<small>{html.escape(cont['_note'])}</small></p><table>"
+             "<tr><th>provider</th><th>voice</th><th></th><th>score</th><th>first audio</th><th>note</th></tr>")
+    for provider, label, f, score, first, note in cont["voices"]:
+        if (OUT / f).exists():
+            h.append(f"<tr><td>{provider}</td><td>{html.escape(label)}</td><td><audio controls preload=none "
+                     f"src='{f}'></audio></td><td class=s>{score}</td><td>{first}</td><td><small>{note}</small></td></tr>")
+    h += ["</table>", "<h2>Full calls</h2>",
+          "<p>Dad is phone-band filtered with a faint TV room behind him; the girl has cab or street ambience.</p>"]
     for scene in SCENES:
         h.append(f"<h3>{html.escape(scene['title'])}</h3><details><summary>transcript</summary><ol>")
         h += [f"<li><b>{l['who']}</b>: {html.escape(l['roman'])}</li>" for l in scene["lines"]]

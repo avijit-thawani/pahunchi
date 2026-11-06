@@ -1,0 +1,33 @@
+{
+  "_note": "Top dad voices across providers, shown first on sim/out/index.html (uv run sim/lab.py page). file is relative to sim/out/. Score = Gemini audio judge, lenient and bunched near 9. First audio = streaming time to first sound, measured from the US.",
+  "line": "हम्म, लिख लिया। हाँ, location share आ गया है। तो कितनी देर में पहुँच जाओगी?",
+  "voices": [
+    ["Current app", "Fish Drama 3, cloned from Algenib", "contenders/fish_clone_algenib.mp3", "~9", "0.4–0.6 s", "live dad voice today"],
+    ["Sarvam", "v4-flash sumit_hi_conversational", "sarvam/bulbul-v4-flash__sumit_hi_conversational.wav", "10.0", "0.8 s", ""],
+    ["Sarvam", "v4-flash ratan_hi_latenight_warm", "sarvam/bulbul-v4-flash__ratan_hi_latenight_warm.wav", "9.8", "0.8 s", ""],
+    ["Sarvam", "v4-flash girish_hi_devotional", "sarvam/bulbul-v4-flash__girish_hi_devotional.wav", "9.8", "0.8 s", ""],
+    ["Sarvam", "v4-flash anand_hi_documentary", "sarvam/bulbul-v4-flash__anand_hi_documentary.wav", "9.8", "0.8 s", ""],
+    ["Sarvam", "v3 shubh", "sarvam/bulbul-v3__shubh.wav", "9.8", "0.8 s", ""],
+    ["Sarvam", "v4-flash ashutosh_hi_conversational", "sarvam/pitch/v4-flash_ashutosh.wav", "–", "~0.8 s", "your pick"],
+    ["Sarvam", "v4-flash ashutosh, pace 0.9", "sarvam/pitch/v4-flash_ashutosh_pace0.9.wav", "–", "~0.8 s", ""],
+    ["Sarvam", "v4-flash ashutosh, −1 semitone", "sarvam/pitch/v4-flash_ashutosh_minus1st.wav", "–", "~0.8 s", "pitch lowered after generation"],
+    ["Sarvam", "v4-flash ashutosh, −2 semitones", "sarvam/pitch/v4-flash_ashutosh_minus2st.wav", "–", "~0.8 s", "pitch lowered after generation"],
+    ["Sarvam", "v4-flash amit_hi_conversational", "sarvam/pitch/v4-flash_amit.wav", "8.2", "~0.8 s", "your pick"],
+    ["Sarvam", "v4-flash amit, pace 0.9", "sarvam/pitch/v4-flash_amit_pace0.9.wav", "–", "~0.8 s", ""],
+    ["Sarvam", "v4-flash amit, −1 semitone", "sarvam/pitch/v4-flash_amit_minus1st.wav", "–", "~0.8 s", "pitch lowered after generation"],
+    ["Sarvam", "v4-flash amit, −2 semitones", "sarvam/pitch/v4-flash_amit_minus2st.wav", "–", "~0.8 s", "pitch lowered after generation"],
+    ["Sarvam", "v3 ashutosh", "sarvam/pitch/v3_ashutosh.wav", "–", "~0.8 s", ""],
+    ["Sarvam", "v3 amit", "sarvam/pitch/v3_amit.wav", "–", "~0.8 s", ""],
+    ["Smallest AI", "karan", "smallest/lightning_v3.1__karan.wav", "9.0", "~1.8 s*", "*non-streaming"],
+    ["Smallest AI", "ranbir", "smallest/lightning_v3.1__ranbir.wav", "9.0", "~1.9 s*", ""],
+    ["Smallest AI", "ishan", "smallest/lightning_v3.1__ishan.wav", "9.0", "~1.8 s*", ""],
+    ["Smallest AI", "samarth", "smallest/lightning_v3.1__samarth.wav", "9.0", "~1.9 s*", ""],
+    ["Smallest AI", "balwinder", "smallest/lightning_v3.1__balwinder.wav", "9.0", "~1.8 s*", ""],
+    ["Smallest AI", "vikram", "smallest/lightning_v3.1__vikram.wav", "8.5", "~1.8 s*", ""],
+    ["OpenRouter", "Gemini 3.8 Flash TTS, Algenib (previous dad)", "audition/dad__google-gemini-3-8-flash-tts__algenib.wav", "9.8", "1.8 s", "doesn't stream"],
+    ["OpenRouter", "Microsoft MAI-Voice-2.1, hi-IN Grant", "audition/dad__microsoft-mai-voice-2-1__hi-in-grant-mai-voice-2-1.wav", "9.8", "1.0 s", ""],
+    ["OpenRouter", "ElevenLabs v3, Brian", "audition/dad__elevenlabs-eleven-v3__brian.mp3", "9.8", "1–2 s", "Flash v2.5 Brian: 0.4 s"],
+    ["OpenRouter", "Fish Drama 3 (no fixed voice)", "audition/dad__fish-audio-drama-3__auto.mp3", "9.8", "0.4 s", "voice can drift between lines"],
+    ["OpenRouter", "Grok Voice, Leo", "audition/dad__x-ai-grok-voice-tts-1-0__leo.mp3", "8.8", "0.4 s", ""]
+  ]
+}
