@@ -12,8 +12,19 @@ export function speakable(s: string): boolean {
   return /[\p{L}\p{N}]/u.test(s)
 }
 
+/** Drop what the model sometimes leaks but a voice shouldn't read: HTML tags (`</h3>`, even unclosed
+ * at the end), markdown emphasis/headings/code, and bracketed stage directions like `[laughs]`. */
+export function stripMarkup(s: string): string {
+  return s
+    .replace(/<\/?[a-z][^>]*(>|$)/gi, ' ')
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/[*`#]+|(^|\s)_+|_+(?=\s|$)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function clean(s: string): string {
-  return s.replace(/["“”]/g, '').replace(/\s+/g, ' ').trim()
+  return stripMarkup(s.replace(/["“”]/g, ''))
 }
 
 export class Clauses {
