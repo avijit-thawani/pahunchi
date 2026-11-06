@@ -1,7 +1,7 @@
 // API handlers in web-standard Request -> Response form. vite.config.ts (dev) and
 // netlify/functions/api.ts (deployed) both call `handle`, which adds caps and logging.
 
-import { persona, type Persona } from '../shared/personas.ts'
+import { persona, type Language, type Persona, type VoiceOption } from '../shared/personas.ts'
 import type { ReplyChunk, ReplyRequest, SttResponse } from '../shared/api.ts'
 import { SILENT } from '../shared/api.ts'
 import { Clauses, speakable } from '../shared/clauses.ts'
@@ -168,28 +168,70 @@ export async function reply(req: Request, log: CallLog): Promise<Response> {
   })
 }
 
-type Engine = { name: 'clone' | 'gemini'; model: string; voice: string; body: () => Promise<object>; timeoutMs: number }
-
-function engines(p: Persona, text: string): Engine[] {
-  const gemini: Engine = {
-    name: 'gemini', model: TTS_MODEL, voice: p.voice, timeoutMs: 15000,
-    body: async () => ({ model: TTS_MODEL, input: text, voice: p.voice, instructions: p.style, response_format: 'pcm' }),
-  }
-  const clone = p.clone
-  if (!clone || process.env.PHONEY_TTS_ENGINE === 'gemini') return [gemini]
-  return [{
-    name: 'clone', model: clone.model, voice: clone.ref, timeoutMs: CLONE_HEADERS_TIMEOUT_MS,
-    body: async () => ({ model: clone.model, input: text, response_format: 'pcm', input_references: await inputReferences(clone) }),
-  }, gemini]
+type Engine = {
+  name: 'sarvam' | 'smallest' | 'clone' | 'gemini'; model: string; voice: string; timeoutMs: number
+  url: string; headers: () => Record<string, string>; body: () => Promise<object>
+  /** Fixed output rate; OpenRouter engines report theirs in Content-Type. */
+  rate?: number
 }
 
-// POST { personaId, text } -> raw 16-bit mono PCM; sample rate in X-Sample-Rate (24 kHz Gemini,
-// 44.1 kHz Fish). Cloned voice first, Gemini if it errors or is slow to answer.
+function keyed(name: string, header: string, prefix = ''): () => Record<string, string> {
+  return () => {
+    const key = process.env[name]
+    if (!key) throw new Error(`${name} is not set`)
+    return { [header]: prefix + key, 'Content-Type': 'application/json' }
+  }
+}
+
+function primary(v: VoiceOption, text: string, language: Language): Engine {
+  if (v.provider === 'sarvam') {
+    return {
+      name: 'sarvam', model: v.model, voice: v.speaker, timeoutMs: 4000, rate: PCM_RATE,
+      url: 'https://api.sarvam.ai/text-to-speech/stream', headers: keyed('SARVAM_API_KEY', 'api-subscription-key'),
+      body: async () => ({
+        text, model: v.model, speaker: v.speaker, target_language_code: language === 'english' ? 'en-IN' : 'hi-IN',
+        speech_sample_rate: PCM_RATE, output_audio_codec: 'linear16',
+      }),
+    }
+  }
+  // Smallest's default host routes US traffic to Oregon, where Hindi is disabled; pin Mumbai.
+  return {
+    name: 'smallest', model: v.model, voice: v.speaker, timeoutMs: 5000, rate: PCM_RATE,
+    url: 'https://api.india.smallest.ai/waves/v1/tts', headers: keyed('SMALLEST_API_KEY', 'Authorization', 'Bearer '),
+    body: async () => ({
+      text, voice_id: v.speaker, model: v.model, language: 'hi', sample_rate: PCM_RATE, output_format: 'pcm',
+    }),
+  }
+}
+
+function engines(p: Persona, text: string, language: Language, voiceId?: string): Engine[] {
+  const openrouter = { url: `${BASE}/audio/speech`, headers: headers }
+  const gemini: Engine = {
+    ...openrouter, name: 'gemini', model: TTS_MODEL, voice: p.voice, timeoutMs: 15000,
+    body: async () => ({ model: TTS_MODEL, input: text, voice: p.voice, instructions: p.style, response_format: 'pcm' }),
+  }
+  if (process.env.PHONEY_TTS_ENGINE === 'gemini') return [gemini]
+  const list: Engine[] = []
+  const v = p.voices?.find((x) => x.id === voiceId) ?? p.voices?.[0]
+  if (v) list.push(primary(v, text, language))
+  const clone = p.clone
+  if (clone) {
+    list.push({
+      ...openrouter, name: 'clone', model: clone.model, voice: clone.ref, timeoutMs: CLONE_HEADERS_TIMEOUT_MS,
+      body: async () => ({ model: clone.model, input: text, response_format: 'pcm', input_references: await inputReferences(clone) }),
+    })
+  }
+  return [...list, gemini]
+}
+
+// POST { personaId, text, voiceId?, language? } -> raw 16-bit mono PCM; sample rate in X-Sample-Rate.
+// The call's chosen Sarvam/Smallest voice first, then the Fish clone (dad), then Gemini.
 export async function tts(req: Request, log: CallLog): Promise<Response> {
-  const { personaId, text } = (await req.json()) as { personaId: string; text: string }
+  const { personaId, text, voiceId, language = 'hinglish' } =
+    (await req.json()) as { personaId: string; text: string; voiceId?: string; language?: Language }
   if (!text || text.length > MAX_TTS_CHARS) return json({ error: 'bad text length' }, 400)
   const p = persona(personaId)
-  const list = engines(p, text)
+  const list = engines(p, text, language, voiceId)
   for (const [i, e] of list.entries()) {
     const last = i === list.length - 1
     const t0 = Date.now()
@@ -198,8 +240,8 @@ export async function tts(req: Request, log: CallLog): Promise<Response> {
     const timer = setTimeout(() => ctl.abort(), e.timeoutMs)
     let r: Response
     try {
-      r = await fetch(`${BASE}/audio/speech`, {
-        method: 'POST', headers: headers(), signal: ctl.signal, body: JSON.stringify(await e.body()),
+      r = await fetch(e.url, {
+        method: 'POST', headers: e.headers(), signal: ctl.signal, body: JSON.stringify(await e.body()),
       })
     } catch (err) {
       log.event({ kind: 'error', api: 'tts', engine: e.name, model: e.model, detail: String(err).slice(0, 200) })
@@ -215,7 +257,7 @@ export async function tts(req: Request, log: CallLog): Promise<Response> {
       log.event({ kind: 'error', api: 'tts', engine: e.name, model: e.model, status: r.status, detail })
       continue
     }
-    const rate = Number(/rate=(\d+)/.exec(r.headers.get('Content-Type') || '')?.[1]) || PCM_RATE
+    const rate = e.rate ?? (Number(/rate=(\d+)/.exec(r.headers.get('Content-Type') || '')?.[1]) || PCM_RATE)
     const headersMs = Date.now() - t0
     const [toClient, toLog] = r.body.tee()
     const done = collect(toLog, t0)
@@ -237,17 +279,18 @@ export async function tts(req: Request, log: CallLog): Promise<Response> {
   return json({ error: 'tts failed' }, 502)
 }
 
-// POST { kind: 'start' | 'end', ... } from the client: session summaries, saved as JSON.
+// POST { kind: 'start' | 'end' | 'feedback', ... } from the client: session summaries and the
+// optional thumbs up/down + note after the call, saved as JSON next to the call's audio.
 export async function logSession(req: Request, log: CallLog): Promise<Response> {
   const raw = await req.text()
   if (raw.length > MAX_LOG_BYTES) return json({ error: 'too large' }, 413)
   const body = JSON.parse(raw) as { kind?: string }
-  const kind = body.kind === 'start' ? 'start' : 'end'
+  const kind = body.kind === 'start' || body.kind === 'feedback' ? body.kind : 'end'
   const record = {
     ...body, receivedAt: new Date().toISOString(), ip: clientIp(req),
     userAgent: req.headers.get('User-Agent'), models: { llm: LLM_MODEL, stt: STT_MODEL, tts: TTS_MODEL },
   }
-  log.file(kind === 'start' ? 'start.json' : 'session.json', new TextEncoder().encode(JSON.stringify(record, null, 2)),
+  log.file(`${kind === 'end' ? 'session' : kind}.json`, new TextEncoder().encode(JSON.stringify(record, null, 2)),
     'application/json')
   log.event({ kind: `session-${kind}` })
   return json({ ok: true })

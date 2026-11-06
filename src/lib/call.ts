@@ -3,6 +3,7 @@
 
 import type { Turn } from '../../shared/api.ts'
 import { SILENT } from '../../shared/api.ts'
+import { persona, pickVoice } from '../../shared/personas.ts'
 import * as api from './api.ts'
 import { CallAudio } from './audio.ts'
 import { END_MS, Mic, PAUSE_MS } from './mic.ts'
@@ -81,7 +82,7 @@ export class CallEngine {
     this.settings = settings
     this.session = {
       id: newSessionId(), startedAt: Date.now(), personaId: settings.personaId, name: settings.name,
-      language: settings.language, turns: [], metrics: [],
+      language: settings.language, turns: [], metrics: [], voiceId: pickVoice(persona(settings.personaId))?.id,
     }
   }
 
@@ -120,9 +121,10 @@ export class CallEngine {
 
   /** Call from the tap handler: audio and mic permissions need a user gesture. */
   async start() {
-    api.setSession(this.session.id)
+    api.setSession(this.session.id, this.session.voiceId, this.settings.language)
     api.logSession('start', {
       startedAt: new Date(this.session.startedAt).toISOString(), personaId: this.settings.personaId,
+      voiceId: this.session.voiceId,
       name: this.settings.name, language: this.settings.language, ambience: this.settings.ambience,
       screen: `${screen.width}x${screen.height}`, standalone: matchMedia('(display-mode: standalone)').matches,
     })

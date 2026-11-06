@@ -5,6 +5,9 @@ export type Language = 'hinglish' | 'hindi' | 'english'
 /** A cloned voice: the TTS model imitates `ref` (an mp3 in server/voices/) whose words are `transcript`. */
 export type ClonedVoice = { model: string; ref: string; transcript: string }
 
+/** A voice from an Indian TTS provider (called directly, not via OpenRouter). Each call picks one at random. */
+export type VoiceOption = { id: string; provider: 'sarvam' | 'smallest'; model: string; speaker: string }
+
 export type Persona = {
   id: string
   label: string
@@ -19,12 +22,20 @@ export type Persona = {
   tested: boolean
   /** Selectable in the app; the rest show as "coming soon" until their voice is chosen. */
   available: boolean
+  /** Primary voices, A/B tested: one is picked at random per call and logged. Falls back to `clone`, then Gemini. */
+  voices?: VoiceOption[]
 }
+
+const sarvam = (speaker: string): VoiceOption =>
+  ({ id: `sarvam:${speaker}`, provider: 'sarvam', model: 'bulbul:v4-flash', speaker })
+const smallest = (speaker: string): VoiceOption =>
+  ({ id: `smallest:${speaker}`, provider: 'smallest', model: 'lightning_v3.1', speaker })
 
 export const PERSONAS: Persona[] = [
   {
     id: 'dad', label: 'Dad', defaultName: 'Papa', relation: 'father', gender: 'm',
     voice: 'Algenib', tested: true, available: true,
+    voices: [sarvam('sumit_hi_conversational'), sarvam('girish_hi_devotional')],
     style: 'Indian father in his late fifties, deep, warm, unhurried, on the phone with his daughter',
     clone: {
       model: 'fish-audio/drama-3',
@@ -34,17 +45,20 @@ export const PERSONAS: Persona[] = [
   },
   {
     id: 'mom', label: 'Mom', defaultName: 'Mummy', relation: 'mother', gender: 'f',
-    voice: 'Sulafat', tested: false, available: false,
+    voice: 'Sulafat', tested: true, available: true,
+    voices: [sarvam('shreya_hi_conversational'), sarvam('suchitra_hi_ecomm')],
     style: 'Indian mother in her fifties, warm, a little fussy, on the phone with her daughter',
   },
   {
     id: 'brother', label: 'Brother', defaultName: 'Bhaiya', relation: 'elder brother', gender: 'm',
-    voice: 'Orus', tested: false, available: false,
+    voice: 'Orus', tested: true, available: true,
+    voices: [sarvam('shubh_enhi_companion'), smallest('aneer')],
     style: 'Indian man in his late twenties, relaxed, teasing but caring, on the phone with his younger sister',
   },
   {
     id: 'sister', label: 'Sister', defaultName: 'Didi', relation: 'elder sister', gender: 'f',
-    voice: 'Leda', tested: false, available: false,
+    voice: 'Leda', tested: true, available: true,
+    voices: [sarvam('aparna_hi_customer'), sarvam('sanchita_enhi_companion')],
     style: 'Indian woman in her late twenties from Delhi, casual and chatty, on the phone with her younger sister',
   },
   {
@@ -66,6 +80,10 @@ export const LANGUAGES: { id: Language; label: string }[] = [
 ]
 
 export const DEFAULT_PERSONA = 'dad'
+
+export function pickVoice(p: Persona): VoiceOption | undefined {
+  return p.voices?.length ? p.voices[Math.floor(Math.random() * p.voices.length)] : undefined
+}
 
 export function persona(id: string): Persona {
   return PERSONAS.find((p) => p.id === id) ?? PERSONAS[0]

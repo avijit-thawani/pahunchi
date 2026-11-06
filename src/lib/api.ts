@@ -3,8 +3,10 @@ import { Clauses } from '../../shared/clauses.ts'
 
 // Every request carries the call's session id and turn label so the server can log the call.
 let sessionId = ''
-export function setSession(id: string) {
+let voice: { voiceId?: string; language?: string } = {}
+export function setSession(id: string, voiceId?: string, language?: string) {
   sessionId = id
+  voice = { voiceId, language }
 }
 
 function hdrs(turn: string, type = 'application/json'): Record<string, string> {
@@ -23,7 +25,7 @@ export async function transcribe(wav: Blob, turn: string, language: string, sign
 
 export async function speech(personaId: string, text: string, turn: string, signal?: AbortSignal): Promise<Response> {
   return ok(await fetch('/api/tts', {
-    method: 'POST', headers: hdrs(turn), body: JSON.stringify({ personaId, text }), signal,
+    method: 'POST', headers: hdrs(turn), body: JSON.stringify({ personaId, text, ...voice }), signal,
   }))
 }
 
@@ -109,8 +111,16 @@ export class ReplyStream {
   }
 }
 
+/** Thumbs up/down (+ optional note) after a call, filed under that call's log. Best effort. */
+export function sendFeedback(session: string, data: object) {
+  void fetch('/api/log', {
+    method: 'POST', body: JSON.stringify({ kind: 'feedback', ...data }),
+    headers: { 'Content-Type': 'application/json', 'X-Phoney-Session': session, 'X-Phoney-Turn': 'feedback' },
+  }).catch(() => undefined)
+}
+
 /** Session start/end summary for the server-side call log. Best effort, never throws. */
-export function logSession(kind: 'start' | 'end', data: object) {
+export function logSession(kind: 'start' | 'end' | 'feedback', data: object) {
   const body = JSON.stringify({ kind, ...data })
   void fetch('/api/log', { method: 'POST', headers: hdrs(kind), body, keepalive: body.length < 60_000 })
     .catch(() => undefined)

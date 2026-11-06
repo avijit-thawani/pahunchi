@@ -1,4 +1,5 @@
-// Local-only persistence (localStorage). Moves to Supabase once auth + sync exist.
+// Local-only persistence (localStorage). Trusted contacts move to Supabase on sign-in
+// (ContactsPage); settings and sessions are still local.
 
 import { useCallback, useState } from 'react'
 import type { Turn } from '../../shared/api.ts'
@@ -36,7 +37,12 @@ export type Session = {
   metrics: TurnMetrics[]
   events?: CallEvent[]
   safeAt?: number
+  /** Which of the persona's voices this call used (picked at random, for A/B). */
+  voiceId?: string
+  feedback?: Feedback
 }
+
+export type Feedback = { rating: 'up' | 'down'; note?: string; at: number }
 
 export type Contact = {
   id: string
@@ -92,4 +98,11 @@ export function getSession(id: string): Session | undefined {
 export function markSafe(id: string) {
   const s = getSession(id)
   if (s) saveSession({ ...s, safeAt: Date.now() })
+}
+
+export function setFeedback(id: string, rating: Feedback['rating'], note?: string): Feedback {
+  const feedback: Feedback = { rating, note: note?.trim() || undefined, at: Date.now() }
+  const s = getSession(id)
+  if (s) saveSession({ ...s, feedback })
+  return feedback
 }
