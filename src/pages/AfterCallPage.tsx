@@ -97,10 +97,8 @@ export default function AfterCallPage() {
           <div className="text-6xl">🏠</div>
           <h1 className="text-3xl font-extrabold">Did you reach safely?</h1>
           <p className="text-base-content/70 font-semibold">
-            {minutes} min call with {session.name}.{' '}
-            {contacts.length
-              ? `Your ${contacts.length} trusted contact${contacts.length > 1 ? 's' : ''} would be nudged if you don't confirm (coming soon).`
-              : "Soon, trusted contacts can be nudged if you don't confirm."}
+            {minutes} min with {session.name}.{' '}
+            {contacts.length ? "Contacts get a nudge if you don't confirm (coming soon)." : ''}
           </p>
           <button onClick={safe} className="btn btn-success btn-chunky btn-lg h-16 rounded-2xl text-lg font-extrabold">
             I'm safe
