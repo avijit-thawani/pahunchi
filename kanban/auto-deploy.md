@@ -5,7 +5,7 @@ tests:
   - push to main, then a branch deploy of that commit shows up at main--phoney-call.netlify.app
   - merge main into prod, then a production deploy of that commit goes live at phoney-call.netlify.app
 transcripts:
-  - uuid-not-on-disk-yet 2026-11-07 linked Netlify to GitHub: main = dev release, prod = prod release
+  - ce344cfd-23b5-4416-aca6-852e6b135c0b 2026-11-07 linked Netlify to GitHub: main = dev release, prod = prod release
   - a1ebdb03-7df7-4906-9901-5f652abbb468 2026-11-07 created card at the user's request
 ---
 
@@ -34,6 +34,7 @@ Prod release: run the tests of the cards going `prod-web` plus `npm run build &&
 ## Notes
 
 - The dev URL moved from `dev--phoney-call` (old `--alias dev`) to `main--phoney-call`. The old alias still serves its last manual deploy.
-- README Deploy section and the AGENTS.md release channels (dev URL, "push to main = dev release", prod = merge to `prod`) need updating by the maintainer chat.
+- 2026-11-07 README and AGENTS.md now describe this flow (maintainer chat).
+- 2026-11-07 Git builds had no `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` (only laptop builds read `.env`), so dev said "Accounts aren't configured". Added both on Netlify for all contexts and rebuilt `main`; dev now shows "Sign in with Google". Prod was locked to CLI deploy `6aee58a4`; unlocked 2026-11-07 09:38 ET (auto-publishing on, live site unchanged), so the next push to `prod` goes live.
 - The Android app calls the live site's `/api`, so a prod release also changes server behaviour for the app.
 - Each prod deploy may cost Netlify credits; dev branch deploys are free. Fewer, batched prod releases help.

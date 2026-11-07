@@ -1,0 +1,37 @@
+# Pre-prod checklist
+
+Run this on the dev release before pushing to `prod`. Dev = `https://main--phoney-call.netlify.app` (web) and the debug build on the Android emulator, both from the commit you're about to release. Release that same commit: `git push origin <commit>:prod`.
+
+**Parity is the point.** Every test marked *web + Android* runs on both, and screenshots of the same screen sit side by side. A difference counts as a failure unless that feature's kanban card explains it.
+
+Add a test here when a feature becomes crucial: one numbered item, text only, saying how to run it and what passes. Keep each item short.
+
+## Tools
+
+- Web screenshots: `PHONEY_URL=https://main--phoney-call.netlify.app node video/capture.mjs` (demo data, fake sign-in; writes `video/screens/`).
+- Android: `npm run android`, build and install the debug APK on the emulator (`emulator-5554`); drive it with `adb shell input tap`, capture with `adb exec-out screencap -p`.
+- Call through the API: `PHONEY_URL=https://main--phoney-call.netlify.app node scripts/smoke-call.ts [scene] [persona] [language]` (needs the voice-lab clips in `sim/out/`, so this laptop only).
+- Agents: run `smoke-call` and `logs.ts --remote` downloads in the background (each takes 15-30 s per call or session) and keep working while they finish.
+- Web, no person needed: `npm run test:preprod` (about 70 s) runs tests 2, 3 (after Google's page), 5, 6, 7 and 9 on dev in the video toolkit's headless shell, as two throwaway accounts, with her short lines in the sister's Sarvam voice as the mic. Screenshots in `video/screens/preprod/`; both accounts are deleted at the end.
+- Trusted contacts without Google: `node scripts/contacts-e2e.ts` makes two throwaway accounts, runs add -> invite -> join -> shared call -> delay -> "Delete all my data", and leaves nothing behind.
+- Call logs: `node scripts/logs.ts --remote` lists sessions, `--remote <id>` shows one. Dev and prod share the same Supabase project, so dev calls land there too.
+
+## Tests
+
+1. **Build.** `npm run build && npm run lint` pass.
+2. **Tab navigation** (web + Android). From Home, tap Call, History, Settings and back. Each tab opens its screen, the bar stays visible on every screen except the call itself, and the active tab is highlighted. Screenshot each tab on both.
+3. **Login and logout** (web + Android). Signed out, Settings shows "Sign in with Google". Sign in (throwaway Google account), and Settings shows "Signed in as …" with contacts. Sign out, and it returns to the signed-out view. On Android sign-in goes through the system browser and comes back to the app.
+4. **He picks up and answers.** `smoke-call short dad hinglish` (her short lines in the sister's Sarvam voice) and one other persona/language. Passes when he opens the call and every turn gets a reply with audio, no errors. Latency is logged, not a gate: note the median "her end -> his voice" in the run.
+5. **Call now, end to end** (web + Android). Tap Call. Ringback stops when he speaks, the call screen shows name, timer, Mute, Speaker, Text. Say a line, and he answers. Hang up, and the after-call screen appears ("Did you reach safely?" only if she has contacts). On Android the audio starts on the earpiece, not the speaker.
+6. **Scheduled call, end to end** (web + Android). Tap the clock, pick 5m and Get me out, tap "Ring me at …". The pending card shows on Home. Tap **Now** on it: the incoming screen shows, Accept, and he speaks first with an excuse. Cancel on a second scheduled call removes it. (Real delivery after 5 min by push or notification is a separate, slower check; run it when Call me later changed.)
+7. **Trusted contacts** (web + Android). Signed in: add a contact, copy their invite link, open it signed in as a second account, and they appear as Joined. Change the delay and it sticks after reload. Make a call as the first account without tapping "I'm safe": after the delay (use "Right away" for testing) the second account sees it under "Shared with you" in History.
+8. **Call logging and errors.** After tests 4-5, `node scripts/logs.ts --remote` lists those sessions; the newest shows per-turn transcript, timings and the TTS engine, plus start and end events. Turn off the network mid-call (emulator: airplane mode): the call screen says "Can't reach phoney. Check your internet.", the log records the real error, and the message clears when he speaks again.
+9. **History** (web + Android). After test 5, the call appears in History with its time and transcript, on both platforms, laid out the same.
+
+## Runs
+
+Newest first: date, commit, which tests passed or failed, who ran it (transcript id).
+
+- 2026-11-07 09:47 ET, dev at `3c0c7bc`, web: `npm run test:preprod` 17/17. Pass: 2 (tabs), 3 (signed in, contact listed; Google's own page not covered), 5 (he opened, heard "हाँ, कैब में हूँ" and "बस 10 मिनट", answered both, "Did you reach safely?"), 6 (pending card, Now, Accept, he spoke first with an excuse), 7 (contact saw it under "Shared with you"), 9 (History), no page errors, both accounts deleted. Android not run yet. 3773fae9-00cb-4eff-a661-5ad3ac519194
+
+- 2026-11-07, `4aede72` (dev), not releasable. Pass: 1 (build + lint on a clean checkout), 8 logging half (newest Pixel session shows turns, timings, Sarvam, start/end). Pass: 7 server side, `contacts-e2e.ts` 11/11 (add, invite, join, shared call at "Right away", hidden at 30 min, no direct table access, both accounts deleted). Fixed: dev web had no sign-in until `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` were added on Netlify (09:26); 3 and the UI half of 7 and 9 still need a person on dev. Fail: 2, because dev still has the Contacts tab (the Settings tab is uncommitted). Pass: 4, he opened and replied with Sarvam audio on every turn in 5 runs (long lab lines, 2-6 s each: median her end -> his voice 3.5-4.0 s, STT 1.6-1.8 s). Not run: 5, 6, 7 end to end (need a person and a second Google account), Android parity (Pixel and emulator run an 08:12 build of the uncommitted tree, not `4aede72`). Also: prod is locked to CLI deploy `6aee58a4` (2026-11-06 22:45 UTC), so pushes to `prod` build but don't publish. 3773fae9-00cb-4eff-a661-5ad3ac519194
