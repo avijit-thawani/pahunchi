@@ -3,19 +3,20 @@
 //   npm run dev   (in another terminal)
 //   node scripts/smoke-call.ts [scene_id] [personaId] [language]
 // Deployed: PHONEY_URL=https://phoney-call.netlify.app PHONEY_PASSWORD=... node scripts/smoke-call.ts
+// PHONEY_HER=sarvam:aparna_hi_customer voices her lines (sim/scenes.json) in that voice through
+// /api/tts once, cached under sim/out/lines/, instead of the lab's Gemini clips.
 // "her end -> his voice" models the app's turn detection: the pipeline starts after PAUSE_MS of
 // silence and playback waits for END_MS (speculative start), so it is max(END, PAUSE + stt + llm + tts).
 
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { Clauses } from '../shared/clauses.ts'
 
 const PAUSE_MS = 300
 const END_MS = 600
 const BASE = process.env.PHONEY_URL || 'http://localhost:5173'
+const HER = process.env.PHONEY_HER
 const [scene = 'cab_night', personaId = 'dad', language = 'hinglish'] = process.argv.slice(2)
-const dir = 'sim/out/lines/google-gemini-3-8-flash-tts'
-const clips = readdirSync(dir).filter((f) => f.startsWith(scene) && f.includes('_girl')).sort()
-if (!clips.length) throw new Error(`no lab clips for ${scene}; run: uv run sim/lab.py scenes`)
+const dir = HER ? `sim/out/lines/${HER.replace(/[^\w-]+/g, '-')}` : 'sim/out/lines/google-gemini-3-8-flash-tts'
 
 type Turn = { who: 'her' | 'them' | 'event'; text: string; at: number }
 const turns: Turn[] = []
@@ -85,8 +86,34 @@ async function respond(turn: string): Promise<Reply> {
   return { text, clause, reply, ...t }
 }
 
+function wav(pcm: Buffer, rate: number): Buffer {
+  const h = Buffer.alloc(44)
+  h.write('RIFF', 0); h.writeUInt32LE(36 + pcm.length, 4); h.write('WAVE', 8); h.write('fmt ', 12)
+  h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22); h.writeUInt32LE(rate, 24)
+  h.writeUInt32LE(rate * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write('data', 36)
+  h.writeUInt32LE(pcm.length, 40)
+  return Buffer.concat([h, pcm])
+}
+
+/** Her lines of the scene in the PHONEY_HER voice, named like the lab's clips. */
+async function voiceHer() {
+  const { scenes } = JSON.parse(readFileSync('sim/scenes.json', 'utf8')) as { scenes: { id: string; lines: { who: string; text: string }[] }[] }
+  const s = scenes.find((x) => x.id === scene)
+  if (!s) throw new Error(`no scene ${scene} in sim/scenes.json`)
+  mkdirSync(dir, { recursive: true })
+  for (const [i, t] of s.lines.entries()) {
+    const file = `${dir}/${scene}_${String(i).padStart(2, '0')}_girl.wav`
+    if (t.who !== 'girl' || existsSync(file)) continue
+    const r = await post('tts', JSON.stringify({ personaId: 'sister', voiceId: HER, text: t.text, language }), 'application/json', '00')
+    writeFileSync(file, wav(Buffer.from(await r.arrayBuffer()), Number(r.headers.get('X-Sample-Rate') || 24000)))
+  }
+}
+
 await login()
-console.log(`${BASE}  session ${session}`)
+if (HER) await voiceHer()
+const clips = readdirSync(dir).filter((f) => f.startsWith(scene) && f.includes('_girl')).sort()
+if (!clips.length) throw new Error(`no lab clips for ${scene}; run: uv run sim/lab.py scenes`)
+console.log(`${BASE}  session ${session}  her: ${HER ?? 'gemini lab clips'}`)
 turns.push({ who: 'event', text: 'call connected', at: Date.now() })
 const open = await respond('00')
 console.log(`THEM  ${open.text}   (first clause ${open.clause} ms, tts ${open.engine} first audio ${open.tts} ms)`)
