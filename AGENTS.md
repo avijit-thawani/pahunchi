@@ -26,7 +26,7 @@ Women in India call someone, or pretend to, when walking alone or in a cab at ni
    - Mobile-first, dark/light mode (`../mandarin` is the reference). Errors in plain words ("Can't reach Pahunchi, check your internet", not "TypeError: Failed to fetch").
 6. **Finish the job yourself, and verify it.**
    - Migrate, deploy to dev, commit and push to GitHub without handing steps back ("you=ai agent deploy and migrate data"; "Nothing is committed yet. wtf? push na?"). Production waits for the user.
-   - Test on the user's connected Pixel over adb (`../sense` did the same), read the call logs, and show UI changes on localhost. Diagnose from logs, not guesses; report numbers, not adjectives.
+   - Test on the user's connected Pixel over adb (wireless pairing and the `nc` relay: [kanban/android-app.md](kanban/android-app.md)), read the call logs, and show UI changes on localhost. Diagnose from logs, not guesses; report numbers, not adjectives.
    - Other chats work on Pahunchi in parallel. Read any chat the user points to, and don't undo its work.
 
 **Later, not now:** Play Store listing, iOS app; a voice journal or listener mode, exporting just her side.
