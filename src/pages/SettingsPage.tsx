@@ -137,7 +137,13 @@ function ShareLocation() {
   const toggle = async (on: boolean) => {
     setNote('')
     if (on && !(await askPermission())) {
-      return setNote('Location is blocked for phoney. Allow it in your phone\'s settings, then try again.')
+      if (Capacitor.isNativePlatform()) {
+        return setNote('Location is blocked for phoney. Allow it in your phone\'s settings, then try again.')
+      }
+      const site = await navigator.permissions?.query({ name: 'geolocation' }).then((s) => s.state).catch(() => undefined)
+      return setNote(site === 'denied'
+        ? 'Your browser blocks location for this site. Allow it from the icon beside the address, then try again.'
+        : 'Your browser can\'t get your location. Turn on Location Services for it in your device settings, then try again.')
     }
     setSettings({ ...settings, shareLocation: on })
   }
