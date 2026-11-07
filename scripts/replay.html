@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>phoney replay</title>
+<style>
+  :root {
+    --bg: #101114; --card: #1a1c21; --line: #2c2f36; --dim: #8b909a; --text: #eceef2;
+    --her: #ffcc00; --wait: #6b7280; --stt: #be8cff; --ai: #ff8c3c; --voice: #5adc78; --him: #5adc78; --play: #4b5563;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, system-ui, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 18px 18px 60px; }
+  h1 { font-size: 20px; margin: 0 0 2px; }
+  .sub { color: var(--dim); font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-top: 14px; }
+  .label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+  .big { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--dim); margin-top: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .stack { display: flex; height: 26px; border-radius: 7px; overflow: hidden; margin-top: 8px; }
+  .stack div { display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #111; white-space: nowrap; overflow: hidden; }
+  .lanes { position: relative; margin-top: 10px; }
+  .lane { display: grid; grid-template-columns: 112px 1fr; align-items: center; height: 26px; }
+  .lane .name { font-size: 12px; font-weight: 700; color: var(--dim); }
+  .track { position: relative; height: 18px; overflow: hidden; }
+  .bar { position: absolute; top: 0; height: 18px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #111;
+    display: flex; align-items: center; padding: 0 5px; white-space: nowrap; overflow: visible; }
+  .bar .ms { position: relative; z-index: 1; }
+  .bar.est { opacity: .55; outline: 1.5px dashed rgba(255,255,255,.7); outline-offset: -1.5px; }
+  .net { position: absolute; top: 0; bottom: 0; right: 0; border-radius: 0 4px 4px 0;
+    background: repeating-linear-gradient(135deg, rgba(0,0,0,.35) 0 4px, rgba(0,0,0,0) 4px 8px); }
+  .axis { position: relative; height: 18px; margin-left: 112px; color: var(--dim); font-size: 10px; border-top: 1px solid var(--line); }
+  .axis span { position: absolute; top: 3px; transform: translateX(-50%); }
+  .zero { position: absolute; top: 0; bottom: 18px; width: 0; border-left: 1px dashed rgba(255,255,255,.35); }
+  .head { position: absolute; top: 0; bottom: 18px; width: 2px; background: #fff; box-shadow: 0 0 6px #fff; display: none; }
+  .turn h3 { margin: 0; font-size: 15px; display: flex; justify-content: space-between; align-items: baseline; }
+  .turn .said { margin-top: 6px; font-size: 13px; }
+  .turn .said b { color: var(--dim); font-weight: 700; margin-right: 6px; }
+  .turn.live { border-color: #fff; box-shadow: 0 0 0 1px #fff; }
+  .clip { position: absolute; top: 2px; height: 14px; border-radius: 3px; }
+  .controls { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+  button { background: var(--her); color: #111; border: 0; border-radius: 999px; font-weight: 800; font-size: 15px; padding: 10px 26px; cursor: pointer; }
+  .lap { position: sticky; top: 0; z-index: 5; display: none; background: rgba(16,17,20,.94); border-bottom: 1px solid var(--line); }
+  .lap .in { max-width: 960px; margin: 0 auto; padding: 10px 18px; display: flex; gap: 22px; align-items: center; }
+  .lap .now { font-size: 13px; color: var(--dim); }
+  .lap .now b { color: var(--text); }
+  .tip { color: var(--dim); font-size: 12px; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="lap" id="lap"><div class="in">
+  <div><div class="label" id="lapLabel">since she stopped</div><div class="big" id="lapTime">0.00 s</div></div>
+  <div class="now" id="lapNow"></div>
+</div></div>
+<main>
+  <h1 id="title"></h1>
+  <div class="sub" id="meta"></div>
+
+  <div class="card" id="summary"></div>
+
+  <div class="card">
+    <div class="label">Whole call</div>
+    <div class="lanes" id="callLanes"></div>
+    <div class="controls"><button id="play">▶ Replay</button><span class="sub" id="clock">0:00</span><span class="sub">or click the timeline</span></div>
+  </div>
+
+  <div id="turns"></div>
+</main>
+<script>
+const R = /*DATA*/null;
+const STEPS = {
+  wait: { name: 'pause wait', color: 'var(--wait)' },
+  stt: { name: 'speech-to-text', color: 'var(--stt)' },
+  ai: { name: 'AI first phrase', color: 'var(--ai)' },
+  voice: { name: 'voice first sound', color: 'var(--voice)' },
+  play: { name: 'phone playback', color: 'var(--play)' },
+};
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const s1 = (ms) => (ms / 1000).toFixed(ms < 10000 ? 2 : 1) + ' s';
+const median = (xs) => { const a = [...xs].sort((x, y) => x - y); return a[Math.floor(a.length / 2)]; };
+const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+$('title').textContent = R.name + ' (' + R.persona + ') · ' + R.language;
+$('meta').textContent = [R.id, R.device, R.voice && R.voice.replace('sarvam:', 'voice '), Math.round(R.durationS) + ' s'].filter(Boolean).join(' · ');
+
+// Summary: median of each step over her turns measured on the phone.
+const real = R.turns.filter((t) => !t.estimated && t.her);
+const sum = $('summary');
+if (real.length) {
+  const keys = ['wait', 'stt', 'ai', 'voice', 'play'];
+  const med = {};
+  keys.forEach((k) => { med[k] = median(real.map((t) => { const s = t.steps.find((x) => x.key === k); return s ? s.to - s.from : 0; })); });
+  const total = median(real.map((t) => t.totalMs));
+  sum.append(el('div', 'label', 'Her last word → his first sound, median of ' + real.length + ' turns'));
+  sum.append(el('div', 'big', s1(total)));
+  const stack = el('div', 'stack');
+  const parts = keys.filter((k) => med[k] > 0);
+  const whole = parts.reduce((a, k) => a + med[k], 0);
+  parts.forEach((k) => {
+    const d = el('div', '', med[k] / whole > 0.09 ? s1(med[k]) : '');
+    d.style.width = (100 * med[k] / whole) + '%'; d.style.background = STEPS[k].color; d.title = STEPS[k].name + ' ' + med[k] + ' ms';
+    stack.append(d);
+  });
+  sum.append(stack);
+  const lg = el('div', 'legend');
+  parts.forEach((k) => lg.append(el('span', '', '<i style="background:' + STEPS[k].color + '"></i>' + STEPS[k].name + ' ' + s1(med[k]))));
+  lg.append(el('span', '', '<i style="background:repeating-linear-gradient(135deg,#555 0 3px,#222 3px 6px)"></i>hatched = phone ↔ server network'));
+  sum.append(lg);
+  sum.append(el('div', 'tip', 'Each step\'s solid part is measured on the server; the hatched rest is upload, network and decode on the phone. Steps per turn add up to the delay she heard.'));
+} else {
+  sum.append(el('div', 'label', 'No phone timings in this call; per-turn bars use server timings and are marked ~'));
+}
+
+// Whole call strip.
+const W = () => $('callLanes').querySelector('.track').clientWidth;
+const callLanes = $('callLanes');
+const lanes = { her: 'her', him: 'him', filler: 'him (filler)' };
+const callHead = el('div', 'head');
+['her', 'him', 'filler'].forEach((who) => {
+  const clips = R.clips.filter((c) => c.who === who);
+  if (!clips.length) return;
+  const lane = el('div', 'lane'); lane.append(el('div', 'name', lanes[who]));
+  const tr = el('div', 'track');
+  clips.forEach((c) => {
+    const b = el('div', 'clip');
+    b.style.left = (100 * c.start / R.durationS) + '%'; b.style.width = Math.max(0.3, 100 * c.dur / R.durationS) + '%';
+    b.style.background = who === 'her' ? 'var(--her)' : who === 'him' ? 'var(--him)' : 'rgba(90,220,120,.45)';
+    b.title = (c.text || '') + ' (' + c.dur.toFixed(1) + ' s)';
+    tr.append(b);
+  });
+  lane.append(tr); callLanes.append(lane);
+});
+const callAxis = el('div', 'axis');
+for (let s = 0; s <= R.durationS; s += R.durationS > 90 ? 15 : 5) {
+  const sp = el('span', '', Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0'));
+  sp.style.left = (100 * s / R.durationS) + '%'; callAxis.append(sp);
+}
+callLanes.append(callAxis);
+callHead.style.marginLeft = '112px';
+callLanes.append(callHead);
+
+// Per-turn waterfalls on one shared scale, relative to her last word.
+const before = Math.max(800, ...R.turns.map((t) => t.speechMs || 0).slice(0, 999).map((x) => Math.min(x, 3000)));
+const after = Math.max(...R.turns.map((t) => t.totalMs)) + 1500;
+const span = before + after;
+const X = (ms) => (100 * (ms + before) / span) + '%';
+const turnsEl = $('turns');
+const cards = [];
+R.turns.forEach((t) => {
+  const c = el('div', 'card turn');
+  c.append(el('h3', '', '<span>Turn ' + t.turn + (t.her ? '' : ' · he opens <span class="sub">· prepared during ringback; server timings + network guess</span>') + (t.speculative ? ' <span class="sub">· started at the short pause</span>' : '') + '</span>' +
+    '<span class="big" style="font-size:22px">' + (t.estimated ? '~' : '') + s1(t.totalMs) + '</span>'));
+  if (t.her) c.append(el('div', 'said', '<b>her</b>' + esc(t.her)));
+  c.append(el('div', 'said', '<b>him</b>' + esc(t.him)));
+  const box = el('div', 'lanes');
+  const add = (name, bars) => {
+    const lane = el('div', 'lane'); lane.append(el('div', 'name', name));
+    const tr = el('div', 'track'); bars.forEach((b) => tr.append(b)); lane.append(tr); box.append(lane);
+  };
+  const bar = (from, to, color, text, server, est) => {
+    const b = el('div', 'bar' + (est ? ' est' : ''));
+    b.style.left = X(from); b.style.width = 'calc(' + X(to) + ' - ' + X(from) + ')'; b.style.background = color;
+    if (server != null && to - from > server) {
+      const n = el('div', 'net'); n.style.width = (100 * (to - from - server) / (to - from)) + '%'; b.append(n);
+      b.title = 'server ' + server + ' ms + network/phone ' + Math.round(to - from - server) + ' ms';
+    }
+    b.append(el('span', 'ms', text));
+    return b;
+  };
+  const herClip = R.clips.find((x) => x.who === 'her' && x.turn === t.turn);
+  const spoke = t.speechMs || (herClip ? herClip.dur * 1000 - 600 : 800);
+  if (t.her) add('her', [bar(-Math.min(spoke, before), 0, 'var(--her)', (spoke > before ? '… ' : '') + s1(spoke))]);
+  t.steps.forEach((s) => add(STEPS[s.key].name, [bar(s.from, s.to, STEPS[s.key].color, (t.estimated ? '~' : '') + Math.round(s.to - s.from) + ' ms', s.server, t.estimated)]));
+  const firstHim = R.clips.find((x) => x.who === 'him' && x.turn === t.turn);
+  if (firstHim) add('him', [bar(t.totalMs, t.totalMs + firstHim.dur * 1000, 'var(--him)', esc((firstHim.text || '').slice(0, 40)))]);
+  const ax = el('div', 'axis');
+  for (let ms = -Math.floor(before / 1000) * 1000; ms <= after; ms += 1000) { const sp = el('span', '', (ms / 1000) + ' s'); sp.style.left = X(ms); ax.append(sp); }
+  box.append(ax);
+  const zero = el('div', 'zero'); zero.style.left = 'calc(112px + (100% - 112px) * ' + (before / span) + ')'; box.append(zero);
+  const head = el('div', 'head'); box.append(head);
+  c.append(box); turnsEl.append(c);
+  cards.push({ t, c, head });
+});
+
+// Replay: the logged clips scheduled on one clock; playhead on the strip and inside the live turn.
+let ctx, buffers, startedAt = 0, offset = 0, playing = false, sources = [];
+async function load() {
+  ctx = ctx || new AudioContext();
+  if (buffers) return;
+  buffers = await Promise.all(R.clips.map(async (c) => {
+    try { return await ctx.decodeAudioData(await (await fetch(c.src)).arrayBuffer()); } catch { return null; }
+  }));
+}
+function now() { return playing ? ctx.currentTime - startedAt : offset; }
+async function play(from) {
+  await load();
+  stop();
+  offset = from; startedAt = ctx.currentTime - from; playing = true;
+  R.clips.forEach((c, i) => {
+    const b = buffers[i]; if (!b || c.start + c.dur < from) return;
+    const s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination);
+    const when = c.start - from;
+    if (when >= 0) s.start(ctx.currentTime + when); else s.start(0, -when);
+    sources.push(s);
+  });
+  $('play').textContent = '❚❚ Pause';
+  $('lap').style.display = 'block';
+  requestAnimationFrame(tick);
+}
+function stop() {
+  sources.forEach((s) => { try { s.stop(); } catch { /* not started */ } }); sources = [];
+  if (playing) offset = now();
+  playing = false; $('play').textContent = '▶ Replay';
+}
+function render(at) {
+  callHead.style.display = 'block';
+  callHead.style.left = 'calc(112px + (100% - 112px) * ' + Math.min(1, at / R.durationS) + ')';
+  callHead.style.marginLeft = '0';
+  $('clock').textContent = Math.floor(at / 60) + ':' + String(Math.floor(at % 60)).padStart(2, '0');
+  let live = null;
+  cards.forEach(({ t, c, head }) => {
+    const rel = (at - t.herEnd) * 1000;
+    const on = rel > -(t.speechMs || 1500) && rel < t.totalMs + 1200;
+    if (on && !c.classList.contains('live') && (playing || window.__follow)) c.scrollIntoView({ block: 'center', behavior: window.__follow ? 'instant' : 'smooth' });
+    c.classList.toggle('live', on);
+    head.style.display = on ? 'block' : 'none';
+    if (on) { head.style.left = 'calc(112px + (100% - 112px) * ' + ((rel + before) / span) + ')'; live = { t, rel }; }
+  });
+  if (live) {
+    const { t, rel } = live;
+    const step = rel < 0 ? 'she is talking' : rel >= t.totalMs ? 'he is talking' : STEPS[(t.steps.find((s) => rel >= s.from && rel < s.to) || t.steps[t.steps.length - 1]).key].name;
+    $('lapLabel').textContent = t.her ? 'since she stopped' : 'since she picked up';
+    $('lapTime').textContent = rel < 0 ? '–' : s1(Math.min(rel, t.totalMs));
+    $('lapNow').innerHTML = 'Turn ' + t.turn + ' · now: <b>' + step + '</b>' + (rel >= t.totalMs ? ' · he answered after <b>' + s1(t.totalMs) + '</b>' : '');
+  }
+}
+function tick() {
+  const at = now();
+  render(at);
+  if (playing && at < R.durationS) requestAnimationFrame(tick);
+  else if (playing) { stop(); offset = 0; }
+}
+$('play').onclick = () => (playing ? stop() : play(offset >= R.durationS - 0.2 ? 0 : offset));
+callLanes.onclick = (e) => {
+  const tr = callLanes.querySelector('.track').getBoundingClientRect();
+  const at = Math.max(0, Math.min(1, (e.clientX - tr.left) / tr.width)) * R.durationS;
+  if (playing) play(at); else { offset = at; render(at); }
+};
+// For scripts/replay-shot.mjs: drive the page without audio (headless records video only).
+window.__replay = { render, durationS: R.durationS, turns: R.turns };
+</script>
+</body>
+</html>
