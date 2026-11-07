@@ -5,7 +5,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   // Permanent once published: the Play Store / App Store identity. Also the sign-in deep link scheme.
-  appId: 'com.avijitthawani.phoney',
+  appId: 'com.avijitthawani.pahunchi',
   appName: 'Pahunchi',
   webDir: 'dist',
   android: {

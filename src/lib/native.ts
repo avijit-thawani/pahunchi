@@ -15,7 +15,7 @@ export const siteUrl = isNative
   : window.location.origin
 
 /** Must match appId in capacitor.config.ts and be listed in Supabase Auth -> URL Configuration. */
-export const AUTH_REDIRECT = 'com.avijitthawani.phoney://auth'
+export const AUTH_REDIRECT = 'com.avijitthawani.pahunchi://auth'
 
 /** Native only: send relative /api/ requests to the deployed site (server/cors.ts allows them). */
 export function routeApiToSite() {

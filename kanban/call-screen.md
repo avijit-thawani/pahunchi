@@ -36,7 +36,7 @@ Code: `src/lib/route.ts` (no-op off Android), `android/.../AudioRoutePlugin.java
 
 ## Tests
 
-Check routing without listening: `adb shell dumpsys audio | rg 'com.avijitthawani.phoney|uid: <Pahunchi uid>'` shows each `setCommunicationDevice` and the device type. Never leave Speaker on while testing.
+Check routing without listening: `adb shell dumpsys audio | rg 'com.avijitthawani.pahunchi|uid: <Pahunchi uid>'` shows each `setCommunicationDevice` and the device type. Never leave Speaker on while testing.
 
 - `earpiece-default` (Android): call with no headset; route is earpiece before the first sound. Last run: Pixel 9a, 2026-11-07 08:07, pass. The WebView picked the speaker when the mic opened; the plugin switched to earpiece 230 ms later, before playback started; playback was `USAGE_VOICE_COMMUNICATION`.
 - `speaker-toggle` (Android): tap Speaker, route goes speaker; tap again, back to earpiece/headset. Last run: Pixel 9a, 2026-11-07 09:20, pass (user by hand; log shows earpiece 09:20:06, speaker :07, earpiece :08, speaker :09).
