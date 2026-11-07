@@ -3,13 +3,13 @@
 //   1. call logs (audio, transcripts, feedback, IP/browser) for every call this phone or her account knows
 //   2. scheduled "Call me later" pushes
 //   3. her account: calls, trusted contacts, and her link on other people's lists (delete_my_account)
-//   4. everything phoney keeps in this browser
+//   4. everything Pahunchi keeps in this browser
 
 import type { Session } from './store.ts'
 import { cancelAll } from './later.ts'
 import { supabase } from './supabase.ts'
 
-const PREFIX = 'phoney.'
+const PREFIX = 'Pahunchi.'
 
 export async function deleteAllData() {
   const local = JSON.parse(localStorage.getItem(`${PREFIX}sessions`) || '[]') as Session[]

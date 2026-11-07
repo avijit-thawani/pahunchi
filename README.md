@@ -4,12 +4,12 @@
      move a section into docs/ and link it from here. Check before every commit.
      Sibling docs carry their own caps. -->
 
-# phoney (tentative name)
+# Pahunchi
 
-**Try it here, free: <https://phoney-call.netlify.app>**
+**Try it here, free: <https://pahunchi.netlify.app>**
 
 A fake phone call that talks back. In India many women call someone, or pretend to,
-when walking alone or riding in a cab at night. phoney places a call to an AI "dad",
+when walking alone or riding in a cab at night. Pahunchi places a call to an AI "dad",
 "mom", "brother" or "friend" who answers in a natural Indian voice (Hindi, English or
 Hinglish), reacts like a real person, and keeps quiet when she just wants to scroll.
 Why: women already fake "haan papa, bas pahunch rahi hoon" calls in cabs; evidence and competitors in [docs/landscape.md](docs/landscape.md).
@@ -42,7 +42,7 @@ Later: make call time useful (voice journal, a listener); export just her side o
 
 ## Status
 
-Live at <https://phoney-call.netlify.app> (public; rate limits + key cap): call loop, server-side call logging, voice
+Live at <https://pahunchi.netlify.app> (public; rate limits + key cap): call loop, server-side call logging, voice
 lab. Google sign-in (Supabase Auth) gates trusted contacts, linked via a `/join/<token>` link or the email she typed.
 Signed-in calls sync to `calls`; contacts see them in History per their delay (`shared_calls()`). No contact alerts yet.
 
@@ -61,7 +61,7 @@ Signed-in calls sync to `calls`; contacts see them in History per their delay (`
 - **Screens:** pick responder + language, a dialer-style call screen (transcript behind "Text"; latency with `phoney.debug`),
   "I'm safe" + optional 👍/👎 note after the call (→ `feedback.json`), history, trusted contacts + join page.
 - **Call me later:** she picks when (5 m-1 h, or a clock time) and why: "Get me out" (a preset excuse) or "Check on
-  me". At that time a Web Push (no sign-in; Netlify Blobs + per-minute `ring.ts`) or, if phoney is open, the app itself
+  me". At that time a Web Push (no sign-in; Netlify Blobs + per-minute `ring.ts`) or, if Pahunchi is open, the app itself
   rings; she answers on `/incoming` and he speaks first. iPhone: push needs Add to Home Screen.
 - **Voice lab** (`sim/`): OpenRouter, Smallest and Sarvam voices auditioned; roles cast with a v2 judge
   (estimated age/gender, hard lines) in `sim/roles.py`; page `sim/out/index.html`. See [docs/voices.md](docs/voices.md).
@@ -139,7 +139,7 @@ Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_U
 - [x] Supabase: Google auth, trusted contacts + invite links (RLS); [ ] sessions, transcripts
 - [x] Call me later: scheduled "Get me out" / "Check on me" call via Web Push; [ ] alert contacts if unanswered
 - [ ] "I'm safe" timer + delayed notify (Netlify scheduled function)
-- [ ] Move the logs bucket from `mandarin` into the `phoney` project (accounts already live there)
+- [ ] Move the logs bucket from `mandarin` into the `Pahunchi` project (accounts already live there)
 
 ## Conventions
 

@@ -6,6 +6,7 @@ tests:
   - "Web (Mac browser): toggle on, allow location, call ~18 s with the tab on screen; call_locations has >= 1 point"
   - "Contact (second account) History: map shows dots per point, dashed line, red last point, Open in Maps goes to the last point"
 transcripts:
+  - 46387402-d07d-478b-ba09-e5d050eba0a5 2026-11-07 renamed phoney -> Pahunchi
   - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 web verified by the user (sidavijit, Mac browser)
   - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 web blocked-location note tells site block from device setting
   - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 Pixel shared nothing: fixed Android (no displacement filter, last-known fix, first upload right away); map dots per point
@@ -34,7 +35,7 @@ An opt-in "Share my location during calls" toggle. Contacts see a map with her t
 |---|---|---|
 | Screen / route | toggle in `/settings`; map in the contact's `/history` (`src/pages/CallMap.tsx`) | same |
 | How she gets there | Settings tab, only after Google sign-in (toggle is hidden when signed out) | same |
-| Differences | records only while phoney is on screen; verified once on a Mac browser | keeps going in the background with a notification |
+| Differences | records only while Pahunchi is on screen; verified once on a Mac browser | keeps going in the background with a notification |
 
 ## How it records (`src/lib/location.ts`)
 

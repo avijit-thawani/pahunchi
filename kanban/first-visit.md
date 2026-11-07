@@ -3,6 +3,7 @@ feature: First visit (a how-to on each tab)
 tags: [dev-web]
 tests: [fresh-tabs]
 transcripts:
+  - 46387402-d07d-478b-ba09-e5d050eba0a5 2026-11-07 renamed phoney -> Pahunchi
   - 73385c8a-297a-4a7b-9712-7580b89d150d 2026-11-07 shipped to dev web (507c616); Android debug build on the emulator
   - 73385c8a-297a-4a7b-9712-7580b89d150d 2026-11-07 per-tab how-to that folds at a milestone, on localhost, screenshots
   - 73385c8a-297a-4a7b-9712-7580b89d150d 2026-11-07 built three use chips on localhost (replaced the same day)
@@ -11,11 +12,11 @@ transcripts:
 
 # First visit
 
-A newcomer should see what phoney is for, including the uses that aren't obvious: getting out of a bad date ("Get me out") and a later check-in ("Check on me"). Each tab has its own "How to…" box. It starts open, folds itself once she reaches that tab's milestone, and stays one tap away after that.
+A newcomer should see what Pahunchi is for, including the uses that aren't obvious: getting out of a bad date ("Get me out") and a later check-in ("Check on me"). Each tab has its own "How to…" box. It starts open, folds itself once she reaches that tab's milestone, and stays one tap away after that.
 
 ## Screenshots
 
-<img src="media/first-visit-web-home.png" width="160" alt="Home, first visit: How to use phoney open under Call">
+<img src="media/first-visit-web-home.png" width="160" alt="Home, first visit: How to use Pahunchi open under Call">
 <img src="media/first-visit-web-date.png" width="160" alt="After tapping Ring me in 5 min: Later panel on Get me out, 5m">
 <img src="media/first-visit-web-home-folded.png" width="160" alt="Home after she talked on a call: folded">
 <img src="media/first-visit-web-history.png" width="160" alt="History, open">
@@ -35,7 +36,7 @@ Web, localhost, 2026-11-07; last one Android emulator debug build of 507c616, sa
 
 Also: the clock button reads "Later"; tagline "A call that talks back, for walking home, bad dates, or a check-in."; the Home box sits under the Call row so Call stays above the fold. The "Ring me" buttons open the Later panel preset and scroll to it. The fold is remembered per tab in `phoney.howto.<tab>`. This replaces the old one-time How it works card (`phoney.introSeen`, now unused).
 
-Earlier pass: [UX review of phoney](9149ac6f-40c6-463b-b8dd-2cf6be13ea6e).
+Earlier pass: [UX review of Pahunchi](9149ac6f-40c6-463b-b8dd-2cf6be13ea6e).
 
 ## Where it lives
 

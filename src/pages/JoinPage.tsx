@@ -44,9 +44,9 @@ export default function JoinPage() {
   else {
     body = (
       <>
-        <p className="text-lg font-extrabold">{who} wants you as a trusted contact on phoney.</p>
+        <p className="text-lg font-extrabold">{who} wants you as a trusted contact on Pahunchi.</p>
         <p className="font-semibold text-base-content/70">
-          phoney places a pretend phone call when she's out alone. If she ever doesn't confirm she's safe after one,
+          Pahunchi places a pretend phone call when she's out alone. If she ever doesn't confirm she's safe after one,
           you'll be the one told to check on her.
         </p>
         {session ? (
@@ -67,7 +67,7 @@ export default function JoinPage() {
       <HeartHandshake className="w-14 h-14 mx-auto text-secondary" />
       {body}
       {error && <div role="alert" className="alert alert-error text-sm font-semibold">{error}</div>}
-      <Link to="/" className="link link-hover text-sm font-semibold text-base-content/60 block">Open phoney</Link>
+      <Link to="/" className="link link-hover text-sm font-semibold text-base-content/60 block">Open Pahunchi</Link>
     </main>
   )
 }

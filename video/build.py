@@ -1,7 +1,7 @@
 # /// script
 # dependencies = ["pillow"]
 # ///
-"""Assemble the phoney demo video from the phone captures (capture.mjs) and real call takes (take.ts).
+"""Assemble the Pahunchi demo video from the phone captures (capture.mjs) and real call takes (take.ts).
 
   uv run video/build.py full      # -> video/renders/phoney_demo_full.mp4
   uv run video/build.py teaser    # -> video/renders/phoney_demo_teaser.mp4
@@ -179,11 +179,11 @@ def end_card() -> Path:
     out = WORK / "end.png"
     img = Image.open(background(shadow=False)).convert("RGB")
     d = ImageDraw.Draw(img)
-    d.text((W // 2, 760), "phoney", font=font(150, "Black"), fill=WHITE, anchor="mm")
+    d.text((W // 2, 760), "Pahunchi", font=font(150, "Black"), fill=WHITE, anchor="mm")
     d.text((W // 2, 900), "A call that talks back,", font=font(50, "Bold"), fill=(210, 220, 232), anchor="mm")
     d.text((W // 2, 968), "for the walk or the cab home.", font=font(50, "Bold"), fill=(210, 220, 232), anchor="mm")
     d.rounded_rectangle((150, 1120, W - 150, 1240), 60, fill=GREEN)
-    d.text((W // 2, 1180), "phoney-call.netlify.app", font=font(54), fill=WHITE, anchor="mm")
+    d.text((W // 2, 1180), "pahunchi.netlify.app", font=font(54), fill=WHITE, anchor="mm")
     d.text((W // 2, 1320), "Free · Hindi, English, Hinglish", font=font(40, "SemiBold"), fill=(180, 192, 210), anchor="mm")
     img.save(out)
     return out

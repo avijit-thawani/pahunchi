@@ -1,17 +1,17 @@
 <!-- Cap: 120 lines. Evidence section comes first and matters most; trim the rest before it. -->
 
-# Why phoney: evidence and landscape (Nov 2026)
+# Why Pahunchi: evidence and landscape (Nov 2026)
 
 ## Evidence that the behavior is real
 
-Indian women already fake (or make) a call to a parent when a cab or walk feels off. phoney
+Indian women already fake (or make) a call to a parent when a cab or walk feels off. Pahunchi
 automates a habit that exists, it does not invent one.
 
 - **Times of India, Delhi** ([Survival instincts keep women safe](https://timesofindia.indiatimes.com/city/delhi/survival-instincts-keep-women-safe/articleshow/123881953.cms)):
   "Whenever alone in a cab or an auto and if I don't feel comfortable, I use the simple trick of
   saying something that gives the impression that I am in touch with my father throughout the
   ride." The same piece notes "a recent social media trend features audio clips that mimic
-  conversations with family members, helping women pretend they are on a call", i.e. phoney's
+  conversations with family members, helping women pretend they are on a call", i.e. Pahunchi's
   pre-recorded ancestor.
 - **r/TeenIndia** ([safety tips thread](https://www.reddit.com/r/TeenIndia/comments/1lln4wv/all_young_women_drop_your_best_safety_tips_in/)):
   "When you get into an auto or cab... always pretend to call (or actually call) a friend or

@@ -97,7 +97,7 @@ function HomeHowTo({ name, onLater }: { name: string; onLater: (l: Later) => voi
   const [playing, toggle] = useSample('/demos/audio/walk_home.mp3')
   const talked = sessions.some((s) => s.turns.some((t) => t.who === 'her'))
   return (
-    <HowTo tab="home" done={talked} title="How to use phoney">
+    <HowTo tab="home" done={talked} title="How to use Pahunchi">
       <Step
         icon="🚶🏽‍♀️"
         title="Walking alone or in a cab"
@@ -153,7 +153,7 @@ export default function HomePage() {
   return (
     <main className="max-w-md mx-auto px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-28 space-y-6">
       <header>
-        <h1 className="text-3xl font-extrabold tracking-tight">phoney</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">Pahunchi</h1>
         <p className="text-base-content/70 text-sm font-semibold">
           A call that talks back, for walking home, bad dates, or a check-in.
         </p>
@@ -260,7 +260,7 @@ export default function HomePage() {
         </div>
       )}
       {mic === 'prompt' && (
-        <p className="text-center text-sm text-base-content/70 font-semibold -mt-3">{isNative ? 'phoney' : 'Your browser'} will ask for the mic so he can hear you.</p>
+        <p className="text-center text-sm text-base-content/70 font-semibold -mt-3">{isNative ? 'Pahunchi' : 'Your browser'} will ask for the mic so he can hear you.</p>
       )}
       <HomeHowTo name={callee} onLater={setLater} />
       <p className="flex justify-center items-center gap-2 text-xs text-base-content/70 font-semibold">

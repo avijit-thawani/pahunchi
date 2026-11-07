@@ -1,8 +1,8 @@
 {
   "id": "/go",
-  "name": "Call (phoney)",
+  "name": "Call (Pahunchi)",
   "short_name": "Call",
-  "description": "One tap: phoney calls you straight away.",
+  "description": "One tap: Pahunchi calls you straight away.",
   "start_url": "/go",
   "scope": "/",
   "display": "standalone",

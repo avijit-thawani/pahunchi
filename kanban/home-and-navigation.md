@@ -3,6 +3,7 @@ feature: Home, tabs and home-screen install
 tags: [prod-web, dev-android]
 tests: []
 transcripts:
+  - 46387402-d07d-478b-ba09-e5d050eba0a5 2026-11-07 renamed phoney -> Pahunchi
   - 3773fae9-00cb-4eff-a661-5ad3ac519194 2026-11-07 Settings tab committed to main (dev)
   - a1ebdb03-7df7-4906-9901-5f652abbb468 2026-11-07 created card from past chats
   - b5e8f044-61bb-4837-820f-8f00e69312c9 2026-11-06 third tab became Settings
@@ -14,7 +15,7 @@ transcripts:
 # Home and navigation
 
 Home: who picks up, Call with the clock button beside it, and a collapsed More options. Three bottom tabs:
-Home, History, Settings. On the web she can add phoney plus a separate one-tap "Call" icon to her home screen.
+Home, History, Settings. On the web she can add Pahunchi plus a separate one-tap "Call" icon to her home screen.
 
 ## Screenshots
 

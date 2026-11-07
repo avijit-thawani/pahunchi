@@ -1,6 +1,6 @@
 # Pre-prod checklist
 
-Run this on the dev release before pushing to `prod`. Dev = `https://main--phoney-call.netlify.app` (web) and the debug build on the Android emulator, both from the commit you're about to release. Release that same commit: `git push origin <commit>:prod`.
+Run this on the dev release before pushing to `prod`. Dev = `https://main--pahunchi.netlify.app` (web) and the debug build on the Android emulator, both from the commit you're about to release. Release that same commit: `git push origin <commit>:prod`.
 
 **Parity is the point.** Every test marked *web + Android* runs on both, and screenshots of the same screen sit side by side. A difference counts as a failure unless that feature's kanban card explains it.
 
@@ -8,9 +8,9 @@ Add a test here when a feature becomes crucial: one numbered item, text only, sa
 
 ## Tools
 
-- Web screenshots: `PHONEY_URL=https://main--phoney-call.netlify.app node video/capture.mjs` (demo data, fake sign-in; writes `video/screens/`).
+- Web screenshots: `PHONEY_URL=https://main--pahunchi.netlify.app node video/capture.mjs` (demo data, fake sign-in; writes `video/screens/`).
 - Android: `npm run android`, build and install the debug APK on the emulator (`emulator-5554`); drive it with `adb shell input tap`, capture with `adb exec-out screencap -p`.
-- Call through the API: `PHONEY_URL=https://main--phoney-call.netlify.app node scripts/smoke-call.ts [scene] [persona] [language]` (needs the voice-lab clips in `sim/out/`, so this laptop only).
+- Call through the API: `PHONEY_URL=https://main--pahunchi.netlify.app node scripts/smoke-call.ts [scene] [persona] [language]` (needs the voice-lab clips in `sim/out/`, so this laptop only).
 - Agents: run `smoke-call` and `logs.ts --remote` downloads in the background (each takes 15-30 s per call or session) and keep working while they finish.
 - Web, no person needed: `npm run test:preprod` (about 70 s) runs tests 2, 3 (after Google's page), 5, 6, 7 and 9 on dev in the video toolkit's headless shell, as two throwaway accounts, with her short lines in the sister's Sarvam voice as the mic. Screenshots in `video/screens/preprod/`; both accounts are deleted at the end.
 - Trusted contacts without Google: `node scripts/contacts-e2e.ts` makes two throwaway accounts, runs add -> invite -> join -> shared call -> delay -> "Delete all my data", and leaves nothing behind.
@@ -20,14 +20,14 @@ Add a test here when a feature becomes crucial: one numbered item, text only, sa
 
 1. **Build.** `npm run build && npm run lint` pass.
 2. **Tab navigation** (web + Android). From Home, tap Call, History, Settings and back. Each tab opens its screen, the bar stays visible on every screen except the call itself, and the active tab is highlighted. Screenshot each tab on both.
-3. **Login and logout** (web + Android). Signed out, Settings shows "Sign in with Google". Sign in (throwaway Google account), and Settings shows "Signed in as …" with contacts. Sign out, and it returns to the signed-out view. On Android sign-in goes through the system browser and comes back to the app. Settings shows her account email under her name, a joined contact's email under theirs, and the contact sees her email under the people who added them. Google sign-in on dev lands back on dev, not prod (Supabase Redirect URLs must list `https://main--phoney-call.netlify.app/**`).
+3. **Login and logout** (web + Android). Signed out, Settings shows "Sign in with Google". Sign in (throwaway Google account), and Settings shows "Signed in as …" with contacts. Sign out, and it returns to the signed-out view. On Android sign-in goes through the system browser and comes back to the app. Settings shows her account email under her name, a joined contact's email under theirs, and the contact sees her email under the people who added them. Google sign-in on dev lands back on dev, not prod (Supabase Redirect URLs must list `https://main--pahunchi.netlify.app/**`).
 4. **He picks up and answers.** `smoke-call short dad hinglish` (her short lines in the sister's Sarvam voice) and one other persona/language. Passes when he opens the call and every turn gets a reply with audio, no errors. Latency is logged, not a gate: note the median "her end -> his voice" in the run.
 5. **Call now, end to end** (web + Android). Tap Call. Ringback stops when he speaks, the call screen shows name, timer, Mute, Speaker, Text. Say a line, and he answers. Hang up, and the after-call screen appears ("Did you reach safely?" only if she has contacts). On Android the audio starts on the earpiece, not the speaker.
 6. **Scheduled call, end to end** (web + Android). Tap the clock, pick 5m and Get me out, tap "Ring me at …". The pending card shows on Home. Tap **Now** on it: the incoming screen shows, Accept, and he speaks first with an excuse. Cancel on a second scheduled call removes it. (Real delivery after 5 min by push or notification is a separate, slower check; run it when Call me later changed.)
 7. **Trusted contacts** (web + Android). Signed in: add a contact, copy their invite link, open it signed in as a second account, and they appear as Joined. Change the delay and it sticks after reload. Make a call as the first account without tapping "I'm safe": after the delay (use "Right away" for testing) the second account sees it under "Shared with you" in History.
-8. **Call logging and errors.** After tests 4-5, `node scripts/logs.ts --remote` lists those sessions; the newest shows per-turn transcript, timings and the TTS engine, plus start and end events. Turn off the network mid-call (emulator: airplane mode): the call screen says "Can't reach phoney. Check your internet.", the log records the real error, and the message clears when he speaks again.
+8. **Call logging and errors.** After tests 4-5, `node scripts/logs.ts --remote` lists those sessions; the newest shows per-turn transcript, timings and the TTS engine, plus start and end events. Turn off the network mid-call (emulator: airplane mode): the call screen says "Can't reach Pahunchi. Check your internet.", the log records the real error, and the message clears when he speaks again.
 9. **History** (web + Android). After test 5, the call appears in History with its time and transcript, on both platforms, laid out the same.
-10. **Audio routing** (Android; web can't pick the earpiece). Never leave Speaker on. During a call with no headset, `adb shell dumpsys audio | rg -i 'setCommunicationDevice|phoney'` shows the earpiece before his first sound. Tap Speaker: the route goes to the speaker; tap again: back to earpiece. With Bluetooth earphones connected the route is Bluetooth, and unplugging mid-call falls back to the earpiece. After hangup phoney no longer holds a route (open bug: it lingers on speaker until the app is killed, see `kanban/call-screen.md`).
+10. **Audio routing** (Android; web can't pick the earpiece). Never leave Speaker on. During a call with no headset, `adb shell dumpsys audio | rg -i 'setCommunicationDevice|Pahunchi'` shows the earpiece before his first sound. Tap Speaker: the route goes to the speaker; tap again: back to earpiece. With Bluetooth earphones connected the route is Bluetooth, and unplugging mid-call falls back to the earpiece. After hangup Pahunchi no longer holds a route (open bug: it lingers on speaker until the app is killed, see `kanban/call-screen.md`).
 
 ## Runs
 

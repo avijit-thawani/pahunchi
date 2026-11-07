@@ -1,5 +1,5 @@
 // "Call me later" on the phone: Web Push subscription, scheduling through /api/schedule, and the
-// pending list (localStorage) behind the home card. If phoney is open when a call is due, it
+// pending list (localStorage) behind the home card. If Pahunchi is open when a call is due, it
 // rings in the app (useRingWhenDue); otherwise the push notification does. The Android/iOS app's
 // WebView has no Web Push, so there the phone itself schedules the notification instead.
 
@@ -13,7 +13,7 @@ export type Pending = { id: string; at: number; ring: Ring; pushed: boolean }
 
 const KEY = 'phoney.later'
 const CALL_TAG = 'phoney-call'
-/** Still worth ringing if she opens phoney this long after the time. */
+/** Still worth ringing if she opens Pahunchi this long after the time. */
 const LATE_OK_MS = 10 * 60_000
 const NATIVE = 'native-'
 const CHANNEL = 'calls'
@@ -55,7 +55,7 @@ function b64url(s: string): Uint8Array<ArrayBuffer> {
 
 /** Must run inside a tap: asks for notification permission. */
 async function subscription(): Promise<PushSubscriptionJSON> {
-  if ((await Notification.requestPermission()) !== 'granted') throw new Error('Notifications are blocked for phoney.')
+  if ((await Notification.requestPermission()) !== 'granted') throw new Error('Notifications are blocked for Pahunchi.')
   await navigator.serviceWorker.register('/sw.js')
   const reg = await navigator.serviceWorker.ready
   const existing = await reg.pushManager.getSubscription()
@@ -68,7 +68,7 @@ const nativeId = (id: string) => (id.startsWith(NATIVE) ? Number(id.slice(NATIVE
 
 /** Must run inside a tap: asks for notification permission (and, on Android 12+, exact alarms). */
 async function scheduleNative(ring: Ring, at: number): Promise<string> {
-  if ((await LocalNotifications.requestPermissions()).display !== 'granted') throw new Error('Notifications are blocked for phoney.')
+  if ((await LocalNotifications.requestPermissions()).display !== 'granted') throw new Error('Notifications are blocked for Pahunchi.')
   await LocalNotifications.createChannel({ id: CHANNEL, name: 'Scheduled calls', importance: 5, visibility: 1, vibration: true })
   const n = Math.floor(at / 1000) % 2_000_000_000
   const id = NATIVE + n
@@ -86,7 +86,7 @@ async function scheduleNative(ring: Ring, at: number): Promise<string> {
   return id
 }
 
-/** Schedule a call; without push support it only rings if phoney is open at that time. */
+/** Schedule a call; without push support it only rings if Pahunchi is open at that time. */
 export async function scheduleCall(ring: Ring, at: number): Promise<Pending> {
   let p: Pending = { id: `local-${at}`, at, ring, pushed: false }
   if (isNative) {
@@ -153,7 +153,7 @@ export function usePending(): Pending[] {
   return list
 }
 
-/** App-wide: when a scheduled call is due and phoney is on screen, show the incoming call. */
+/** App-wide: when a scheduled call is due and Pahunchi is on screen, show the incoming call. */
 export function useRingWhenDue() {
   const navigate = useNavigate()
   useEffect(() => {

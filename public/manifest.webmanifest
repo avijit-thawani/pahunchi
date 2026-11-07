@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "phoney",
-  "short_name": "phoney",
+  "name": "Pahunchi",
+  "short_name": "Pahunchi",
   "description": "A fake call that talks back, for walks home and cab rides at night.",
   "start_url": "/",
   "scope": "/",

@@ -29,7 +29,7 @@ Left: web, demo data, 2026-11-05. Middle and right: Android emulator, 2026-11-07
 
 ## Tests
 
-- `schedule-and-ring` (web, Android): schedule 5m, Get me out; close phoney; it rings on time and he speaks first. Last run: emulator only, 2026-11-07.
+- `schedule-and-ring` (web, Android): schedule 5m, Get me out; close Pahunchi; it rings on time and he speaks first. Last run: emulator only, 2026-11-07.
 
 ## Notes
 

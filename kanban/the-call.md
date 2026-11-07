@@ -3,6 +3,7 @@ feature: The call (he answers and talks back)
 tags: [prod-web, dev-web, dev-android]
 tests: [smoke-call]
 transcripts:
+  - 46387402-d07d-478b-ba09-e5d050eba0a5 2026-11-07 renamed phoney -> Pahunchi
   - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 committed plain-words errors to main (9d0ad3b), live on dev
   - 3773fae9-00cb-4eff-a661-5ad3ac519194 2026-11-07 smoke-call on dev: latency fails (STT), sister-voice option added
   - a1ebdb03-7df7-4906-9901-5f652abbb468 2026-11-07 created card from past chats
@@ -23,7 +24,7 @@ with phone-band audio and a TV in the room behind him.
 <img src="media/the-call-web-transcript.png" width="180" alt="Web: call with Papa, transcript open">
 <img src="media/the-call-android-offline-error.png" width="180" alt="Android: plain-words error when offline">
 
-Left: web, demo data, 2026-11-05. Right: Android emulator, 2026-11-07, the "Can't reach phoney" error (not on prod yet).
+Left: web, demo data, 2026-11-05. Right: Android emulator, 2026-11-07, the "Can't reach Pahunchi" error (not on prod yet).
 
 ## Where it lives
 

@@ -1,7 +1,7 @@
 // Location sharing during a call (setting `shareLocation`, signed in only). Points go to
 // call_locations; contacts see them under the same delay rule as the call (shared_call_path()).
 // The Android/iOS app keeps tracking with the screen off through a foreground service (it shows a
-// "sharing your location" notification); the web app only while phoney is on screen.
+// "sharing your location" notification); the web app only while Pahunchi is on screen.
 
 import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core'
 import type { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation'
@@ -81,7 +81,7 @@ async function upload() {
 async function watchNative() {
   const id = await BackgroundGeolocation.addWatcher(
     {
-      backgroundTitle: 'phoney is sharing your location',
+      backgroundTitle: 'Pahunchi is sharing your location',
       backgroundMessage: 'With your trusted contacts, until the call ends.',
       requestPermissions: true,
       stale: true,

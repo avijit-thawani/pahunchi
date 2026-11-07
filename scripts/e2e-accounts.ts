@@ -1,4 +1,4 @@
-// Throwaway phoney accounts for end-to-end tests: created with the service key and signed in with a
+// Throwaway Pahunchi accounts for end-to-end tests: created with the service key and signed in with a
 // one-time link, so no Google login is needed. Each test deletes them again with "Delete all my data".
 // Reads VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY and SUPABASE_SERVICE_ROLE_KEY from phoney/.env.
 

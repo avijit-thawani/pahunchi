@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">phoney</string>
-    <string name="title_activity_main">phoney</string>
+    <string name="app_name">Pahunchi</string>
+    <string name="title_activity_main">Pahunchi</string>
     <string name="package_name">com.avijitthawani.phoney</string>
     <string name="custom_url_scheme">com.avijitthawani.phoney</string>
     <string name="capacitor_background_geolocation_notification_channel_name">Location sharing during calls</string>
