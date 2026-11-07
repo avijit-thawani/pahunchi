@@ -1,8 +1,9 @@
 ---
 feature: Call me later ("Get me out" / "Check on me")
-tags: [prod-web, dev-android]
+tags: [prod-web, dev-web, dev-android]
 tests: []
 transcripts:
+  - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 committed the Android local-notification work to main (9d0ad3b), dev web build carries it
   - a1ebdb03-7df7-4906-9901-5f652abbb468 2026-11-07 created card from past chats
   - 677281f8-7021-4886-996b-bf89e9077fdd 2026-11-07 Android: phone schedules a local notification, uncommitted
   - 46387402-d07d-478b-ba09-e5d050eba0a5 2026-11-05 built it: clock button beside Call, Web Push, /incoming
