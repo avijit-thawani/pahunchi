@@ -246,7 +246,12 @@ function SignedIn({ session }: { session: Session }) {
   return (
     <>
       <div className="flex items-center gap-2 text-sm font-semibold text-base-content/70">
-        <span className="flex-1 truncate">Signed in as {userName(session)}</span>
+        <div className="flex-1 min-w-0">
+          <div className="truncate">Signed in as {userName(session)}</div>
+          {session.user.email && userName(session) !== session.user.email && (
+            <div className="truncate text-xs font-normal text-base-content/50">{session.user.email}</div>
+          )}
+        </div>
         <button className="btn btn-ghost btn-xs gap-1" onClick={() => signOut()}>
           <LogOut className="w-3.5 h-3.5" /> Sign out
         </button>
