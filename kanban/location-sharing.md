@@ -3,8 +3,10 @@ feature: Location sharing during calls
 tags: [prod-web, dev-web, dev-android]
 tests:
   - "Pixel: Settings toggle on, call 12-20 s, hang up; select from call_locations for the call id shows >= 1 point, first created_at within ~4 s of start"
+  - "Web (Mac browser): toggle on, allow location, call ~18 s with the tab on screen; call_locations has >= 1 point"
   - "Contact (second account) History: map shows dots per point, dashed line, red last point, Open in Maps goes to the last point"
 transcripts:
+  - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 web verified by the user (sidavijit, Mac browser)
   - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 web blocked-location note tells site block from device setting
   - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 Pixel shared nothing: fixed Android (no displacement filter, last-known fix, first upload right away); map dots per point
   - a1ebdb03-7df7-4906-9901-5f652abbb468 2026-11-07 screenshots; web marked untested after the user's failed try
@@ -32,7 +34,7 @@ An opt-in "Share my location during calls" toggle. Contacts see a map with her t
 |---|---|---|
 | Screen / route | toggle in `/settings`; map in the contact's `/history` (`src/pages/CallMap.tsx`) | same |
 | How she gets there | Settings tab, only after Google sign-in (toggle is hidden when signed out) | same |
-| Differences | records only while phoney is on screen; never tested on a real browser; user's try failed | keeps going in the background with a notification |
+| Differences | records only while phoney is on screen; verified once on a Mac browser | keeps going in the background with a notification |
 
 ## How it records (`src/lib/location.ts`)
 
@@ -44,10 +46,11 @@ An opt-in "Share my location during calls" toggle. Contacts see a map with her t
 
 Pixel 9a, 2026-11-07, account avijit.thawani@gmail.com, contact sidavijit: before the fix a 12 s call stored 0 points (API logs showed no `call_locations` request). With `distanceFilter: 20` the Pixel got 0 fixes in 20 s sitting still; with 0, first fresh fix at 15.1 s, last-known at 0.0 s. After the fix: 18 s call 4 points, 22 s call 4 points 7-10 s apart, 12 s call first upload 3.8 s after start. The user saw the trail and last point on the contact's map.
 
-Still wanted: a web test (signed in, toggle on, browser allows location, call, contact sees the trail).
+Web, 2026-11-07, sidavijit in a Mac browser, after allowing location: an 18 s call stored 1 point, uploaded 4.5 s after start (a laptop sitting still reports one fix). Not yet tried: a phone browser, or the tab in the background.
 
 ## Log
 
+- 2026-11-07 web works once location is allowed (user confirmed; 1 point in the database).
 - 2026-11-07 user's web try (Mac browser, sidavijit) hit "Location is blocked ... phone's settings": the browser returned permission denied. Web note now says either "browser blocks location for this site" (permission state `denied`) or "turn on Location Services for your browser". Cause on the user's Mac not yet known.
 - 2026-11-07 Android fixed and verified on the Pixel (above); map shows a dot per point.
 - 2026-11-07 user's web try failed: it treated sharing as app-only. Code does have a web path
