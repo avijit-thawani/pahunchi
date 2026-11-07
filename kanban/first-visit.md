@@ -1,8 +1,9 @@
 ---
 feature: First visit (a how-to on each tab)
-tags: [wip]
+tags: [dev-web]
 tests: [fresh-tabs]
 transcripts:
+  - 73385c8a-297a-4a7b-9712-7580b89d150d 2026-11-07 shipped to dev web (507c616); Android debug build on the emulator
   - 73385c8a-297a-4a7b-9712-7580b89d150d 2026-11-07 per-tab how-to that folds at a milestone, on localhost, screenshots
   - 73385c8a-297a-4a7b-9712-7580b89d150d 2026-11-07 built three use chips on localhost (replaced the same day)
   - 73385c8a-297a-4a7b-9712-7580b89d150d 2026-11-07 created card
@@ -20,8 +21,9 @@ A newcomer should see what phoney is for, including the uses that aren't obvious
 <img src="media/first-visit-web-history.png" width="160" alt="History, open">
 <img src="media/first-visit-web-history-folded.png" width="160" alt="History after opening a call: folded">
 <img src="media/first-visit-web-settings.png" width="160" alt="Settings, open">
+<img src="media/first-visit-android-home.png" width="160" alt="Android emulator Home, light mode">
 
-Web, localhost, 2026-11-07, uncommitted. Light mode: `media/first-visit-web-home-light.png`. The yellow notifications line is the headless browser blocking notifications.
+Web, localhost, 2026-11-07; last one Android emulator debug build of 507c616, same day. Light mode: `media/first-visit-web-home-light.png`. The yellow notifications line is the headless browser blocking notifications.
 
 ## What each tab says, and when it folds
 
@@ -41,13 +43,15 @@ Earlier pass: [UX review of phoney](9149ac6f-40c6-463b-b8dd-2cf6be13ea6e).
 |---|---|---|
 | Code | `src/pages/HowTo.tsx`, used by `HomePage.tsx`, `HistoryPage.tsx`, `SettingsPage.tsx`; `LaterPanel` `preset` in `CallLater.tsx` | same |
 | How she gets there | each tab | same |
-| Differences | none | none expected; not yet looked at on the Pixel |
+| Differences | none | none seen on the emulator; not yet on the Pixel |
 
 ## Tests
 
 - `fresh-tabs` (web, Android): clear localStorage (Android: clear app data). All three boxes are open. "Ring me in 5 min" opens the Later panel on Get me out, 5m. Make a call and say something: Home's box is folded next time. Open a call in History: its box folds. Add a trusted contact: Settings' box folds. Last run: web screenshots via headless Chrome, 2026-11-07; Android not run.
 
 ## Log
+
+- 2026-11-07 Shipped to dev web as `507c616` (Netlify `ready`; the dev bundle has all three how-tos). Android debug build of that commit installed on the emulator, Home matches web; the Pixel wasn't connected, so no `dev-android` yet.
 
 - 2026-11-07 Per-tab how-to built on localhost (uncommitted), replacing the three Home chips the user found uninformative ("walk home isn't informative"). Not done: a recorded Get me out sample; Home has two sample players ("Hear one" and the footer "Hear a sample").
 - 2026-11-07 card created: "get me out of bad date or check on me isn't obvious to people".
