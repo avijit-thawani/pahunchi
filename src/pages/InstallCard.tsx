@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRight, Share, Smartphone, X } from 'lucide-react'
 import { isStandalone, useInstall } from '../lib/install.ts'
+import { isNative } from '../lib/native.ts'
 
 const DISMISSED = 'phoney.installDismissed'
 
@@ -10,7 +11,7 @@ export default function InstallCard({ name }: { name: string }) {
   const [kind, install] = useInstall()
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISSED) === '1')
   const [showSteps, setShowSteps] = useState(false)
-  if (dismissed) return null
+  if (dismissed || isNative) return null
   const inApp = isStandalone()
 
   const dismiss = () => {
