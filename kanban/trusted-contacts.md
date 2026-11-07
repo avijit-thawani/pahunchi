@@ -3,6 +3,7 @@ feature: Trusted contacts and "I'm safe"
 tags: [prod-web, dev-android]
 tests: [contacts-e2e]
 transcripts:
+  - a8062bec-ff8f-48b3-aad1-21b474392764 2026-11-07 "I'm safe" only when a contact is on a delay
   - 3773fae9-00cb-4eff-a661-5ad3ac519194 2026-11-07 contacts-e2e script, 11/11 pass against the phoney Supabase project
   - a1ebdb03-7df7-4906-9901-5f652abbb468 2026-11-07 created card from past chats
   - b5e8f044-61bb-4837-820f-8f00e69312c9 2026-11-06 contacts moved into the Settings tab
@@ -39,4 +40,5 @@ Web, demo data, 2026-11-05/06. Contacts now live in the Settings tab; no screens
 
 ## Log
 
+- 2026-11-07 "I'm safe" now shows only when at least one contact is on a delay; details on [after-call.md](after-call.md).
 - 2026-11-07 card created. Settings rename is live on prod but not committed yet.
