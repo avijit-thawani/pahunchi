@@ -76,6 +76,7 @@ export default defineConfig(({ mode }) => {
   loadServerEnv(mode)
   return {
     plugins: [react(), tailwindcss(), api(), ...(process.env.PHONEY_HTTPS ? [basicSsl()] : [])],
-    server: { open: false },
+    // android/ and ios/ hold copies of dist/; watching them reloads the page on every native build
+    server: { open: false, watch: { ignored: ['**/android/**', '**/ios/**'] } },
   }
 })

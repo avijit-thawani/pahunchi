@@ -51,6 +51,17 @@ type Speculation = {
 
 type Prepared = { my: number; stream: api.ReplyStream; ctl: AbortController; startedAt: number }
 
+/** What she sees on the call screen; the raw error goes to the call log. */
+function userMessage(e: unknown): string {
+  const s = String(e)
+  // fetch() network failures: Chrome "Failed to fetch", Firefox "NetworkError", Safari "Load failed"
+  if (!navigator.onLine || /Failed to fetch|NetworkError|Load failed|network/i.test(s)) {
+    return "Can't reach phoney. Check your internet."
+  }
+  if (/: 429\b/.test(s)) return 'phoney is busy right now. Try again in a minute.'
+  return "He didn't catch that. Keep talking."
+}
+
 /** Sortable, log-folder-friendly id: 20261105-181300-k3x9qa (local time). */
 function newSessionId() {
   const d = new Date()
@@ -127,7 +138,7 @@ export class CallEngine {
 
   private fail(e: unknown, turn?: string) {
     this.logEvent('error', String(e), turn)
-    this.set({ activity: 'listening', error: String(e) })
+    this.set({ activity: 'listening', error: userMessage(e) })
   }
 
   /** Call from the tap handler: audio and mic permissions need a user gesture. */
@@ -323,7 +334,7 @@ export class CallEngine {
         metrics.ttsEngine = res.headers.get('X-Engine') ?? undefined
         clearTimeout(filler)
         this.mic!.paused = true
-        this.set({ activity: 'speaking' })
+        this.set({ activity: 'speaking', error: undefined })
       }
       await this.audio.playPcmStream(res, () => {
         if (i === 0) {
