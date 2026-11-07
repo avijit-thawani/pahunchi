@@ -2,42 +2,15 @@
 // she adds a contact, he accepts the invite link, her call shows up for him under the delay rule,
 // then both delete themselves with "Delete all my data" (delete_my_account).
 //   node scripts/contacts-e2e.ts
-// Reads VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY and SUPABASE_SERVICE_ROLE_KEY from phoney/.env
-// (never printed). The service key only creates the accounts and signs them in, as Google would.
 
-import { existsSync, readFileSync } from 'node:fs'
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { account, remove } from './e2e-accounts.ts'
 
-function env(name: string): string {
-  if (process.env[name]) return process.env[name]!
-  for (const f of ['.env', '../.env']) {
-    if (!existsSync(f)) continue
-    const m = readFileSync(f, 'utf8').match(new RegExp(`^${name}=(.*)$`, 'm'))
-    if (m?.[1].trim()) return m[1].trim().replace(/^["']|["']$/g, '')
-  }
-  throw new Error(`${name} is not set in phoney/.env`)
-}
-
-const URL = env('VITE_SUPABASE_URL')
-const admin = createClient(URL, env('SUPABASE_SERVICE_ROLE_KEY'), { auth: { persistSession: false } })
 const stamp = Date.now()
 let failed = 0
 
 function check(name: string, ok: boolean, detail = '') {
   if (!ok) failed++
   console.log(`${ok ? 'pass' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`)
-}
-
-async function account(who: string, fullName: string): Promise<{ db: SupabaseClient; id: string }> {
-  const email = `phoney-e2e-${who}-${stamp}@example.com`
-  const { data: made, error } = await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: fullName } })
-  if (error) throw new Error(`create ${who}: ${error.message}`)
-  const { data: link, error: le } = await admin.auth.admin.generateLink({ type: 'magiclink', email })
-  if (le) throw new Error(`link ${who}: ${le.message}`)
-  const db = createClient(URL, env('VITE_SUPABASE_PUBLISHABLE_KEY'), { auth: { persistSession: false } })
-  const { error: ve } = await db.auth.verifyOtp({ type: 'magiclink', token_hash: link.properties.hashed_token })
-  if (ve) throw new Error(`sign in ${who}: ${ve.message}`)
-  return { db, id: made.user.id }
 }
 
 const her = await account('her', 'E2E Her')
@@ -74,10 +47,8 @@ try {
   check('he cannot read her calls table directly', (peek.data ?? []).length === 0)
 } finally {
   for (const [who, a] of [['her', her], ['him', him]] as const) {
-    const del = await a.db.rpc('delete_my_account')
-    const gone = (await admin.auth.admin.getUserById(a.id)).data.user === null
-    check(`"Delete all my data" removes ${who}`, !del.error && gone, del.error?.message)
-    if (!gone) await admin.auth.admin.deleteUser(a.id)
+    const r = await remove(a)
+    check(`"Delete all my data" removes ${who}`, r.ok, r.error)
   }
 }
 console.log(failed ? `\n${failed} failed` : '\nall passed')
