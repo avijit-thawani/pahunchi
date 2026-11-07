@@ -5,6 +5,7 @@ tests:
   - "Pixel: Settings toggle on, call 12-20 s, hang up; select from call_locations for the call id shows >= 1 point, first created_at within ~4 s of start"
   - "Contact (second account) History: map shows dots per point, dashed line, red last point, Open in Maps goes to the last point"
 transcripts:
+  - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 web blocked-location note tells site block from device setting
   - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 Pixel shared nothing: fixed Android (no displacement filter, last-known fix, first upload right away); map dots per point
   - a1ebdb03-7df7-4906-9901-5f652abbb468 2026-11-07 screenshots; web marked untested after the user's failed try
   - a1ebdb03-7df7-4906-9901-5f652abbb468 2026-11-07 created card from past chats
@@ -47,6 +48,7 @@ Still wanted: a web test (signed in, toggle on, browser allows location, call, c
 
 ## Log
 
+- 2026-11-07 user's web try (Mac browser, sidavijit) hit "Location is blocked ... phone's settings": the browser returned permission denied. Web note now says either "browser blocks location for this site" (permission state `denied`) or "turn on Location Services for your browser". Cause on the user's Mac not yet known.
 - 2026-11-07 Android fixed and verified on the Pixel (above); map shows a dot per point.
 - 2026-11-07 user's web try failed: it treated sharing as app-only. Code does have a web path
   (`navigator.geolocation` in `src/lib/location.ts`), so the cause is unknown: possibly the signed-in-only toggle,
