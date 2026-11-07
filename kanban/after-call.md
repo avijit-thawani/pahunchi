@@ -1,6 +1,6 @@
 ---
 feature: After the call ("Call ended" / "I'm safe")
-tags: [wip]
+tags: [dev-web, dev-android]
 tests: [after-call-states]
 transcripts:
   - a8062bec-ff8f-48b3-aad1-21b474392764 2026-11-07 created card; no Home links (tabs cover it); "I'm safe" only when a contact is on a delay
@@ -30,7 +30,7 @@ Web, local dev server, demo data (contacts saved on the phone, signed out), 2026
 |---|---|---|
 | Screen / route | `/after/:id` (`src/pages/AfterCallPage.tsx`) | same |
 | How she gets there | hang up | hang up |
-| Differences | none (same build); not yet checked on the Pixel | |
+| Differences | none: same build, installed on the Pixel 2026-11-07 (screen not yet eyeballed there) | |
 
 Contact delays come from `phoney.contacts` on the phone plus, when signed in, `trusted_contacts.delay_min`.
 
