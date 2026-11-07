@@ -5,6 +5,7 @@
 // Deployed: PHONEY_URL=https://phoney-call.netlify.app PHONEY_PASSWORD=... node scripts/smoke-call.ts
 // PHONEY_HER=sarvam:aparna_hi_customer voices her lines (sim/scenes.json) in that voice through
 // /api/tts once, cached under sim/out/lines/, instead of the lab's Gemini clips.
+// Scene `short`: the one- to three-word lines she really says, in aparna unless PHONEY_HER is set.
 // "her end -> his voice" models the app's turn detection: the pipeline starts after PAUSE_MS of
 // silence and playback waits for END_MS (speculative start), so it is max(END, PAUSE + stt + llm + tts).
 
@@ -14,8 +15,9 @@ import { Clauses } from '../shared/clauses.ts'
 const PAUSE_MS = 300
 const END_MS = 600
 const BASE = process.env.PHONEY_URL || 'http://localhost:5173'
-const HER = process.env.PHONEY_HER
 const [scene = 'cab_night', personaId = 'dad', language = 'hinglish'] = process.argv.slice(2)
+const SHORT = ['हाँ पापा।', 'हाँ, cab में हूँ।', 'हम्म।', 'बस दस मिनट।', 'ठीक है।']
+const HER = process.env.PHONEY_HER || (scene === 'short' ? 'sarvam:aparna_hi_customer' : undefined)
 const dir = HER ? `sim/out/lines/${HER.replace(/[^\w-]+/g, '-')}` : 'sim/out/lines/google-gemini-3-8-flash-tts'
 
 type Turn = { who: 'her' | 'them' | 'event'; text: string; at: number }
@@ -98,10 +100,10 @@ function wav(pcm: Buffer, rate: number): Buffer {
 /** Her lines of the scene in the PHONEY_HER voice, named like the lab's clips. */
 async function voiceHer() {
   const { scenes } = JSON.parse(readFileSync('sim/scenes.json', 'utf8')) as { scenes: { id: string; lines: { who: string; text: string }[] }[] }
-  const s = scenes.find((x) => x.id === scene)
-  if (!s) throw new Error(`no scene ${scene} in sim/scenes.json`)
+  const lines = scene === 'short' ? SHORT.map((text) => ({ who: 'girl', text })) : scenes.find((x) => x.id === scene)?.lines
+  if (!lines) throw new Error(`no scene ${scene} in sim/scenes.json`)
   mkdirSync(dir, { recursive: true })
-  for (const [i, t] of s.lines.entries()) {
+  for (const [i, t] of lines.entries()) {
     const file = `${dir}/${scene}_${String(i).padStart(2, '0')}_girl.wav`
     if (t.who !== 'girl' || existsSync(file)) continue
     const r = await post('tts', JSON.stringify({ personaId: 'sister', voiceId: HER, text: t.text, language }), 'application/json', '00')
