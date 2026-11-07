@@ -8,39 +8,34 @@ transcripts:
 
 # Auto language
 
-She never picks a language. He answers in whatever she speaks, Hindi, English, Hinglish, later Tamil, Bengali and others, and stays in it the way a real relative would.
+## Goal (the user's, 2026-11-07)
+
+1. **No language picker.** He speaks her language without her choosing it.
+2. **First call:** he speaks first, before she has said anything, so open in English with Hindi warmth ("Hi beta, where are you?" for dad).
+3. **Later calls:** use the language she spoke most in past turns, and tell the prompt.
+4. **As many languages as possible**, without hand-picking voices per language: the same voices speaking Tamil and Telugu are the first target.
 
 ## How it works today
 
-The Home picker (Hinglish, Hindi, English) sets one `language` per call, and it goes to three places:
+The Home picker (Hinglish, Hindi, English) sets one `language` per call. It sets Sarvam STT's `language_code` (`hi-IN`, or `en-IN` for English), the prompt's language rules, and Bulbul's `target_language_code` (same split). Hinglish and Hindi differ only in the prompt.
 
-| Step | Hinglish | Hindi | English |
-|---|---|---|---|
-| Her speech -> text, Sarvam `saaras:v4` `language_code` | `hi-IN` | `hi-IN` | `en-IN` |
-| His reply, `google/gemini-3.5-flash-lite`, rules in `server/prompt.ts` | Devanagari + English words in Latin | Devanagari | Indian English |
-| His voice, Bulbul v4 Flash `target_language_code` | `hi-IN` | `hi-IN` | `en-IN` |
+## What we know (`node scripts/lang-probe.ts`, 2026-11-07)
 
-Hinglish and Hindi differ only in the prompt. Forced `hi-IN` writes her English in Devanagari ("आई डोंट नो हिंदी"), which is why he answered in Hinglish on the real English-mode call of 2026-11-05.
+- **Her language, before the AI sees her words:** no reliable signal yet. Sarvam's `language_code=unknown` is as fast as `hi-IN` (660 vs 734 ms) but on 57 real lines it called a dozen Hindi lines English at p >= 0.9 and translated them ("हाँ, चलो" -> "Ah, shut up"), and two Hindi lines Punjabi. Usable only as a vote over several long lines.
+- **His language, before TTS:** solved without hoping. Each clause's text is known before it goes to TTS; its script gives the language (Devanagari -> `hi-IN`, Tamil -> `ta-IN`, Latin -> `en-IN`).
+- **The AI following her:** a "mirror her" prompt followed Hindi, Hinglish, Tamil, Bengali, Telugu (21/27) but never English (0/6). Even in today's English mode he drifted into Hinglish on the real 2026-11-05 call, although STT gave her English in Latin script there. So the prompt, not STT, pulls him to Hindi.
+- **Same voices, other languages:** dad `sumit` and mom `shreya` spoke Tamil, Bengali, Telugu; all six clips re-transcribed word for word. Accent unjudged: `logs/lang-probe/voice_*.wav`.
 
-## Offline test, 2026-11-07 (`node scripts/lang-probe.ts`)
+## Untested (needed before building)
 
-- **Ears, 57 real lines from 13 calls:** `language_code=unknown` is as fast as `hi-IN` (sequential medians 660 vs 734 ms) but unusable as the transcript: it labelled 38 lines English, about a dozen of them Hindi at p >= 0.9, and translated them ("हाँ, चलो" -> "Ah, shut up", "भाड़ में जा" -> "Bhadmeja"). Two clear Hindi lines came back in Punjabi script (p 0.94, 0.41). On true English lines it is right and writes them in Latin.
-- **Brain, "mirror her" prompt, 27 replies:** follows Hindi, Hinglish, Tamil, Bengali, Telugu and stays put after "ok" (21/27); never switches to English (0/6). A "[she is speaking English]" tag gave romanized Hinglish. Today's English prompt got 5/6 Latin-script replies, some still Hinglish ("Achha, number plate bheji kya?").
-- **Voice, 13 clips:** the current Hindi voices (dad `sumit`, mom `shreya`) speak Tamil, Bengali and Telugu when given that `target_language_code`; re-transcribed, every clip came back word-for-word in the right language at p 1.00. Accent not judged yet: listen to `logs/lang-probe/voice_*.wav`.
+- **STT accuracy on her real voice.** `docs/latency.md` timed STT on lab TTS clips only. Next: the 57 real lines through Sarvam (`hi-IN`, `codemix`), Scribe v2, `gpt-4o-mini-transcribe` and a streaming STT, scored against hand-checked transcripts.
+- **LLM choice.** Only Gemini 3.5 Flash Lite has run. Candidates from `../sense` (fastest there): Gemma 4 31B (0.64 s), Gemini 3.1 Flash Lite (no thinking), Gemma 4 26B A4B; plus Sarvam-105B (tuned for Indian languages). Score first-phrase time, language following, and staying in character.
 
-## Revised design
+## Design sketch
 
-1. Run STT twice in parallel, `hi-IN` and `unknown` (double STT cost, no added latency). `unknown` only decides the language; the transcript the LLM sees is `hi-IN`'s while the call is Hindi/Hinglish, `unknown`'s once it has switched.
-2. The call language switches only after two confident lines in a row (p >= 0.8, 3+ words), starting from her last call's language. On the 13 calls that would have left one false switch: her three "White Dzire" plate lines.
-3. The call language picks the prompt, as today; Hindi vs Hinglish is left to the model, which already mirrors it. English mode needs a stronger prompt.
-4. Voice language from the reply's script (Devanagari -> `hi-IN`, Tamil -> `ta-IN`, Latin -> `en-IN`), so a stray reply is still pronounced right. Script can't tell Hindi from Marathi; use the call language there.
-5. Home: no picker; Advanced keeps a manual override. Steps 1-4 run on the server, so web and Android match.
-
-## More languages
-
-Sarvam STT covers 22 Indian languages + English, Bulbul TTS 11. The voices are multilingual, so each role keeps its two voices; native ones (3-9 per language, Tamil only male, none for Malayalam/Odia) only if the accent sounds off. Each language needs prompt rules, fillers and smoke-call lines.
+Open in English + Hindi on a first call; after that, start in her most-used language from past calls. Switch mid-call only on two confident lines in a row. Voice language from each clause's script. Home loses the picker; Advanced keeps an override. All server-side, so web and Android match.
 
 ## Notes
 
-- 2026-11-07 offline probe run (above); nothing built in the app.
-- 2026-11-07 card created from the user's question.
+- 2026-11-07 goals recorded; corrected an earlier wrong claim that STT caused the Hinglish replies on the English-mode call.
+- 2026-11-07 offline probe run; nothing built in the app.
