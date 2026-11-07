@@ -1,8 +1,9 @@
 ---
 feature: The call (he answers and talks back)
-tags: [prod-web, dev-android]
+tags: [prod-web, dev-web, dev-android]
 tests: [smoke-call]
 transcripts:
+  - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 committed plain-words errors to main (9d0ad3b), live on dev
   - 3773fae9-00cb-4eff-a661-5ad3ac519194 2026-11-07 smoke-call on dev: latency fails (STT), sister-voice option added
   - a1ebdb03-7df7-4906-9901-5f652abbb468 2026-11-07 created card from past chats
   - 1ca07d40-cbeb-406f-b581-a5608a34f146 2026-11-07 plain-words errors ("Can't reach phoney"), uncommitted
