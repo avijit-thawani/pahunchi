@@ -35,10 +35,14 @@ export default function CallMap({ callId, live }: { callId: string; live: boolea
     const path = points.map((p) => [p.lat, p.lng] as L.LatLngTuple)
     const end = points[points.length - 1]
     layer.current!.clearLayers()
-    if (path.length > 1) L.polyline(path, { color: '#1cb0f6', weight: 4, opacity: 0.8 }).addTo(layer.current!)
+    if (path.length > 1) L.polyline(path, { color: '#1cb0f6', weight: 3, opacity: 0.6, dashArray: '6 6' }).addTo(layer.current!)
+    for (const p of points.slice(0, -1)) {
+      L.circleMarker([p.lat, p.lng], { radius: 5, color: '#fff', weight: 2, fillColor: '#1cb0f6', fillOpacity: 1 })
+        .bindTooltip(time(p.at)).addTo(layer.current!)
+    }
     if (end.accuracy_m) L.circle([end.lat, end.lng], { radius: end.accuracy_m, weight: 0, fillOpacity: 0.15 }).addTo(layer.current!)
     L.circleMarker([end.lat, end.lng], { radius: 8, color: '#fff', weight: 3, fillColor: '#ff4b4b', fillOpacity: 1 })
-      .addTo(layer.current!)
+      .bindTooltip(time(end.at)).addTo(layer.current!)
     if (path.length > 1) map.current.fitBounds(L.latLngBounds(path), { padding: [24, 24], maxZoom: 17 })
     else map.current.setView([end.lat, end.lng], 16)
   }, [points])

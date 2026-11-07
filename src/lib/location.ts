@@ -11,8 +11,11 @@ import { supabase } from './supabase.ts'
 const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation')
 
 const UPLOAD_EVERY_MS = 15_000
+const RETRY_FIRST_MS = 3_000
 const MIN_GAP_MS = 10_000
 const MIN_MOVE_M = 20
+/** A cold GPS start indoors takes ~15 s, longer than many calls; an older last-known fix still beats none. */
+const MAX_STALE_MS = 5 * 60_000
 
 type Point = { call_id: string; at: string; lat: number; lng: number; accuracy_m: number | null }
 
@@ -21,6 +24,7 @@ let stopWatch: (() => void) | null = null
 let timer: ReturnType<typeof setInterval> | undefined
 let buffer: Point[] = []
 let last: Point | null = null
+let sent = false
 /** Bumped by stopSharing, so a start still waiting on permission knows the call already ended. */
 let gen = 0
 
@@ -33,9 +37,12 @@ function metres(a: Point, b: Point) {
 
 function record(lat: number, lng: number, accuracy: number | null, time: number) {
   const p: Point = { call_id: callId, at: new Date(time).toISOString(), lat, lng, accuracy_m: accuracy }
-  if (last && Date.parse(p.at) - Date.parse(last.at) < MIN_GAP_MS && metres(last, p) < MIN_MOVE_M) return
+  const moved = last && metres(last, p) >= Math.max(MIN_MOVE_M, accuracy ?? 0)
+  if (last && Date.parse(p.at) - Date.parse(last.at) < MIN_GAP_MS && !moved) return
+  const first = !last
   last = p
   buffer.push(p)
+  if (first) void upload()
 }
 
 /** PostgREST insert, skipping points already stored. */
@@ -67,7 +74,8 @@ async function upload() {
   if (error) {
     buffer = [...batch, ...buffer].slice(-500)
     console.warn('[location]', error)
-  }
+    if (!sent && callId) setTimeout(() => void upload(), RETRY_FIRST_MS)
+  } else sent = true
 }
 
 async function watchNative() {
@@ -76,12 +84,14 @@ async function watchNative() {
       backgroundTitle: 'phoney is sharing your location',
       backgroundMessage: 'With your trusted contacts, until the call ends.',
       requestPermissions: true,
-      stale: false,
-      distanceFilter: MIN_MOVE_M,
+      stale: true,
+      // Android's smallest displacement withholds every fix while she stands still; record() thins them
+      distanceFilter: 0,
     },
     (loc, err) => {
       if (err) return console.warn('[location]', err.code, err.message)
-      if (loc) record(loc.latitude, loc.longitude, loc.accuracy ?? null, loc.time ?? Date.now())
+      const time = loc?.time ?? Date.now()
+      if (loc && Date.now() - time < MAX_STALE_MS) record(loc.latitude, loc.longitude, loc.accuracy ?? null, time)
     },
   )
   return () => void BackgroundGeolocation.removeWatcher({ id })
@@ -126,6 +136,7 @@ export async function startSharing(id: string) {
   if (!supabase || !(await supabase.auth.getSession()).data.session || mine !== gen) return
   callId = id
   last = null
+  sent = false
   try {
     const stop = Capacitor.isNativePlatform() ? await watchNative() : watchWeb()
     if (mine !== gen) return stop()
