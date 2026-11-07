@@ -1,4 +1,4 @@
-// Storyboard stills of every phoney screen, on demo data, from the dev server (default :5173).
+// Storyboard stills of every Pahunchi screen, on demo data, from the dev server (default :5173).
 // Signed-in screens fake a Supabase session: the auth token is seeded in localStorage and every
 // request to the Supabase host is answered here, so nothing reaches the real project.
 // Uses the headless shell from the video toolkit (../../scratch/ai-video), never a system browser.

@@ -26,7 +26,7 @@ export const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent)
 
 /**
  * While mounted, the page advertises the separate "Call" app (public/call.webmanifest), so Add to Home Screen
- * here makes a second icon that opens /go instead of another copy of phoney.
+ * here makes a second icon that opens /go instead of another copy of Pahunchi.
  */
 export function useCallManifest() {
   useEffect(() => {

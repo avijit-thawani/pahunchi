@@ -316,7 +316,7 @@ def page() -> None:
     casts = json.loads((OUT / "casts.json").read_text()) if (OUT / "casts.json").exists() else {}
     results = json.loads((OUT / "audition" / "results.json").read_text())
     h = ["<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>",
-         f"<title>phoney voice lab</title><style>{PAGE_CSS}</style><main><h1>phoney voice lab</h1>",
+         f"<title>Pahunchi voice lab</title><style>{PAGE_CSS}</style><main><h1>Pahunchi voice lab</h1>",
          "<p class=sub>Newest experiments first. Scores come from a Gemini audio judge. The v2 judge (role tables) "
          "estimates age and gender and tests hard lines, so its scores spread out; older tables used v1, which "
          "bunched good voices near the top. Either way, trust your ear.</p>"]

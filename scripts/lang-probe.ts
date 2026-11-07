@@ -148,7 +148,7 @@ async function llm(messages: { role: string; content: string }[]): Promise<{ tex
   const t0 = Date.now()
   const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, 'Content-Type': 'application/json', 'X-Title': 'phoney' },
+    headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, 'Content-Type': 'application/json', 'X-Title': 'Pahunchi' },
     body: JSON.stringify({ model: LLM_MODEL, messages, max_tokens: 120, temperature: 0.8, reasoning: { effort: 'minimal' } }),
   })
   const j = await r.json()

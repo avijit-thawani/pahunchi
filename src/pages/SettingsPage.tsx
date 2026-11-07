@@ -41,7 +41,7 @@ export default function SettingsPage() {
         <Step icon="👥" title="Add someone you trust">Sign in, add them below, and send them the invite link.</Step>
         <Step icon="⏱️" title="When they see your calls">Right away, or only if you don't tap "I'm safe" in time.</Step>
         <Step icon="📍" title="Your location">Turn it on to show them where you are, on the same delay.</Step>
-        <Step icon="🗑️" title="Your data">Delete everything phoney saved, anytime, at the bottom.</Step>
+        <Step icon="🗑️" title="Your data">Delete everything Pahunchi saved, anytime, at the bottom.</Step>
       </HowTo>
       <section className="space-y-4">
         <div>
@@ -86,7 +86,7 @@ function YourData() {
     <section className="space-y-3">
       <h2 className="text-xl font-extrabold">Your data</h2>
       <p className="text-sm font-semibold text-base-content/70">
-        Calls are recorded during the beta to improve phoney. <Link to="/privacy" className="link font-bold">Privacy</Link>
+        Calls are recorded during the beta to improve Pahunchi. <Link to="/privacy" className="link font-bold">Privacy</Link>
       </p>
       {step === 'idle' ? (
         <button onClick={() => setStep('confirm')} className="btn btn-outline btn-error w-full rounded-2xl font-extrabold gap-2">
@@ -96,7 +96,7 @@ function YourData() {
         <div className="space-y-3 rounded-box border-2 border-error/50 bg-error/10 p-4">
           <p className="text-sm font-semibold">
             This deletes your call recordings, transcripts and feedback, scheduled calls, your account and trusted
-            contacts, and everything phoney saved on this phone. It can't be undone.
+            contacts, and everything Pahunchi saved on this phone. It can't be undone.
           </p>
           <div className="flex gap-2">
             <button onClick={run} disabled={step === 'busy'} className="btn btn-error flex-1 rounded-xl font-extrabold">
@@ -147,7 +147,7 @@ function ShareLocation() {
     setNote('')
     if (on && !(await askPermission())) {
       if (Capacitor.isNativePlatform()) {
-        return setNote('Location is blocked for phoney. Allow it in your phone\'s settings, then try again.')
+        return setNote('Location is blocked for Pahunchi. Allow it in your phone\'s settings, then try again.')
       }
       const site = await navigator.permissions?.query({ name: 'geolocation' }).then((s) => s.state).catch(() => undefined)
       return setNote(site === 'denied'
@@ -163,7 +163,7 @@ function ShareLocation() {
         <span className="block font-extrabold">Share my location during calls</span>
         <span className="block text-xs font-semibold text-base-content/60">
           Contacts see it on a map with the call, following the same delay.
-          {!Capacitor.isNativePlatform() && ' On the website it only updates while phoney is on screen.'}
+          {!Capacitor.isNativePlatform() && ' On the website it only updates while Pahunchi is on screen.'}
         </span>
         {note && <span role="alert" className="block text-xs font-bold text-error mt-1">{note}</span>}
       </span>
@@ -250,7 +250,7 @@ function SignedIn({ session, onCount }: { session: Session; onCount: (n: number)
 
   const invite = async (r: Row) => {
     const link = `${siteUrl}/join/${r.invite_token}`
-    const text = `I've added you as my trusted contact on phoney, the app I use for calls when I'm out alone. `
+    const text = `I've added you as my trusted contact on Pahunchi, the app I use for calls when I'm out alone. `
       + `Please accept so you can be told if I need help: ${link}`
     if (navigator.share) {
       try { await navigator.share({ text }) } catch { /* closed the share sheet */ }

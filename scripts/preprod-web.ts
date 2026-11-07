@@ -2,7 +2,7 @@
 // her trusted contact, signed in without Google) drive the dev site in the video toolkit's headless
 // shell. Her mic is a WAV of her short lines in the sister's Sarvam voice, so the call is real:
 // STT, reply and his voice all go through the site's /api. Screenshots land in video/screens/preprod/.
-//   PHONEY_URL=https://main--phoney-call.netlify.app node scripts/preprod-web.ts
+//   PHONEY_URL=https://main--pahunchi.netlify.app node scripts/preprod-web.ts
 
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
@@ -15,7 +15,7 @@ const { headlessShellPath } = (await import(HEADLESS.href)) as { headlessShellPa
 const require = createRequire(HEADLESS)
 const puppeteer = require('puppeteer-core')
 
-const BASE = process.env.PHONEY_URL || 'https://main--phoney-call.netlify.app'
+const BASE = process.env.PHONEY_URL || 'https://main--pahunchi.netlify.app'
 const SHOTS = 'video/screens/preprod'
 const LINES = ['हाँ, cab में हूँ।', 'बस दस मिनट।']
 const HER_VOICE = 'sarvam:aparna_hi_customer'

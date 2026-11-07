@@ -21,9 +21,9 @@ function atClock(hhmm: string): number {
 }
 
 const NOTICE = {
-  'ios-install': 'On iPhone, add phoney to your Home Screen (Share → Add to Home Screen) so it can ring while closed. Until then it only rings if phoney is open.',
-  denied: 'Notifications are blocked for phoney, so it only rings while phoney is open.',
-  none: 'This browser only rings while phoney is open.',
+  'ios-install': 'On iPhone, add Pahunchi to your Home Screen (Share → Add to Home Screen) so it can ring while closed. Until then it only rings if Pahunchi is open.',
+  denied: 'Notifications are blocked for Pahunchi, so it only rings while Pahunchi is open.',
+  none: 'This browser only rings while Pahunchi is open.',
   ok: '',
 }
 

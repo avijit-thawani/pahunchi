@@ -3,6 +3,7 @@ feature: Delete all my data, and where data lives
 tags: [prod-web, dev-android]
 tests: []
 transcripts:
+  - 46387402-d07d-478b-ba09-e5d050eba0a5 2026-11-07 renamed phoney -> Pahunchi
   - a1ebdb03-7df7-4906-9901-5f652abbb468 2026-11-07 created card from past chats
   - 677281f8-7021-4886-996b-bf89e9077fdd 2026-11-07 delete also clears scheduled Android notifications
   - b5e8f044-61bb-4837-820f-8f00e69312c9 2026-11-06 delete button in Settings, recordings moved to phoney project
@@ -11,7 +12,7 @@ transcripts:
 # Delete all my data
 
 Settings -> Your data -> "Delete all my data" removes her call recordings, scheduled calls, account and
-everything on the phone. All phoney data lives in the phoney Supabase project.
+everything on the phone. All Pahunchi data lives in the phoney Supabase project.
 
 ## Screenshots
 

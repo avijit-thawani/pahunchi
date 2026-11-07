@@ -29,7 +29,7 @@ type Handler = (req: Request, log: CallLog) => Promise<Response>
 function headers(): Record<string, string> {
   const key = process.env.OPENROUTER_API_KEY
   if (!key) throw new Error('OPENROUTER_API_KEY is not set')
-  return { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Title': 'phoney' }
+  return { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Title': 'Pahunchi' }
 }
 
 function json(body: unknown, status = 200): Response {

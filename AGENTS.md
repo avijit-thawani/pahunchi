@@ -1,10 +1,10 @@
-# Agent rules for phoney
+# Agent rules for Pahunchi
 
-Read [README.md](README.md) first: what phoney is, how to run it, and the **Shipping intent** (dev vs prod, web/Android parity). This file is the user's intent plus how agents record work. Cap: 1300 words (`wc -w`); one line per paragraph or bullet, no hard wraps.
+Read [README.md](README.md) first: what Pahunchi is, how to run it, and the **Shipping intent** (dev vs prod, web/Android parity). This file is the user's intent plus how agents record work. Cap: 1300 words (`wc -w`); one line per paragraph or bullet, no hard wraps.
 
 ## What the user wants, in priority order
 
-Women in India call someone, or pretend to, when walking alone or in a cab at night. phoney is that call, except it talks back, and it stays free to use. Distilled from the user's own messages across this project's chats (read up to 2026-11-07). When two of these conflict, the higher one wins.
+Women in India call someone, or pretend to, when walking alone or in a cab at night. Pahunchi is that call, except it talks back, and it stays free to use. Distilled from the user's own messages across this project's chats (read up to 2026-11-07). When two of these conflict, the higher one wins.
 
 1. **A call a bystander believes.**
    - He sounds like a real Indian relative: mostly responds, sometimes asks something useful (cab plate, ETA), never nosy, fine with long silences because she may just want to scroll.
@@ -13,7 +13,7 @@ Women in India call someone, or pretend to, when walking alone or in a cab at ni
    - Sarvam voices first, other engines only as fallback. Two voices per role, picked at random and logged.
 2. **Her safety and privacy.**
    - Trusted contacts hear right away, or only if she doesn't tap "I'm safe" in time; location follows the same delay. Records are kept in case of an investigation.
-   - phoney's data lives in the phoney Supabase project, nowhere else, and she can delete all of it herself.
+   - Pahunchi's data lives in the phoney Supabase project, nowhere else, and she can delete all of it herself.
 3. **Same features and UI on web and Android.** Parity is "huge": same screen, entry point and copy on both, or the card says why not. See the parity rules below.
 4. **Kanban stays current.** When your work touches a feature, update its card so the next agent and the user see where it stands.
 5. **Concise, obvious UI.**
@@ -23,11 +23,11 @@ Women in India call someone, or pretend to, when walking alone or in a cab at ni
    - Home stays home: opening the app never starts a call. One PWA plus one "call now" shortcut.
    - Scheduling is a clock button beside Call with just when and a two-way why, like cab apps.
    - Bottom tabs always visible; account and data options (delete all data) live in Settings, not on Home.
-   - Mobile-first, dark/light mode (`../mandarin` is the reference). Errors in plain words ("Can't reach phoney, check your internet", not "TypeError: Failed to fetch").
+   - Mobile-first, dark/light mode (`../mandarin` is the reference). Errors in plain words ("Can't reach Pahunchi, check your internet", not "TypeError: Failed to fetch").
 6. **Finish the job yourself, and verify it.**
    - Migrate, deploy to dev, commit and push to GitHub without handing steps back ("you=ai agent deploy and migrate data"; "Nothing is committed yet. wtf? push na?"). Production waits for the user.
    - Test on the user's connected Pixel over adb (`../sense` did the same), read the call logs, and show UI changes on localhost. Diagnose from logs, not guesses; report numbers, not adjectives.
-   - Other chats work on phoney in parallel. Read any chat the user points to, and don't undo its work.
+   - Other chats work on Pahunchi in parallel. Read any chat the user points to, and don't undo its work.
 
 **Later, not now:** Play Store listing, iOS app; a voice journal or listener mode, exporting just her side.
 
@@ -48,8 +48,8 @@ Front matter: `tags:`, `tests:` (whatever covers the feature, commands or short 
 | `idea` | Wanted, not yet scoped |
 | `todo` | Scoped, nobody on it |
 | `wip` | Someone is building it now |
-| `dev-web` | On `main`, so live on the dev site, `main--phoney-call.netlify.app` |
-| `prod-web` | On `prod`, so live on `phoney-call.netlify.app` |
+| `dev-web` | On `main`, so live on the dev site, `main--pahunchi.netlify.app` |
+| `prod-web` | On `prod`, so live on `pahunchi.netlify.app` |
 | `dev-android` | In the debug build installed on the user's Pixel |
 
 | `server` | Lives on the server (`/api`, Supabase), so web and Android get it from the same Netlify deploy; `dev-web`/`prod-web` then says where it's deployed, and no web/Android split is needed |
@@ -66,9 +66,9 @@ A feature should exist, look and sit in the same place on web and Android. When 
 
 Netlify deploys from GitHub, so a release is a push, not a `netlify deploy` from a laptop.
 
-- **Dev** (agents ship here without asking): push to `main`; Netlify deploys it to `https://main--phoney-call.netlify.app`. Android: `npm run android`, build the debug APK, install on the Pixel.
+- **Dev** (agents ship here without asking): push to `main`; Netlify deploys it to `https://main--pahunchi.netlify.app`. Android: `npm run android`, build the debug APK, install on the Pixel.
 - **Check the deploy, not just the push.** After pushing, confirm Netlify built it before calling it live: `netlify api listSiteDeploys --data '{"site_id":"365083bc-c390-4322-8cc9-2eb0e2fdbb55","per_page":3}'` shows your commit as `ready`, and the site's `/assets/*.js` contain the new code. Tell the user which site has it (dev or prod) and if a deploy failed or is still building.
-- **Prod**: merge `main` into `prod` (`git push origin main:prod`); Netlify deploys it to `phoney-call.netlify.app`. Only when the user says so; tell them before you do.
+- **Prod**: merge `main` into `prod` (`git push origin main:prod`); Netlify deploys it to `pahunchi.netlify.app`. Only when the user says so; tell them before you do.
 - Before any push to `prod`, run [docs/preprod-checklist.md](docs/preprod-checklist.md) on the dev release, web and Android side by side, and add the run to its Runs section. When a feature becomes crucial, add a short text test for it there.
 
 ## Everything else

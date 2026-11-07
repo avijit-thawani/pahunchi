@@ -6,7 +6,7 @@ import { isNative } from '../lib/native.ts'
 
 const DISMISSED = 'phoney.installDismissed'
 
-/** Home-screen setup: phoney itself (install dialog or iPhone steps), plus the separate one-tap Call icon (/go). */
+/** Home-screen setup: Pahunchi itself (install dialog or iPhone steps), plus the separate one-tap Call icon (/go). */
 export default function InstallCard({ name }: { name: string }) {
   const [kind, install] = useInstall()
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISSED) === '1')
@@ -25,13 +25,13 @@ export default function InstallCard({ name }: { name: string }) {
         <X className="w-4 h-4" />
       </button>
       <p className="font-extrabold flex items-center gap-2 pr-6">
-        <Smartphone className="w-5 h-5 text-secondary shrink-0" /> Keep phoney one tap away
+        <Smartphone className="w-5 h-5 text-secondary shrink-0" /> Keep Pahunchi one tap away
       </p>
       {kind && (
         <div className="flex items-center gap-3">
           <img src="/icon-192.png" alt="" className="w-10 h-10 rounded-xl" />
           <div className="flex-1 min-w-0 text-sm font-semibold">
-            <p className="font-extrabold">phoney</p>
+            <p className="font-extrabold">Pahunchi</p>
             {showSteps && (
               <p className="text-base-content/70">
                 Tap <Share className="inline w-4 h-4 -mt-1" /> Share in Safari, then <b>Add to Home Screen</b>.

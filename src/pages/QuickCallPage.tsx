@@ -76,7 +76,7 @@ function Setup() {
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">One-tap Call icon</h1>
           <p className="text-sm font-semibold text-base-content/70">
-            A second icon next to phoney. Tapping it calls {name} right away.
+            A second icon next to Pahunchi. Tapping it calls {name} right away.
           </p>
         </div>
       </div>
@@ -84,7 +84,7 @@ function Setup() {
       <section className="bg-base-200 rounded-box p-4 space-y-3 text-sm font-semibold">
         {inApp ? (
           <>
-            <p>Home-screen icons are added from the browser, not from inside phoney:</p>
+            <p>Home-screen icons are added from the browser, not from inside Pahunchi:</p>
             <ol className="list-decimal pl-5 space-y-1">
               <li>Open <b>{link}</b> in {isIOS() ? 'Safari' : 'Chrome'}.</li>
               <li>Add it to your home screen from there.</li>
@@ -111,14 +111,14 @@ function Setup() {
           </ol>
         )}
         <p className="text-xs text-base-content/70">
-          It calls whoever is picked on phoney's home page{inApp ? '' : ', using this browser\'s settings'}.
+          It calls whoever is picked on Pahunchi's home page{inApp ? '' : ', using this browser\'s settings'}.
         </p>
       </section>
 
       <button onClick={call} className="btn btn-success btn-chunky btn-lg w-full h-14 rounded-2xl font-extrabold gap-2">
         <Phone className="w-5 h-5" /> Call {name} now
       </button>
-      <Link to="/" className="block text-center text-sm font-bold text-secondary link link-hover">Back to phoney</Link>
+      <Link to="/" className="block text-center text-sm font-bold text-secondary link link-hover">Back to Pahunchi</Link>
     </main>
   )
 }

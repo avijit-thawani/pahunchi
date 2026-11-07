@@ -45,13 +45,13 @@ export async function setCookie(password: string, secret: string): Promise<strin
 export function loginPage(error = '', status = 200): Response {
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
-<title>phoney</title><style>
+<title>Pahunchi</title><style>
 body{font-family:system-ui,sans-serif;background:#111;color:#eee;display:grid;place-items:center;min-height:100vh;margin:0}
 form{display:grid;gap:12px;width:min(320px,88vw)}h1{font-weight:500;margin:0 0 8px}
 input,button{font-size:18px;padding:12px;border-radius:10px;border:1px solid #444;background:#222;color:#eee}
 button{background:#16a34a;border:0;color:#fff}p{color:#f87171;margin:0}
 </style></head><body><form method="post" action="/__login">
-<h1>phoney</h1><input name="password" type="password" placeholder="Password" autocomplete="current-password"
+<h1>Pahunchi</h1><input name="password" type="password" placeholder="Password" autocomplete="current-password"
 autocapitalize="none" autofocus required>${error ? `<p>${error}</p>` : ''}<button>Enter</button>
 </form></body></html>`
   return new Response(html, {

@@ -48,7 +48,7 @@ function vapid() {
   const pub = process.env.VAPID_PUBLIC_KEY
   const priv = process.env.VAPID_PRIVATE_KEY
   if (!pub || !priv) throw new Error('VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are not set')
-  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'https://phoney-call.netlify.app', pub, priv)
+  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'https://pahunchi.netlify.app', pub, priv)
   return pub
 }
 

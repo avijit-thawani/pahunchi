@@ -11,7 +11,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export const isNative = Capacitor.isNativePlatform()
 
 export const siteUrl = isNative
-  ? (import.meta.env.VITE_SITE_URL as string | undefined) || 'https://phoney-call.netlify.app'
+  ? (import.meta.env.VITE_SITE_URL as string | undefined) || 'https://pahunchi.netlify.app'
   : window.location.origin
 
 /** Must match appId in capacitor.config.ts and be listed in Supabase Auth -> URL Configuration. */

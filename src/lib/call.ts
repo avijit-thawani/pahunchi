@@ -56,9 +56,9 @@ function userMessage(e: unknown): string {
   const s = String(e)
   // fetch() network failures: Chrome "Failed to fetch", Firefox "NetworkError", Safari "Load failed"
   if (!navigator.onLine || /Failed to fetch|NetworkError|Load failed|network/i.test(s)) {
-    return "Can't reach phoney. Check your internet."
+    return "Can't reach Pahunchi. Check your internet."
   }
-  if (/: 429\b/.test(s)) return 'phoney is busy right now. Try again in a minute.'
+  if (/: 429\b/.test(s)) return 'Pahunchi is busy right now. Try again in a minute.'
   return "He didn't catch that. Keep talking."
 }
 

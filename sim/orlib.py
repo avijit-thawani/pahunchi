@@ -35,7 +35,7 @@ def _env(name: str) -> str:
 
 
 def _headers(json_body: bool = True) -> dict[str, str]:
-    h = {"Authorization": f"Bearer {_env('OPENROUTER_API_KEY')}", "X-Title": "phoney"}
+    h = {"Authorization": f"Bearer {_env('OPENROUTER_API_KEY')}", "X-Title": "Pahunchi"}
     if json_body:
         h["Content-Type"] = "application/json"
     return h
