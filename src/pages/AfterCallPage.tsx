@@ -118,7 +118,7 @@ export default function AfterCallPage() {
           <p className="text-sm font-semibold text-base-content/70">
             Want someone to check on you if you don't reach safely?
           </p>
-          <Link to="/contacts" className="btn btn-outline btn-sm rounded-xl font-extrabold gap-1.5">
+          <Link to="/settings" className="btn btn-outline btn-sm rounded-xl font-extrabold gap-1.5">
             <UserPlus className="w-4 h-4" /> Add a trusted contact
           </Link>
         </div>

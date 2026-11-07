@@ -28,8 +28,8 @@ export default function PrivacyPage() {
         Supabase, OpenRouter and its AI providers) or when the law requires it.
       </Section>
       <Section title="Deleting your data">
-        Remove contacts at any time on the Contacts page. To delete everything, tap "Delete all my data" under
-        More options on the home screen. It removes, right away and for good: the recordings, transcripts and
+        Remove contacts at any time in Settings. To delete everything, tap "Delete all my data" at the bottom of
+        Settings. It removes, right away and for good: the recordings, transcripts and
         feedback of every call made on this phone or while signed in, your scheduled calls, your account and
         trusted contacts, and everything phoney saved on this phone. If someone added you as a trusted contact,
         they keep the name and email they typed, but are no longer linked to your account. Short server logs at

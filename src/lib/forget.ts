@@ -1,4 +1,4 @@
-// "Delete all my data" (Home -> More options). Server copies go first, so if one step fails she
+// "Delete all my data" (bottom of Settings). Server copies go first, so if one step fails she
 // still has the call ids on this phone and can retry; the phone is wiped last.
 //   1. call logs (audio, transcripts, feedback, IP/browser) for every call this phone or her account knows
 //   2. scheduled "Call me later" pushes

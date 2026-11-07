@@ -1,5 +1,5 @@
 // Local persistence (localStorage). While signed in, sessions are also mirrored to Supabase
-// (sync.ts) and trusted contacts live there (ContactsPage); settings stay local.
+// (sync.ts) and trusted contacts live there (SettingsPage); settings stay local.
 
 import { useCallback, useState } from 'react'
 import type { Turn } from '../../shared/api.ts'

@@ -1,11 +1,11 @@
-import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom'
-import { History, Phone, Users } from 'lucide-react'
+import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { History, Phone, Settings } from 'lucide-react'
 import QuickCallPage from './pages/QuickCallPage.tsx'
 import HomePage from './pages/HomePage.tsx'
 import CallPage from './pages/CallPage.tsx'
 import AfterCallPage from './pages/AfterCallPage.tsx'
 import HistoryPage from './pages/HistoryPage.tsx'
-import ContactsPage from './pages/ContactsPage.tsx'
+import SettingsPage from './pages/SettingsPage.tsx'
 import JoinPage from './pages/JoinPage.tsx'
 import PrivacyPage from './pages/PrivacyPage.tsx'
 import IncomingPage from './pages/IncomingPage.tsx'
@@ -34,7 +34,7 @@ function Nav() {
       <div className="flex justify-around items-center h-16 max-w-md mx-auto">
         {item('/', 'Call', Phone)}
         {item('/history', 'History', History)}
-        {item('/contacts', 'Contacts', Users)}
+        {item('/settings', 'Settings', Settings)}
       </div>
     </nav>
   )
@@ -56,7 +56,8 @@ export default function App() {
         <Route path="/incoming" element={<IncomingPage />} />
         <Route path="/after/:id" element={<AfterCallPage />} />
         <Route path="/history" element={<HistoryPage />} />
-        <Route path="/contacts" element={<ContactsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/contacts" element={<Navigate to="/settings" replace />} />
         <Route path="/join/:token" element={<JoinPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
       </Routes>

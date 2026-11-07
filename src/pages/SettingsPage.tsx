@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { LogOut, MapPin, Send, Trash2, UserPlus } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 import { useContacts, useSettings } from '../lib/store.ts'
+import { deleteAllData } from '../lib/forget.ts'
 import { askPermission } from '../lib/location.ts'
 import { siteUrl } from '../lib/native.ts'
 import { signInWithGoogle, signOut, supabase, userName, useSession } from '../lib/supabase.ts'
@@ -27,27 +29,78 @@ type Row = {
   joined_at: string | null
 }
 
-export default function ContactsPage() {
+export default function SettingsPage() {
   const session = useSession()
   return (
-    <main className="max-w-md mx-auto px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-28 space-y-4">
-      <div className="flex items-center gap-2">
-        <h1 className="text-3xl font-extrabold tracking-tight">Trusted contacts</h1>
-        <span className="badge badge-warning font-extrabold">Beta</span>
-      </div>
-      <p className="text-sm font-semibold text-base-content/70">
-        They'll see your call if you don't check in. <b>Alerts aren't live yet</b>, so nobody is notified for now.
-      </p>
-      {!supabase ? (
-        <Notice>Accounts aren't configured on this build.</Notice>
-      ) : session === undefined ? (
-        <div className="flex justify-center py-8"><span className="loading loading-dots" /></div>
-      ) : session ? (
-        <SignedIn session={session} />
-      ) : (
-        <SignedOut />
-      )}
+    <main className="max-w-md mx-auto px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-28 space-y-6">
+      <h1 className="text-3xl font-extrabold tracking-tight">Settings</h1>
+      <section className="space-y-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-extrabold">Trusted contacts</h2>
+            <span className="badge badge-warning badge-sm font-extrabold">Beta</span>
+          </div>
+          <p className="text-sm font-semibold text-base-content/70">
+            They'll see your call if you don't check in. <b>Alerts aren't live yet</b>, so nobody is notified for now.
+          </p>
+        </div>
+        {!supabase ? (
+          <Notice>Accounts aren't configured on this build.</Notice>
+        ) : session === undefined ? (
+          <div className="flex justify-center py-8"><span className="loading loading-dots" /></div>
+        ) : session ? (
+          <SignedIn session={session} />
+        ) : (
+          <SignedOut />
+        )}
+      </section>
+      <YourData />
     </main>
+  )
+}
+
+function YourData() {
+  const [step, setStep] = useState<'idle' | 'confirm' | 'busy'>('idle')
+  const [error, setError] = useState('')
+  const run = async () => {
+    setStep('busy')
+    setError('')
+    try {
+      await deleteAllData()
+      window.location.assign('/')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setStep('confirm')
+    }
+  }
+  return (
+    <section className="space-y-3">
+      <h2 className="text-xl font-extrabold">Your data</h2>
+      <p className="text-sm font-semibold text-base-content/70">
+        Calls are recorded during the beta to improve phoney. <Link to="/privacy" className="link font-bold">Privacy</Link>
+      </p>
+      {step === 'idle' ? (
+        <button onClick={() => setStep('confirm')} className="btn btn-outline btn-error w-full rounded-2xl font-extrabold gap-2">
+          <Trash2 className="w-5 h-5" /> Delete all my data
+        </button>
+      ) : (
+        <div className="space-y-3 rounded-box border-2 border-error/50 bg-error/10 p-4">
+          <p className="text-sm font-semibold">
+            This deletes your call recordings, transcripts and feedback, scheduled calls, your account and trusted
+            contacts, and everything phoney saved on this phone. It can't be undone.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={run} disabled={step === 'busy'} className="btn btn-error flex-1 rounded-xl font-extrabold">
+              {step === 'busy' ? <span className="loading loading-spinner loading-sm" /> : 'Delete everything'}
+            </button>
+            <button onClick={() => setStep('idle')} disabled={step === 'busy'} className="btn btn-ghost rounded-xl font-extrabold">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {error && <p role="alert" className="text-sm font-bold text-error">{error}</p>}
+    </section>
   )
 }
 

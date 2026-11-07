@@ -165,8 +165,8 @@ const STILLS = {
       ring: { personaId: 'dad', name: 'Papa', language: 'hinglish', scene: { purpose: 'escape', excuse: 'unwell' } } }] },
   }, '/'],
   '10_incoming': [{}, '/incoming?id=&p=dad&n=Papa&l=hinglish&s=escape&x=unwell'],
-  '11_contacts_signed_out': [{}, '/contacts'],
-  '12_contacts_signed_in': [{ viewer: 'owner', seed: { 'phoney.settings': { ...BASE_SEED['phoney.settings'], shareLocation: true } } }, '/contacts'],
+  '11_contacts_signed_out': [{}, '/settings'],
+  '12_contacts_signed_in': [{ viewer: 'owner', seed: { 'phoney.settings': { ...BASE_SEED['phoney.settings'], shareLocation: true } } }, '/settings'],
   '13_contact_history_shared': [{ viewer: 'contact', seed: { 'phoney.sessions': [] } }, '/history', async (p) => {
     await p.evaluate(() => { const d = document.querySelector('details'); if (d) d.open = true })
     await sleep(2500)
@@ -256,7 +256,7 @@ const RECORDINGS = {
   },
   r04_signin: async () => {
     const { browser, page } = await open({ zoomed: true })
-    await go(page, '/contacts')
+    await go(page, '/settings')
     const r = await recordCDP(page, path.join(REC, 'r04_signin.mp4'), async () => {
       await sleep(1300)
       await ripple(page, await buttonByText(page, 'Sign in with Google')); await sleep(800)
