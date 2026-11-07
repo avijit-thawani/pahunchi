@@ -1,50 +1,53 @@
 ---
-feature: First visit (what phoney is for, at a glance)
-tags: [todo]
-tests: [fresh-home]
+feature: First visit (a how-to on each tab)
+tags: [wip]
+tests: [fresh-tabs]
 transcripts:
+  - 73385c8a-297a-4a7b-9712-7580b89d150d 2026-11-07 per-tab how-to that folds at a milestone, on localhost, screenshots
+  - 73385c8a-297a-4a7b-9712-7580b89d150d 2026-11-07 built three use chips on localhost (replaced the same day)
   - 73385c8a-297a-4a7b-9712-7580b89d150d 2026-11-07 created card
 ---
 
 # First visit
 
-A woman who lands on phoney for the first time should know in a few seconds the three things it does: a call to talk with while she walks or rides home, a call that gets her out of a bad date or meeting ("Get me out"), and a call that checks on her later ("Check on me"). Today only the first one is obvious.
+A newcomer should see what phoney is for, including the uses that aren't obvious: getting out of a bad date ("Get me out") and a later check-in ("Check on me"). Each tab has its own "How to…" box. It starts open, folds itself once she reaches that tab's milestone, and stays one tap away after that.
 
-## What she sees today
+## Screenshots
 
-- Tagline: "Walking alone or in a cab? Call someone who actually talks back."
-- A one-time "How it works" card (until her first call): pick who picks up, tap Call, an AI voice answers. Nothing about scheduled calls.
-- The clock button beside Call has no label, so "Get me out" and "Check on me" only appear once she happens to tap it.
-- "Hear a sample" plays only the cab demo (`public/demos/audio/cab_night.mp3`).
+<img src="media/first-visit-web-home.png" width="160" alt="Home, first visit: How to use phoney open under Call">
+<img src="media/first-visit-web-date.png" width="160" alt="After tapping Ring me in 5 min: Later panel on Get me out, 5m">
+<img src="media/first-visit-web-home-folded.png" width="160" alt="Home after she talked on a call: folded">
+<img src="media/first-visit-web-history.png" width="160" alt="History, open">
+<img src="media/first-visit-web-history-folded.png" width="160" alt="History after opening a call: folded">
+<img src="media/first-visit-web-settings.png" width="160" alt="Settings, open">
 
-Earlier pass: [UX review of phoney](9149ac6f-40c6-463b-b8dd-2cf6be13ea6e) added the How it works card, sample player and mic hint.
+Web, localhost, 2026-11-07, uncommitted. Light mode: `media/first-visit-web-home-light.png`. The yellow notifications line is the headless browser blocking notifications.
 
-## Proposal
+## What each tab says, and when it folds
 
-Short, no explainer walls, every control does something.
+| Tab | Box | Folds when |
+|---|---|---|
+| Home | Walking alone or in a cab (▶ Hear one), Stuck on a bad date (Ring me in 5 min), Check on me (Ring me later), Someone to watch out (Add a trusted contact) | she has a call where she spoke at least once |
+| History | Read a call, Marked safe, Clear | she opens a call |
+| Settings | Add someone you trust, When they see your calls, Your location, Your data | she has a trusted contact (account or this phone) |
 
-1. **Three use chips replace the How it works card**, one row under the tagline, for new users only (hidden after her first call or scheduled call, like the card today). Each one does the thing:
-   - **Walk home**: plays the walk sample (`walk_home.mp3`).
-   - **Get out of a date**: opens the clock panel with Get me out and 5 m picked.
-   - **Check on me**: opens the clock panel with Check on me picked.
-2. **Label the clock**: a small "Later" under the icon, always shown.
-3. **Tagline** names all three uses in one line, e.g. "A call that talks back. To walk home with, to get out of a date, or to check on you."
-4. **One sample per use**: record a Get me out sample to go with the cab and walk ones.
+Also: the clock button reads "Later"; tagline "A call that talks back, for walking home, bad dates, or a check-in."; the Home box sits under the Call row so Call stays above the fold. The "Ring me" buttons open the Later panel preset and scroll to it. The fold is remembered per tab in `phoney.howto.<tab>`. This replaces the old one-time How it works card (`phoney.introSeen`, now unused).
 
-Open questions for the user: chips only for new users or always; is "date" the right word, or "bad date / meeting".
+Earlier pass: [UX review of phoney](9149ac6f-40c6-463b-b8dd-2cf6be13ea6e).
 
 ## Where it lives
 
 | | Web | Android |
 |---|---|---|
-| Screen / route | `/` (`src/pages/HomePage.tsx`, `LaterPanel` in `CallLater.tsx`) | same |
-| How she gets there | first open of the site or PWA | first open of the app |
-| Differences | none planned | none planned |
+| Code | `src/pages/HowTo.tsx`, used by `HomePage.tsx`, `HistoryPage.tsx`, `SettingsPage.tsx`; `LaterPanel` `preset` in `CallLater.tsx` | same |
+| How she gets there | each tab | same |
+| Differences | none | none expected; not yet looked at on the Pixel |
 
 ## Tests
 
-- `fresh-home` (web, Android): clear `phoney.introSeen` and `phoney.sessions` in localStorage (Android: clear app data), open Home. The three uses are visible without tapping anything; each chip does what it says; after one call they're gone and the clock still reads "Later". Not run yet.
+- `fresh-tabs` (web, Android): clear localStorage (Android: clear app data). All three boxes are open. "Ring me in 5 min" opens the Later panel on Get me out, 5m. Make a call and say something: Home's box is folded next time. Open a call in History: its box folds. Add a trusted contact: Settings' box folds. Last run: web screenshots via headless Chrome, 2026-11-07; Android not run.
 
 ## Log
 
-- 2026-11-07 card created from the user's ask: "get me out of bad date or check on me isn't obvious to people". Nothing built.
+- 2026-11-07 Per-tab how-to built on localhost (uncommitted), replacing the three Home chips the user found uninformative ("walk home isn't informative"). Not done: a recorded Get me out sample; Home has two sample players ("Hear one" and the footer "Hear a sample").
+- 2026-11-07 card created: "get me out of bad date or check on me isn't obvious to people".

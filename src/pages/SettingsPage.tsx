@@ -5,6 +5,7 @@ import type { Session } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 import { useContacts, useSettings } from '../lib/store.ts'
 import { deleteAllData } from '../lib/forget.ts'
+import { HowTo, Step } from './HowTo.tsx'
 import { askPermission } from '../lib/location.ts'
 import { siteUrl } from '../lib/native.ts'
 import { signInWithGoogle, signOut, supabase, userName, useSession } from '../lib/supabase.ts'
@@ -31,9 +32,17 @@ type Row = {
 
 export default function SettingsPage() {
   const session = useSession()
+  const [local] = useContacts()
+  const [count, setCount] = useState(0)
   return (
     <main className="max-w-md mx-auto px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-28 space-y-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Settings</h1>
+      <HowTo tab="settings" done={count + local.length > 0} title="How trusted contacts work">
+        <Step icon="👥" title="Add someone you trust">Sign in, add them below, and send them the invite link.</Step>
+        <Step icon="⏱️" title="When they see your calls">Right away, or only if you don't tap "I'm safe" in time.</Step>
+        <Step icon="📍" title="Your location">Turn it on to show them where you are, on the same delay.</Step>
+        <Step icon="🗑️" title="Your data">Delete everything phoney saved, anytime, at the bottom.</Step>
+      </HowTo>
       <section className="space-y-4">
         <div>
           <div className="flex items-center gap-2">
@@ -49,7 +58,7 @@ export default function SettingsPage() {
         ) : session === undefined ? (
           <div className="flex justify-center py-8"><span className="loading loading-dots" /></div>
         ) : session ? (
-          <SignedIn session={session} />
+          <SignedIn session={session} onCount={setCount} />
         ) : (
           <SignedOut />
         )}
@@ -164,9 +173,10 @@ function ShareLocation() {
   )
 }
 
-function SignedIn({ session }: { session: Session }) {
+function SignedIn({ session, onCount }: { session: Session; onCount: (n: number) => void }) {
   const db = supabase!
   const [rows, setRows] = useState<Row[] | null>(null)
+  useEffect(() => onCount(rows?.length ?? 0), [rows, onCount])
   const [people, setPeople] = useState<{ link_id: string; owner_name: string; owner_email?: string | null; added_back: boolean }[]>([])
   const [error, setError] = useState('')
   const [local, setLocal] = useContacts()

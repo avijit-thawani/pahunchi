@@ -54,10 +54,15 @@ export function PendingCalls() {
 }
 
 /** Opens under the Call row: when, and a two-way "get me out / check on me" toggle. Mount only while open. */
-export function LaterPanel({ ring, excuse, onDone }: { ring: Omit<Ring, 'scene'>; excuse?: string; onDone: () => void }) {
-  const [delay, setDelay] = useState<number | 'clock'>(15)
+export function LaterPanel({ ring, excuse, onDone, preset }: {
+  ring: Omit<Ring, 'scene'>
+  excuse?: string
+  onDone: () => void
+  preset?: { purpose: Purpose; delay: number }
+}) {
+  const [delay, setDelay] = useState<number | 'clock'>(preset?.delay ?? 15)
   const [time, setTime] = useState('')
-  const [purpose, setPurpose] = useState<Purpose>('escape')
+  const [purpose, setPurpose] = useState<Purpose>(preset?.purpose ?? 'escape')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [now, setNow] = useState(() => Date.now())

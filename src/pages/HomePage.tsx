@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Clock, MicOff, Monitor, Moon, Pause, Phone, Play, Sun, X } from 'lucide-react'
+import { Clock, MicOff, Monitor, Moon, Pause, Phone, Play, Sun } from 'lucide-react'
 import { LaterPanel, PendingCalls } from './CallLater.tsx'
 import InstallCard from './InstallCard.tsx'
-import { EXCUSES, excuse } from '../../shared/scene.ts'
+import { HowTo, Step } from './HowTo.tsx'
+import { EXCUSES, excuse, type Purpose } from '../../shared/scene.ts'
 import { DEFAULT_PERSONA, LANGUAGES, PERSONAS, persona, type Language } from '../../shared/personas.ts'
 import { useSessions, useSettings } from '../lib/store.ts'
 import { startCall } from '../lib/activeCall.ts'
@@ -13,8 +14,6 @@ import { getThemePref, setThemePref, type ThemePref } from '../lib/theme.ts'
 const EMOJI: Record<string, string> = {
   dad: '👨🏽‍🦳', mom: '👩🏽', brother: '🧑🏽', sister: '👩🏽‍🦱', friend_m: '🙋🏽‍♂️', friend_f: '🙋🏽‍♀️',
 }
-const INTRO_SEEN = 'phoney.introSeen'
-
 const THEMES: { id: ThemePref; label: string; Icon: typeof Sun }[] = [
   { id: 'system', label: 'Auto', Icon: Monitor },
   { id: 'light', label: 'Light', Icon: Sun },
@@ -63,23 +62,71 @@ function useMicPermission() {
   return state
 }
 
-function SampleButton() {
+function useSample(src: string) {
   const audio = useRef<HTMLAudioElement | null>(null)
   const [playing, setPlaying] = useState(false)
   useEffect(() => () => audio.current?.pause(), [])
   const toggle = () => {
     if (!audio.current) {
-      audio.current = new Audio('/demos/audio/cab_night.mp3')
+      audio.current = new Audio(src)
       audio.current.onended = () => setPlaying(false)
     }
     if (playing) audio.current.pause()
     else void audio.current.play()
     setPlaying(!playing)
   }
+  return [playing, toggle] as const
+}
+
+function SampleButton() {
+  const [playing, toggle] = useSample('/demos/audio/cab_night.mp3')
   return (
     <button onClick={toggle} className="inline-flex items-center gap-1 font-bold text-secondary">
       {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />} Hear a sample
     </button>
+  )
+}
+
+type Later = { purpose: Purpose; delay: number } | null
+
+const actionCls = 'btn btn-xs btn-ghost text-secondary font-extrabold gap-1 px-0 mt-1'
+
+/** Folds once she has made a call and said something on it. */
+function HomeHowTo({ name, onLater }: { name: string; onLater: (l: Later) => void }) {
+  const [sessions] = useSessions()
+  const [playing, toggle] = useSample('/demos/audio/walk_home.mp3')
+  const talked = sessions.some((s) => s.turns.some((t) => t.who === 'her'))
+  return (
+    <HowTo tab="home" done={talked} title="How to use phoney">
+      <Step
+        icon="🚶🏽‍♀️"
+        title="Walking alone or in a cab"
+        action={<button onClick={toggle} className={actionCls}>{playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />} Hear one</button>}
+      >
+        Tap Call. {name} picks up and chats with you until you get there. People nearby hear a real call.
+      </Step>
+      <Step
+        icon="🍷"
+        title="Stuck on a bad date"
+        action={<button onClick={() => onLater({ purpose: 'escape', delay: 5 })} className={actionCls}><Clock className="w-3.5 h-3.5" /> Ring me in 5 min</button>}
+      >
+        {name} rings with a reason you have to leave.
+      </Step>
+      <Step
+        icon="⏰"
+        title="Check on me"
+        action={<button onClick={() => onLater({ purpose: 'checkin', delay: 30 })} className={actionCls}><Clock className="w-3.5 h-3.5" /> Ring me later</button>}
+      >
+        {name} rings at a time you pick to ask if you got there.
+      </Step>
+      <Step
+        icon="🛡️"
+        title="Someone to watch out"
+        action={<Link to="/settings" className={actionCls}>Add a trusted contact</Link>}
+      >
+        A friend sees your calls right away, or only if you don't tap "I'm safe".
+      </Step>
+    </HowTo>
   )
 }
 
@@ -90,10 +137,13 @@ export default function HomePage() {
     ? stored
     : { ...stored, personaId: DEFAULT_PERSONA, name: persona(DEFAULT_PERSONA).defaultName }
   const callee = settings.name.trim() || persona(settings.personaId).defaultName
-  const [later, setLater] = useState(false)
+  const [later, setLater] = useState<Later>(null)
+  const laterRef = useRef<HTMLDivElement>(null)
   const mic = useMicPermission()
   const [sessions] = useSessions()
-  const [introSeen, setIntroSeen] = useState(() => localStorage.getItem(INTRO_SEEN) === '1')
+  useEffect(() => {
+    if (later) laterRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [later])
 
   const call = () => {
     startCall({ ...settings, name: callee })
@@ -105,31 +155,11 @@ export default function HomePage() {
       <header>
         <h1 className="text-3xl font-extrabold tracking-tight">phoney</h1>
         <p className="text-base-content/70 text-sm font-semibold">
-          Walking alone or in a cab? Call someone who actually talks back.
+          A call that talks back, for walking home, bad dates, or a check-in.
         </p>
       </header>
 
       <PendingCalls />
-      {!sessions.length && !introSeen && (
-        <section className="relative bg-secondary/10 rounded-box p-4 pr-10 text-sm font-semibold">
-          <button
-            onClick={() => {
-              localStorage.setItem(INTRO_SEEN, '1')
-              setIntroSeen(true)
-            }}
-            className="btn btn-ghost btn-xs btn-circle absolute top-2 right-2"
-            aria-label="Got it"
-          >
-            <X className="w-4 h-4" />
-          </button>
-          <p className="font-extrabold mb-1">How it works</p>
-          <p className="text-base-content/80">
-            Pick who picks up, tap Call, and talk like you normally would. An AI voice answers and keeps the
-            conversation going. No real phone call is made.
-          </p>
-        </section>
-      )}
-
       <section>
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-sm font-extrabold uppercase tracking-wide text-base-content/70">Who picks up</h2>
@@ -207,26 +237,32 @@ export default function HomePage() {
           <Phone className="w-6 h-6" /> Call
         </button>
         <button
-          onClick={() => setLater(!later)}
-          data-selected={later}
-          className="pick w-16 h-16 rounded-2xl grid place-items-center"
+          onClick={() => setLater(later ? null : { purpose: 'escape', delay: 15 })}
+          data-selected={!!later}
+          className="pick w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-0.5"
           aria-label="Call me later"
-          aria-expanded={later}
+          aria-expanded={!!later}
           title="Call me later"
         >
-          <Clock className="w-7 h-7" />
+          <Clock className="w-6 h-6" />
+          <span className="text-[11px] font-extrabold leading-none">Later</span>
         </button>
       </div>
       {later && (
-        <LaterPanel
-          onDone={() => setLater(false)}
-          excuse={settings.excuse}
-          ring={{ personaId: settings.personaId, name: callee, language: settings.language }}
-        />
+        <div ref={laterRef} className="scroll-mb-24">
+          <LaterPanel
+            key={`${later.purpose}-${later.delay}`}
+            preset={later}
+            onDone={() => setLater(null)}
+            excuse={settings.excuse}
+            ring={{ personaId: settings.personaId, name: callee, language: settings.language }}
+          />
+        </div>
       )}
       {mic === 'prompt' && (
         <p className="text-center text-sm text-base-content/70 font-semibold -mt-3">{isNative ? 'phoney' : 'Your browser'} will ask for the mic so he can hear you.</p>
       )}
+      <HomeHowTo name={callee} onLater={setLater} />
       <p className="flex justify-center items-center gap-2 text-xs text-base-content/70 font-semibold">
         <SampleButton />
         <span aria-hidden>·</span>
