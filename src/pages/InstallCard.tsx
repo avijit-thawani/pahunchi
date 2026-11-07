@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRight, Share, Smartphone, X } from 'lucide-react'
-import { isStandalone, useInstall } from '../lib/install.ts'
+import { ANDROID_APK, isAndroid, isStandalone, useInstall } from '../lib/install.ts'
 import { isNative } from '../lib/native.ts'
 
 const DISMISSED = 'phoney.installDismissed'
@@ -27,7 +27,16 @@ export default function InstallCard({ name }: { name: string }) {
       <p className="font-extrabold flex items-center gap-2 pr-6">
         <Smartphone className="w-5 h-5 text-secondary shrink-0" /> Keep Pahunchi one tap away
       </p>
-      {kind && (
+      {isAndroid() ? (
+        <a href={ANDROID_APK} className="flex items-center gap-3">
+          <img src="/icon-192.png" alt="" className="w-10 h-10 rounded-xl" />
+          <div className="flex-1 min-w-0 text-sm font-semibold">
+            <p className="font-extrabold">Pahunchi for Android</p>
+            <p className="text-base-content/70">Keeps the call going with the screen off</p>
+          </div>
+          <span className="btn btn-success btn-sm rounded-xl font-extrabold">Get</span>
+        </a>
+      ) : kind && (
         <div className="flex items-center gap-3">
           <img src="/icon-192.png" alt="" className="w-10 h-10 rounded-xl" />
           <div className="flex-1 min-w-0 text-sm font-semibold">

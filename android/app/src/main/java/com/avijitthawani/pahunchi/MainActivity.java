@@ -1,4 +1,4 @@
-package com.avijitthawani.phoney;
+package com.avijitthawani.pahunchi;
 
 import android.os.Bundle;
 

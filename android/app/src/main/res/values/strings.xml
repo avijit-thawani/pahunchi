@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">Pahunchi</string>
     <string name="title_activity_main">Pahunchi</string>
-    <string name="package_name">com.avijitthawani.phoney</string>
-    <string name="custom_url_scheme">com.avijitthawani.phoney</string>
+    <string name="package_name">com.avijitthawani.pahunchi</string>
+    <string name="custom_url_scheme">com.avijitthawani.pahunchi</string>
     <string name="capacitor_background_geolocation_notification_channel_name">Location sharing during calls</string>
 </resources>

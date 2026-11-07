@@ -23,6 +23,10 @@ export const isStandalone = () =>
   matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true
 
 export const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent)
+export const isAndroid = () => /Android/.test(navigator.userAgent)
+
+/** Signed release APK, attached as pahunchi.apk to each GitHub release (until the Play Store listing). */
+export const ANDROID_APK = 'https://github.com/avijit-thawani/pahunchi/releases/latest/download/pahunchi.apk'
 
 /**
  * While mounted, the page advertises the separate "Call" app (public/call.webmanifest), so Add to Home Screen
