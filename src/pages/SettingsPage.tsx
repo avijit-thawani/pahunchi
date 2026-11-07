@@ -161,7 +161,7 @@ function ShareLocation() {
 function SignedIn({ session }: { session: Session }) {
   const db = supabase!
   const [rows, setRows] = useState<Row[] | null>(null)
-  const [people, setPeople] = useState<{ link_id: string; owner_name: string; added_back: boolean }[]>([])
+  const [people, setPeople] = useState<{ link_id: string; owner_name: string; owner_email?: string | null; added_back: boolean }[]>([])
   const [error, setError] = useState('')
   const [local, setLocal] = useContacts()
   const [name, setName] = useState('')
@@ -171,12 +171,14 @@ function SignedIn({ session }: { session: Session }) {
   const [copied, setCopied] = useState('')
 
   const load = useCallback(async () => {
-    const [c, p] = await Promise.all([
+    const [c, p, e] = await Promise.all([
       db.from('trusted_contacts').select('id,name,phone,email,delay_min,invite_token,joined_at').order('created_at'),
       db.rpc('my_people'),
+      db.rpc('linked_contact_emails'),
     ])
+    const linked = new Map<string, string>((e.data ?? []).map((r: { id: string; email: string }) => [r.id, r.email]))
     if (c.error) setError(c.error.message)
-    else setRows(c.data)
+    else setRows(c.data.map((r) => ({ ...r, email: linked.get(r.id) ?? r.email })))
     if (p.data) setPeople(p.data)
   }, [db])
 
@@ -273,9 +275,8 @@ function SignedIn({ session }: { session: Session }) {
                 {c.joined_at ? 'Joined' : 'Invited'}
               </span>
             </div>
-            <div className="text-xs text-base-content/60 font-semibold truncate">
-              {[c.phone, c.email].filter(Boolean).join(' · ')}
-            </div>
+            {c.phone && <div className="text-xs text-base-content/60 font-semibold truncate">{c.phone}</div>}
+            {c.email && <div className="text-xs text-base-content/50 truncate">{c.email}</div>}
             <select
               className="select select-ghost select-xs w-full -ml-2 text-xs text-base-content/70 font-semibold"
               aria-label={`When to alert ${c.name}`}
@@ -332,7 +333,10 @@ function SignedIn({ session }: { session: Session }) {
           <h2 className="text-sm font-extrabold uppercase tracking-wide text-base-content/60">You're a trusted contact for</h2>
           {people.map((p) => (
             <div key={p.link_id} className="flex items-center gap-2 min-h-8">
-              <span className="flex-1 font-extrabold truncate">{p.owner_name}</span>
+              <div className="flex-1 min-w-0">
+                <div className="font-extrabold truncate">{p.owner_name}</div>
+                {p.owner_email && <div className="text-xs text-base-content/50 truncate">{p.owner_email}</div>}
+              </div>
               {p.added_back ? (
                 <span className="text-xs font-bold text-base-content/60">Also your contact</span>
               ) : (

@@ -95,8 +95,9 @@ function supabaseRoutes(viewer) {
   return {
     '/rest/v1/trusted_contacts': contact ? [] : CONTACT_ROWS,
     '/rest/v1/rpc/my_people': contact
-      ? [{ link_id: 'l1', owner_name: 'Priya Sharma', added_back: false }]
-      : [{ link_id: 'l2', owner_name: 'Riya Mehta', added_back: true }],
+      ? [{ link_id: 'l1', owner_name: 'Priya Sharma', owner_email: USER.email, added_back: false }]
+      : [{ link_id: 'l2', owner_name: 'Riya Mehta', owner_email: 'riya.demo@example.com', added_back: true }],
+    '/rest/v1/rpc/linked_contact_emails': contact ? [] : [{ id: 'c1', email: CONTACT_USER.email }],
     '/rest/v1/rpc/shared_calls': contact ? SHARED_CALL : [],
     '/rest/v1/rpc/shared_call_path': contact ? SHARED_PATH : [],
     '/rest/v1/rpc/invite_info': [{ owner_name: 'Priya Sharma', joined: false, mine: false }],
@@ -167,6 +168,7 @@ const STILLS = {
   '10_incoming': [{}, '/incoming?id=&p=dad&n=Papa&l=hinglish&s=escape&x=unwell'],
   '11_contacts_signed_out': [{}, '/settings'],
   '12_contacts_signed_in': [{ viewer: 'owner', seed: { 'phoney.settings': { ...BASE_SEED['phoney.settings'], shareLocation: true } } }, '/settings'],
+  '12b_contacts_signed_in_bottom': [{ viewer: 'owner' }, '/settings', (p) => p.evaluate(() => window.scrollTo(0, document.body.scrollHeight))],
   '13_contact_history_shared': [{ viewer: 'contact', seed: { 'phoney.sessions': [] } }, '/history', async (p) => {
     await p.evaluate(() => { const d = document.querySelector('details'); if (d) d.open = true })
     await sleep(2500)
