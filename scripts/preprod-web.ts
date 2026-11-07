@@ -1,7 +1,8 @@
 // docs/preprod-checklist.md on the web, with nobody at the keyboard: two throwaway accounts (she and
 // her trusted contact, signed in without Google) drive the dev site in the video toolkit's headless
 // shell. Her mic is a WAV of her short lines in the sister's Sarvam voice, so the call is real:
-// STT, reply and his voice all go through the site's /api. Screenshots land in video/screens/preprod/.
+// STT, reply and his voice all go through the site's /api. She starts as a new user (first-visit
+// how-tos open) and shares a fixed location in Delhi. Screenshots land in video/screens/preprod/.
 //   PHONEY_URL=https://main--pahunchi.netlify.app node scripts/preprod-web.ts
 
 import { execFileSync } from 'node:child_process'
@@ -63,13 +64,15 @@ async function phone(who: Account, mic?: string) {
       '--disable-features=AudioServiceSandbox,AudioServiceOutOfProcess',
       ...(mic ? [`--use-file-for-fake-audio-capture=${path.resolve(mic)}%noloop`] : [])],
   })
+  await browser.defaultBrowserContext().overridePermissions(BASE, ['geolocation'])
   const page = await browser.newPage()
   await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+  await page.setGeolocation({ latitude: 28.6315, longitude: 77.2167, accuracy: 12 })
+  // a new user: signed in, nothing else on this phone except the dismissed install card
   await page.evaluateOnNewDocument((key: string, session: string) => {
     if (sessionStorage.getItem('__seeded')) return
     localStorage.setItem(key, session)
     localStorage.setItem('phoney.installDismissed', '1')
-    localStorage.setItem('phoney.introSeen', '1')
     sessionStorage.setItem('__seeded', '1')
   }, AUTH_KEY, JSON.stringify(who.session))
   const errors: string[] = []
@@ -91,6 +94,10 @@ type Turn = { who: string; text: string }
 const lastSession = (p: Page) => p.evaluate(() => JSON.parse(localStorage.getItem('phoney.sessions') || '[]')[0]) as
   Promise<{ id: string; turns: Turn[] } | undefined>
 const said = (s: { turns: Turn[] } | undefined, who: string) => (s?.turns ?? []).filter((t) => t.who === who && t.text.trim())
+/** Whether the first-visit how-to box with this title is unfolded. */
+const howToOpen = (p: Page, title: string) => p.evaluate((t: string) =>
+  Array.from(document.querySelectorAll('details')).find((d) => d.querySelector('summary')?.textContent?.includes(t))?.open ?? null, title) as
+  Promise<boolean | null>
 
 const mic = await micWav()
 const her = await account('her', 'E2E Her')
@@ -109,6 +116,9 @@ try {
     await go(p, route)
     const active = await p.evaluate(() => document.querySelector('nav a.active, nav a[aria-current="page"]')?.textContent?.trim())
     check(`tab ${label}: bar visible, ${label} highlighted`, active === label, `active: ${active}`)
+    if (route === '/') check('first visit: Home how-to is open', await howToOpen(p, 'How to use') === true)
+    if (route === '/history') check('first visit: History how-to is open', await howToOpen(p, 'How History works') === true)
+    if (route === '/settings') check('Settings how-to is folded (she has a contact)', await howToOpen(p, 'How trusted contacts work') === false)
     await shot(p, `tab-${label.toLowerCase()}`)
   }
   // 3. signed in (Google's own page is the one step not covered)
@@ -116,6 +126,10 @@ try {
   check('Settings lists her contact', await waitText(p, 'E2E Contact'))
   check('Settings shows her account email', await waitText(p, her.session.user.email!))
   check('her joined contact shows his account email', await waitText(p, him.session.user.email!))
+  await tap(p, 'input.toggle')
+  await sleep(1500)
+  const sharing = await p.evaluate(() => JSON.parse(localStorage.getItem('phoney.settings') || '{}').shareLocation)
+  check('location sharing turns on', sharing === true, await text(p).then((t) => t.match(/Location[^\n]*/)?.[0] ?? ''))
   await shot(p, 'settings-signed-in')
 
   // 5. call now
@@ -130,8 +144,15 @@ try {
   check('he opened the call', said(call, 'them').length >= 1, said(call, 'them')[0]?.text)
   check('her lines were heard', said(call, 'her').length >= 1, said(call, 'her').map((t) => t.text).join(' | '))
   check('he answered her', said(call, 'them').length >= 2, said(call, 'them').slice(1).map((t) => t.text).join(' | '))
-  check('after-call asks "Did you reach safely?" (she has contacts)', await waitText(p, 'Did you reach safely?'))
+  check('after-call with a "Right away" contact: "Shared with your contacts", no I\'m safe',
+    await waitText(p, 'Shared with your contacts') && !(await text(p)).includes("I'm safe"))
   await shot(p, 'after-call')
+  const points = await her.db.from('call_locations').select('at').eq('call_id', call!.id)
+  check('her location was uploaded during the call', (points.data ?? []).length >= 1, `${points.data?.length ?? points.error?.message} points`)
+  const trail = await him.db.rpc('shared_call_path', { p_call_id: call!.id })
+  check('her contact can see the location', (trail.data ?? []).length >= 1, `${trail.data?.length ?? trail.error?.message} points`)
+  await go(p, '/')
+  check('Home how-to folds after her first call', await howToOpen(p, 'How to use') === false)
 
   // 9. history
   await go(p, '/history')
@@ -148,7 +169,8 @@ try {
   check('contact sees who added him, with her email', await waitText(b.page, her.session.user.email!))
   await shot(b.page, 'contact-settings')
 
-  // 6. scheduled call (rang with Now; delivery after 5 min is a separate check)
+  // 6. scheduled call (rang with Now; delivery after 5 min is a separate check), contact now on a delay
+  await her.db.from('trusted_contacts').update({ delay_min: 30 }).eq('invite_token', add.data!.invite_token)
   await go(p, '/')
   await tap(p, '[aria-label="Call me later"]')
   await tap(p, 'button ::-p-text(5m)')
@@ -164,6 +186,9 @@ try {
   await sleep(1000)
   const rung = await lastSession(p)
   check('scheduled call: he speaks first', said(rung, 'them').length >= 1 && rung?.id !== call?.id, said(rung, 'them')[0]?.text)
+  check('after-call with a 30 min contact asks "Did you reach safely?" with I\'m safe',
+    await waitText(p, 'Did you reach safely?') && (await text(p)).includes("I'm safe"))
+  await shot(p, 'after-call-delayed')
 
   check('no page errors', !a.errors.length && !b.errors.length, [...a.errors, ...b.errors].join(' | '))
 } finally {
