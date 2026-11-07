@@ -114,6 +114,8 @@ try {
   // 3. signed in (Google's own page is the one step not covered)
   check('Settings shows "Signed in as E2E Her"', await waitText(p, 'Signed in as E2E Her'))
   check('Settings lists her contact', await waitText(p, 'E2E Contact'))
+  check('Settings shows her account email', await waitText(p, her.session.user.email!))
+  check('her joined contact shows his account email', await waitText(p, him.session.user.email!))
   await shot(p, 'settings-signed-in')
 
   // 5. call now
@@ -142,6 +144,9 @@ try {
   await go(b.page, '/history')
   check('contact sees her call under "Shared with you"', await waitText(b.page, 'E2E Her', 20_000) && (await text(b.page)).toLowerCase().includes('shared with you'))
   await shot(b.page, 'contact-shared')
+  await go(b.page, '/settings')
+  check('contact sees who added him, with her email', await waitText(b.page, her.session.user.email!))
+  await shot(b.page, 'contact-settings')
 
   // 6. scheduled call (rang with Now; delivery after 5 min is a separate check)
   await go(p, '/')
