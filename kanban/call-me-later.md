@@ -1,6 +1,6 @@
 ---
 feature: Call me later ("Get me out" / "Check on me")
-tags: [prod-web, dev-web, dev-android]
+tags: [prod-web, dev-android]
 tests: []
 transcripts:
   - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 committed the Android local-notification work to main (9d0ad3b), dev web build carries it

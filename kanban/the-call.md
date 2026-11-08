@@ -1,6 +1,6 @@
 ---
 feature: The call (he answers and talks back)
-tags: [prod-web, dev-web, dev-android]
+tags: [prod-web, dev-android]
 tests: [smoke-call, replay]
 transcripts:
   - 46387402-d07d-478b-ba09-e5d050eba0a5 2026-11-07 renamed phoney -> Pahunchi

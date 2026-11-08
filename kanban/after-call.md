@@ -1,6 +1,6 @@
 ---
 feature: After the call ("Call ended" / "I'm safe")
-tags: [dev-web, dev-android]
+tags: [prod-web, dev-android]
 tests: [after-call-states]
 transcripts:
   - a8062bec-ff8f-48b3-aad1-21b474392764 2026-11-07 created card; no Home links (tabs cover it); "I'm safe" only when a contact is on a delay

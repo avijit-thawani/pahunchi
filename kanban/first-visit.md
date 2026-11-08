@@ -1,6 +1,6 @@
 ---
 feature: First visit (a how-to on each tab)
-tags: [dev-web]
+tags: [prod-web]
 tests: [fresh-tabs]
 transcripts:
   - 46387402-d07d-478b-ba09-e5d050eba0a5 2026-11-07 renamed phoney -> Pahunchi

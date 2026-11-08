@@ -1,6 +1,6 @@
 ---
 feature: Location sharing during calls
-tags: [prod-web, dev-web, dev-android]
+tags: [prod-web, dev-android]
 tests:
   - "Pixel: Settings toggle on, call 12-20 s, hang up; select from call_locations for the call id shows >= 1 point, first created_at within ~4 s of start"
   - "Web (Mac browser): toggle on, allow location, call ~18 s with the tab on screen; call_locations has >= 1 point"
