@@ -84,7 +84,12 @@ type Page = Awaited<ReturnType<typeof phone>>['page']
 const text = (p: Page) => p.evaluate(() => document.body.innerText) as Promise<string>
 const shot = (p: Page, name: string) => p.screenshot({ path: `${SHOTS}/${name}.png` })
 const go = async (p: Page, route: string) => { await p.goto(BASE + route, { waitUntil: 'networkidle2' }); await sleep(800) }
-const tap = (p: Page, selector: string) => p.locator(selector).setTimeout(10_000).click()
+/** Scrolls the element to mid-screen first: at the bottom edge the fixed tab bar would take the tap. */
+async function tap(p: Page, selector: string) {
+  const el = await p.locator(selector).setTimeout(10_000).waitHandle()
+  await el.evaluate((e: Element) => e.scrollIntoView({ block: 'center' }))
+  await el.click()
+}
 async function waitText(p: Page, needle: string, ms = 15_000) {
   const end = Date.now() + ms
   while (Date.now() < end) { if ((await text(p)).includes(needle)) return true; await sleep(500) }
@@ -117,6 +122,7 @@ try {
     await go(p, route)
     const active = await p.evaluate(() => document.querySelector('nav a.active, nav a[aria-current="page"]')?.textContent?.trim())
     check(`tab ${label}: bar visible, ${label} highlighted`, active === label, `active: ${active}`)
+    if (active !== label && route === '/') console.log('      page:', JSON.stringify((await text(p)).slice(0, 200)), 'errors:', a.errors.slice(0, 3))
     if (route === '/') check('first visit: Home how-to is open', await howToOpen(p, 'How to use') === true)
     if (route === '/history') check('first visit: History how-to is open', await howToOpen(p, 'How History works') === true)
     if (route === '/settings') check('Settings how-to is folded (she has a contact)', await howToOpen(p, 'How trusted contacts work') === false)
@@ -198,6 +204,9 @@ try {
   await tap(p, 'button ::-p-text(Delete all my data)')
   await tap(p, 'button ::-p-text(Delete everything)')
   await p.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20_000 }).catch(() => undefined)
+  await shot(p, 'after-delete')
+  const alert = await p.evaluate(() => (location.pathname === '/settings' && document.querySelector('[role="alert"]')?.textContent) || '')
+  if (alert) console.log('      Settings shows:', alert)
   const left = await p.evaluate(() => Object.keys(localStorage).filter((k) => /^phoney\.(sessions|contacts|settings|later)$/.test(k)))
   check('"Delete all my data" wipes her calls, contacts and settings from the phone', left.length === 0, left.join(', '))
   deleted.add(her.id)
@@ -205,7 +214,7 @@ try {
   for (const ph of phones) await ph.browser.close()
   for (const [who, acc] of [['her', her], ['him', him]] as const) {
     if (deleted.has(acc.id)) {
-      check(`"Delete all my data" button removes ${who}'s account`, await accountGone(acc))
+      check(`"Delete all my data" button removes the account (${who})`, await accountGone(acc))
       continue
     }
     const r = await remove(acc)
