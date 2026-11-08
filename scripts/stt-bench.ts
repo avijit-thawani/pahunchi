@@ -20,15 +20,15 @@ for (const f of ['.env', '../.env']) {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2]
   }
 }
-const OUT = 'logs/stt-bench'
+export const OUT = 'logs/stt-bench'
 mkdirSync(OUT, { recursive: true })
 const DRAFT_MODEL = 'google/gemini-4-argon'
 const JUDGE_MODEL = 'google/gemini-4-argon'
 
-type Clip = { key: string; file: string; seconds: number; appText: string }
-type Result = { text: string; ms: number; error?: string }
+export type Clip = { key: string; file: string; seconds: number; appText: string }
+export type Result = { text: string; ms: number; error?: string }
 
-function clips(): Clip[] {
+export function clips(): Clip[] {
   const out: Clip[] = []
   for (const s of readdirSync('logs/calls').filter((d) => /^2026\d{4}-/.test(d)).sort()) {
     const dir = `logs/calls/${s}`
@@ -43,9 +43,9 @@ function clips(): Clip[] {
   return process.env.LIMIT ? out.slice(0, Number(process.env.LIMIT)) : out
 }
 
-const wav = (c: Clip) => new Uint8Array(readFileSync(c.file))
+export const wav = (c: Clip) => new Uint8Array(readFileSync(c.file))
 const pcm = (c: Clip) => wav(c).subarray(44)
-const b64 = (u: Uint8Array) => Buffer.from(u).toString('base64')
+export const b64 = (u: Uint8Array) => Buffer.from(u).toString('base64')
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const timed = async (fn: () => Promise<string>): Promise<Result> => {
   const t0 = Date.now()
@@ -81,6 +81,9 @@ async function scribeRest(c: Clip): Promise<Result> {
   })
 }
 
+/** OpenRouter's reported $ per transcription, by model (for stt-eval.ts cost). */
+export const openrouterCost: Record<string, { usd: number; seconds: number }> = {}
+
 function openrouterStt(model: string) {
   return async (c: Clip) => timed(async () => {
     const r = await ok(await fetch('https://openrouter.ai/api/v1/audio/transcriptions', {
@@ -88,7 +91,10 @@ function openrouterStt(model: string) {
       headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, language: 'hi', input_audio: { data: b64(wav(c)), format: 'wav' } }),
     }))
-    return String((await r.json()).text ?? '')
+    const j = await r.json()
+    const k = (openrouterCost[model] ??= { usd: 0, seconds: 0 })
+    if (j.usage?.cost) { k.usd += j.usage.cost; k.seconds += c.seconds }
+    return String(j.text ?? '')
   })
 }
 
@@ -142,7 +148,7 @@ const scribeStream = (c: Clip) => stream(
   c,
 )
 
-const ENGINES: Record<string, { label: string; kind: 'batch' | 'stream'; run: (c: Clip) => Promise<Result> }> = {
+export const ENGINES: Record<string, { label: string; kind: 'batch' | 'stream'; run: (c: Clip) => Promise<Result> }> = {
   'sarvam': { label: 'Sarvam saaras:v4, hi-IN (today)', kind: 'batch', run: sarvamRest('transcribe') },
   'sarvam-codemix': { label: 'Sarvam saaras:v4, codemix', kind: 'batch', run: sarvamRest('codemix') },
   'sarvam-stream': { label: 'Sarvam saaras:v4 streaming', kind: 'stream', run: sarvamStream },
@@ -175,7 +181,7 @@ async function draft() {
   writeFileSync(`${OUT}/gold-draft.json`, JSON.stringify(out, null, 1))
 }
 
-async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
+export async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
   let i = 0
   await Promise.all(Array.from({ length: n }, async () => { while (i < items.length) await fn(items[i++]) }))
 }
@@ -199,7 +205,11 @@ async function run(names: string[]) {
 function serve() {
   const cs = clips()
   const engines = Object.keys(ENGINES).filter((n) => existsSync(`${OUT}/${n}.json`)).map((n) => ({ n, label: ENGINES[n].label, res: JSON.parse(readFileSync(`${OUT}/${n}.json`, 'utf8')) }))
-  const draft = JSON.parse(readFileSync(`${OUT}/gold-draft.json`, 'utf8'))
+  // Prefer the referee's reference (stt-eval.ts referee) over the single-model draft.
+  const refereeFile = `${OUT}/referee/google_gemini-4-argon.json`
+  const draft: Record<string, string> = existsSync(refereeFile)
+    ? Object.fromEntries(Object.entries(JSON.parse(readFileSync(refereeFile, 'utf8')) as Record<string, { transcript: string }>).map(([k, v]) => [k, v.transcript]))
+    : JSON.parse(readFileSync(`${OUT}/gold-draft.json`, 'utf8'))
   const gold = existsSync(`${OUT}/gold.json`) ? JSON.parse(readFileSync(`${OUT}/gold.json`, 'utf8')) : {}
   const rows = cs.map((c, i) => ({ i: i + 1, key: c.key, src: `/audio/${c.key}`, seconds: +c.seconds.toFixed(1), text: gold[c.key]?.text ?? draft[c.key] ?? '', done: !!gold[c.key], others: engines.map((e) => [e.label, e.res[c.key]?.text ?? '']) }))
   const page = readFileSync(new URL('./stt-review.html', import.meta.url), 'utf8').replace('/*ROWS*/[]', JSON.stringify(rows).replace(/</g, '\\u003c'))
@@ -272,7 +282,8 @@ async function score() {
 }
 
 const [cmd, ...rest] = process.argv.slice(2)
-if (cmd === 'draft') await draft()
+if (import.meta.url !== `file://${process.argv[1]}`) { /* imported by stt-eval.ts */ }
+else if (cmd === 'draft') await draft()
 else if (cmd === 'run') await run(rest.length ? rest : Object.keys(ENGINES))
 else if (cmd === 'serve') serve()
 else if (cmd === 'score') await score()
