@@ -9,7 +9,7 @@ import type { Session } from './store.ts'
 import { cancelAll } from './later.ts'
 import { supabase } from './supabase.ts'
 
-const PREFIX = 'Pahunchi.'
+const PREFIX = 'phoney.'
 
 export async function deleteAllData() {
   const local = JSON.parse(localStorage.getItem(`${PREFIX}sessions`) || '[]') as Session[]

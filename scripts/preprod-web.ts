@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { account, remove, AUTH_KEY, type Account } from './e2e-accounts.ts'
+import { account, accountGone, remove, AUTH_KEY, type Account } from './e2e-accounts.ts'
 
 const HEADLESS = new URL('../../scratch/ai-video/tools/headless.mjs', import.meta.url)
 const { headlessShellPath } = (await import(HEADLESS.href)) as { headlessShellPath: () => string }
@@ -103,6 +103,7 @@ const mic = await micWav()
 const her = await account('her', 'E2E Her')
 const him = await account('him', 'E2E Contact')
 const phones: { browser: { close(): Promise<void> } }[] = []
+const deleted = new Set<string>()
 try {
   const add = await her.db.from('trusted_contacts').insert({ name: 'E2E Contact', delay_min: 0 }).select('invite_token').single()
   await him.db.rpc('accept_invite', { token: add.data!.invite_token })
@@ -191,9 +192,22 @@ try {
   await shot(p, 'after-call-delayed')
 
   check('no page errors', !a.errors.length && !b.errors.length, [...a.errors, ...b.errors].join(' | '))
+
+  // "Delete all my data" through the button, as she would
+  await go(p, '/settings')
+  await tap(p, 'button ::-p-text(Delete all my data)')
+  await tap(p, 'button ::-p-text(Delete everything)')
+  await p.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20_000 }).catch(() => undefined)
+  const left = await p.evaluate(() => Object.keys(localStorage).filter((k) => /^phoney\.(sessions|contacts|settings|later)$/.test(k)))
+  check('"Delete all my data" wipes her calls, contacts and settings from the phone', left.length === 0, left.join(', '))
+  deleted.add(her.id)
 } finally {
   for (const ph of phones) await ph.browser.close()
   for (const [who, acc] of [['her', her], ['him', him]] as const) {
+    if (deleted.has(acc.id)) {
+      check(`"Delete all my data" button removes ${who}'s account`, await accountGone(acc))
+      continue
+    }
     const r = await remove(acc)
     check(`"Delete all my data" removes ${who}`, r.ok, r.error)
   }
