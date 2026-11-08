@@ -34,6 +34,12 @@ export async function account(who: string, name: string): Promise<Account> {
   return { db, id: made.user.id, session: data.session, name }
 }
 
+export async function accountGone(a: Account): Promise<boolean> {
+  const gone = (await admin.auth.admin.getUserById(a.id)).data.user === null
+  if (!gone) await admin.auth.admin.deleteUser(a.id)
+  return gone
+}
+
 /** "Delete all my data" on the server; true once the account is gone (forced if the RPC failed). */
 export async function remove(a: Account): Promise<{ ok: boolean; error?: string }> {
   const del = await a.db.rpc('delete_my_account')

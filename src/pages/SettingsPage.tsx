@@ -45,12 +45,9 @@ export default function SettingsPage() {
       </HowTo>
       <section className="space-y-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-extrabold">Trusted contacts</h2>
-            <span className="badge badge-warning badge-sm font-extrabold">Beta</span>
-          </div>
+          <h2 className="text-xl font-extrabold">Trusted contacts</h2>
           <p className="text-sm font-semibold text-base-content/70">
-            They'll see your call if you don't check in. <b>Alerts aren't live yet</b>, so nobody is notified for now.
+            They can see your calls in Pahunchi, right away or only if you don't tap "I'm safe" in time.
           </p>
         </div>
         {!supabase ? (
@@ -86,7 +83,7 @@ function YourData() {
     <section className="space-y-3">
       <h2 className="text-xl font-extrabold">Your data</h2>
       <p className="text-sm font-semibold text-base-content/70">
-        Calls are recorded during the beta to improve Pahunchi. <Link to="/privacy" className="link font-bold">Privacy</Link>
+        Calls are recorded to improve Pahunchi. <Link to="/privacy" className="link font-bold">Privacy</Link>
       </p>
       {step === 'idle' ? (
         <button onClick={() => setStep('confirm')} className="btn btn-outline btn-error w-full rounded-2xl font-extrabold gap-2">
@@ -251,7 +248,7 @@ function SignedIn({ session, onCount }: { session: Session; onCount: (n: number)
   const invite = async (r: Row) => {
     const link = `${siteUrl}/join/${r.invite_token}`
     const text = `I've added you as my trusted contact on Pahunchi, the app I use for calls when I'm out alone. `
-      + `Please accept so you can be told if I need help: ${link}`
+      + `Please accept so you can see my calls there: ${link}`
     if (navigator.share) {
       try { await navigator.share({ text }) } catch { /* closed the share sheet */ }
     } else {
