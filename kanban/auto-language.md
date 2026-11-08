@@ -28,7 +28,7 @@ The Home picker (Hinglish, Hindi, English) sets one `language` per call. It sets
 
 ## Untested (needed before building)
 
-- **STT accuracy on her real voice.** `docs/latency.md` timed STT on lab TTS clips only. Next: the 57 real lines through Sarvam (`hi-IN`, `codemix`), Scribe v2, `gpt-4o-mini-transcribe` and a streaming STT, scored against hand-checked transcripts.
+- **STT accuracy on her real voice.** Run 2026-11-07 on the 57 real lines (`scripts/stt-bench.ts`), see `the-call.md`; accuracy waits on the user checking the reference transcripts (`stt-bench.ts serve`, listening only). On-device STT (Android recognizer, Chrome Web Speech) needs her speaking into the phone: later. Feeding a recording into Chrome's Web Speech on the Pixel gave no text (Android Chrome listens to the mic, not a supplied track).
 - **LLM choice.** Only Gemini 3.5 Flash Lite has run. Candidates from `../sense` (fastest there): Gemma 4 31B (0.64 s), Gemini 3.1 Flash Lite (no thinking), Gemma 4 26B A4B; plus Sarvam-105B (tuned for Indian languages). Score first-phrase time, language following, and staying in character.
 
 ## Design sketch
