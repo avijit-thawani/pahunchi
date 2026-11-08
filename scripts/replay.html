@@ -48,6 +48,14 @@
   .lap .now { font-size: 13px; color: var(--dim); }
   .lap .now b { color: var(--text); }
   .tip { color: var(--dim); font-size: 12px; margin-top: 6px; }
+  #script { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 6px; }
+  .line { display: grid; grid-template-columns: 44px 40px 1fr; gap: 6px; padding: 5px 6px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+  .line:hover { background: #23262d; }
+  .line.now { background: #2a2e37; }
+  .line .t { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; padding-top: 2px; }
+  .line .w { font-weight: 800; font-size: 12px; padding-top: 2px; }
+  .line.user .w { color: var(--user); } .line.ai .w, .line.filler .w { color: var(--ai); }
+  .line.filler .x { color: var(--dim); }
 </style>
 </head>
 <body>
@@ -64,7 +72,8 @@
   <div class="card">
     <div class="label">Whole call</div>
     <div class="lanes" id="callLanes"></div>
-    <div class="controls"><button id="play">▶ Replay</button><span class="sub" id="clock">0:00</span><span class="sub">or click the timeline</span></div>
+    <div class="controls"><button id="play">▶ Replay</button><span class="sub" id="clock">0:00</span><span class="sub">or click the timeline or a line below</span></div>
+    <div id="script"></div>
   </div>
 
   <div id="turns"></div>
@@ -116,23 +125,21 @@ if (real.length) {
   sum.append(el('div', 'label', 'No phone timings in this call; per-turn bars use server timings and are marked ~'));
 }
 
-// Whole call strip.
+// Whole call: one row (no barge-in, so user and ai never overlap); hover a clip for its words.
 const callLanes = $('callLanes');
 const callHead = el('div', 'head');
-const LANE = { user: ['user', 'var(--user)'], ai: ['ai', 'var(--ai)'], filler: ['ai filler', 'rgba(76,201,240,.45)'] };
-['user', 'ai', 'filler'].forEach((who) => {
-  const clips = R.clips.filter((c) => c.who === who);
-  if (!clips.length) return;
-  const lane = el('div', 'lane'); lane.append(el('div', 'name', LANE[who][0]));
-  const tr = el('div', 'track');
-  clips.forEach((c) => {
-    const b = el('div', 'clip');
-    b.style.left = (100 * c.start / R.durationS) + '%'; b.style.width = Math.max(0.3, 100 * c.dur / R.durationS) + '%';
-    b.style.background = LANE[who][1]; b.title = (c.text || '') + ' (' + c.dur.toFixed(1) + ' s)';
-    tr.append(b);
-  });
-  lane.append(tr); callLanes.append(lane);
+const COLOR = { user: 'var(--user)', ai: 'var(--ai)', filler: 'rgba(76,201,240,.45)' };
+const lane = el('div', 'lane'); lane.append(el('div', 'name', '<span style="color:var(--user)">user</span> · <span style="color:var(--ai)">ai</span>'));
+const track = el('div', 'track');
+R.clips.forEach((c) => {
+  const b = el('div', 'clip');
+  b.style.left = (100 * c.start / R.durationS) + '%'; b.style.width = Math.max(0.3, 100 * c.dur / R.durationS) + '%';
+  b.style.background = COLOR[c.who]; b.style.cursor = 'pointer';
+  b.title = (c.who === 'filler' ? 'ai filler' : c.who) + ': ' + (c.who === 'filler' ? 'हम्म / हाँ' : (c.text || '')) + ' (' + c.dur.toFixed(1) + ' s)';
+  b.onclick = (e) => { e.stopPropagation(); play(c.start); };
+  track.append(b);
 });
+lane.append(track); callLanes.append(lane);
 const callAxis = el('div', 'axis');
 for (let s = 0; s <= R.durationS; s += R.durationS > 90 ? 15 : 5) {
   const sp = el('span', '', Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0'));
@@ -140,6 +147,25 @@ for (let s = 0; s <= R.durationS; s += R.durationS > 90 ? 15 : 5) {
 }
 callLanes.append(callAxis);
 callLanes.append(callHead);
+
+// Transcript, one line per utterance; click to play from there, the current one is highlighted.
+const lines = [];
+R.turns.forEach((t) => {
+  const u = R.clips.find((c) => c.who === 'user' && c.turn === t.turn);
+  if (u && t.user) lines.push({ who: 'user', start: u.start, end: u.start + u.dur, text: t.user });
+  const a = R.clips.filter((c) => c.who === 'ai' && c.turn === t.turn);
+  if (a.length) lines.push({ who: 'ai', start: a[0].start, end: a[a.length - 1].start + a[a.length - 1].dur, text: t.ai, ms: t.user ? t.totalMs : null, est: t.estimated });
+});
+R.clips.filter((c) => c.who === 'filler').forEach((c) => lines.push({ who: 'filler', start: c.start, end: c.start + c.dur, text: 'हम्म / हाँ (filler)' }));
+lines.sort((a, b) => a.start - b.start);
+const script = $('script');
+lines.forEach((l) => {
+  const mmss = Math.floor(l.start / 60) + ':' + String(Math.floor(l.start % 60)).padStart(2, '0');
+  l.el = el('div', 'line ' + l.who, '<span class="t">' + mmss + '</span><span class="w">' + (l.who === 'filler' ? 'ai' : l.who) + '</span><span class="x">' + esc(l.text) +
+    (l.ms ? ' <span class="sub">· answered after ' + (l.est ? '~' : '') + s1(l.ms) + '</span>' : '') + '</span>');
+  l.el.onclick = () => play(l.start);
+  script.append(l.el);
+});
 
 // Per-turn rows on one shared scale, 0 = the user's last word.
 const before = Math.max(800, ...R.turns.map((t) => Math.min(t.speechMs || 0, 3000)));
@@ -239,6 +265,7 @@ function render(at) {
   callHead.style.display = 'block';
   callHead.style.left = 'calc(112px + (100% - 112px) * ' + Math.min(1, at / R.durationS) + ')';
   $('clock').textContent = Math.floor(at / 60) + ':' + String(Math.floor(at % 60)).padStart(2, '0');
+  lines.forEach((l) => l.el.classList.toggle('now', at >= l.start && at < l.end + 0.3));
   let live = null;
   cards.forEach(({ t, c, head }) => {
     const rel = (at - t.userEnd) * 1000;

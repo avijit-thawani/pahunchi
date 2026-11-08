@@ -46,6 +46,7 @@ None yet.
 
 ## Log
 
+- 2026-11-07 Idea (user considering): in History, each call shows the whole-call view from `scripts/replay.ts`: one row of her and his speech, tap to replay, transcript per line. Needs the call audio in her account (today it is only in the debug log bucket) and the same screen on web and Android.
 - 2026-11-07 First signed release (versionCode 1) launched on the emulator; Android download row checked on localhost with an Android user agent.
 - 2026-11-07 Settings tab (trusted contacts + "Delete all my data") committed to `main`; `/contacts` redirects to `/settings`. Live prod already had it from the locked laptop deploy of 2026-11-06; dev had the old Contacts tab until now.
 - 2026-11-07 card created.

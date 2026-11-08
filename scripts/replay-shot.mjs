@@ -1,5 +1,4 @@
 // Stills and videos of a call replay (scripts/replay.ts builds the page first).
-//   node scripts/replay-shot.mjs serve               http://localhost:5199/replay/ to click Replay with sound
 //   node scripts/replay-shot.mjs index               logs/replay/index.png: every call's step breakdown
 //   node scripts/replay-shot.mjs <id>                logs/replay/<id>.png (whole page) + <id>-live.png (mid-turn)
 //   node scripts/replay-shot.mjs <id> --video        + logs/replay/<id>.mp4: the page replayed in real time
@@ -13,7 +12,7 @@ import { spawnSync } from 'node:child_process'
 import { launchMobile, recordCDP, sleep } from '../../scratch/ai-video/tools/headless.mjs'
 
 const LOGS = path.resolve('logs')
-const PORT = 5199
+const PORT = 5197
 const TYPES = { '.html': 'text/html; charset=utf-8', '.wav': 'audio/wav', '.json': 'application/json', '.webm': 'audio/webm' }
 
 function serve() {
@@ -39,11 +38,9 @@ function mix(r, out) {
 }
 
 const [cmd, ...rest] = process.argv.slice(2)
-if (!cmd) { console.log('usage: replay-shot.mjs serve | <id> [--video]'); process.exit(1) }
+if (!cmd) { console.log('usage: replay-shot.mjs index | <id> [--video]'); process.exit(1) }
 const server = await serve()
-if (cmd === 'serve') {
-  console.log(`http://localhost:${PORT}/replay/  (Ctrl-C to stop)`)
-} else if (cmd === 'index') {
+if (cmd === 'index') {
   const { browser, page } = await launchMobile({ width: 1000, height: 600, deviceScaleFactor: 2 })
   await page.goto(`http://localhost:${PORT}/replay/index.html`, { waitUntil: 'load' })
   await page.screenshot({ path: path.join(LOGS, 'replay', 'index.png'), fullPage: true })

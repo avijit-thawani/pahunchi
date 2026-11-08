@@ -1,5 +1,6 @@
 // Replays logged calls as pages: the call's real audio on one timeline (user lines, ai clauses,
 // fillers) and, per turn, the user's last word -> the ai's first sound split by pipeline step.
+//   node scripts/replay.ts serve                  builds every call, serves http://localhost:5199/ (click a call, Replay)
 //   node scripts/replay.ts [<id>|latest|all]      -> logs/replay/<id>.html (+ index.html)
 //   node scripts/replay-shot.mjs <id> [--video]   -> PNG (and MP4 with the call audio)
 // Deployed calls: `node scripts/logs.ts --remote <id>` downloads one into logs/calls/ first.
@@ -9,7 +10,8 @@
 // (upload, network, decode) hatched. Turns without phone metrics (the call ended before the ai
 // finished) use server timings plus the pause wait, drawn dashed and marked "~".
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import http from 'node:http'
 import path from 'node:path'
 
 const CALLS = 'logs/calls'
@@ -176,7 +178,7 @@ const SCALE_MS = 5000
 function index(rs: Replay[]): string {
   const rows = rs.map((r) => {
     const real = r.turns.filter((x) => !x.estimated && x.user)
-    if (!real.length) return ''
+    if (!real.length) return `<tr><td><a href="${r.id}.html">${r.id}</a></td><td>${r.name}</td><td>${r.device ?? ''}</td><td>${r.turns.length}</td><td>–</td><td class="bar"></td></tr>`
     const segs = (Object.keys(COLORS) as (keyof typeof COLORS)[]).map((k) => {
       const ms = median(real.map((x) => { const s = x.steps.find((y) => y.key === k); return s ? (s.gate ?? s.to - s.from) : 0 }))
       return ms > 0 ? `<i title="${k} ${Math.round(ms)} ms" style="width:${(100 * ms) / SCALE_MS}%;background:${COLORS[k]}">${ms > 450 ? (ms / 1000).toFixed(1) : ''}</i>` : ''
@@ -191,7 +193,7 @@ td,th{padding:5px 10px;text-align:left;white-space:nowrap}th{color:#8b909a;font-
 td.bar{width:100%;min-width:360px}td.bar i{display:inline-block;vertical-align:top;height:18px;font:700 11px system-ui;color:#111;text-align:center;line-height:18px;font-style:normal}
 .lg{display:flex;gap:14px;color:#8b909a;font-size:12px;margin:6px 0 12px}.lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}</style>
 <h1 style="font-size:20px;margin:0">phoney calls: user's last word → AI's first sound</h1>
-<p style="color:#8b909a;margin:4px 0">Median per call over user turns timed on the phone; bar = median of each step, full width = ${SCALE_MS / 1000} s.</p>
+<p style="color:#8b909a;margin:4px 0">Click a call to replay it. Median per call over user turns timed on the phone (– = none, e.g. test scripts); bar = median of each step, full width = ${SCALE_MS / 1000} s.</p>
 <div class="lg">${legend}</div>
 <table><tr><th>call</th><th>who</th><th>device</th><th>turns</th><th>median</th><th>breakdown</th></tr>${rows}</table>`
 }
@@ -199,7 +201,7 @@ td.bar{width:100%;min-width:360px}td.bar i{display:inline-block;vertical-align:t
 if (import.meta.url === `file://${process.argv[1]}`) {
   const arg = process.argv[2] || 'latest'
   const ids = readdirSync(CALLS).filter((d) => statSync(path.join(CALLS, d)).isDirectory()).sort()
-  const pick = arg === 'all' ? ids : arg === 'latest' ? ids.filter((d) => /^2026\d{4}-/.test(d)).slice(-1) : [arg]
+  const pick = arg === 'all' || arg === 'serve' ? ids : arg === 'latest' ? ids.filter((d) => /^2026\d{4}-/.test(d)).slice(-1) : [arg]
   mkdirSync(OUT, { recursive: true })
   const built: Replay[] = []
   for (const id of pick) {
@@ -213,4 +215,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
   const all = readdirSync(OUT).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(path.join(OUT, f), 'utf8')) as Replay)
   writeFileSync(path.join(OUT, 'index.html'), index(all.sort((a, b) => a.id.localeCompare(b.id))))
+  if (arg === 'serve') {
+    const root = path.resolve('logs')
+    const types: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.wav': 'audio/wav', '.json': 'application/json', '.png': 'image/png', '.mp4': 'video/mp4' }
+    http.createServer((req, res) => {
+      const url = decodeURIComponent(new URL(req.url!, 'http://x').pathname)
+      if (url === '/') { res.writeHead(302, { Location: '/replay/' }); res.end(); return }
+      const p = path.join(root, url.endsWith('/') ? url + 'index.html' : url)
+      if (!p.startsWith(root) || !existsSync(p) || statSync(p).isDirectory()) { res.writeHead(404); res.end(); return }
+      res.writeHead(200, { 'Content-Type': types[path.extname(p)] ?? 'application/octet-stream' })
+      createReadStream(p).pipe(res)
+    }).listen(5199, '127.0.0.1', () => console.log('replays: http://localhost:5199/'))
+  }
 }
