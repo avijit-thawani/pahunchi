@@ -58,8 +58,8 @@ if (cmd === 'serve') {
   await sleep(300)
   const out = path.join(LOGS, 'replay', id)
   await page.screenshot({ path: `${out}.png`, fullPage: true })
-  const t = r.turns.find((x) => x.her && !x.estimated) ?? r.turns[0]
-  await page.evaluate((at) => { window.__follow = true; window.__replay.render(at); document.getElementById('lap').style.display = 'block' }, t.herEnd + (t.totalMs * 0.6) / 1000)
+  const t = r.turns.find((x) => x.user && !x.estimated) ?? r.turns[0]
+  await page.evaluate((at) => { window.__follow = true; window.__replay.render(at); document.getElementById('lap').style.display = 'block' }, t.userEnd + (t.totalMs * 0.6) / 1000)
   await sleep(300)
   await page.screenshot({ path: `${out}-live.png` })
   console.log(`${out}.png\n${out}-live.png`)
