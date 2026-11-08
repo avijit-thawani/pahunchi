@@ -3,6 +3,7 @@ feature: Trusted contacts and "I'm safe"
 tags: [prod-web, dev-android]
 tests: [contacts-e2e]
 transcripts:
+  - 3773fae9-00cb-4eff-a661-5ad3ac519194 2026-11-07 no Beta badge; copy and invite text say contacts see calls in Pahunchi (no alerts claimed)
   - a8062bec-ff8f-48b3-aad1-21b474392764 2026-11-07 "I'm safe" only when a contact is on a delay
   - 3773fae9-00cb-4eff-a661-5ad3ac519194 2026-11-07 contacts-e2e script, 11/11 pass against the phoney Supabase project
   - a1ebdb03-7df7-4906-9901-5f652abbb468 2026-11-07 created card from past chats
@@ -39,6 +40,8 @@ Web, demo data, 2026-11-05/06. Contacts now live in the Settings tab; no screens
 - Google sign-in itself and the Settings/History screens need a person: sign in on dev with two Google accounts.
 
 ## Log
+
+- 2026-11-07 Removed the Beta badge and "Alerts aren't live yet". Settings now says "They can see your calls in Pahunchi, right away or only if you don't tap "I'm safe" in time." The invite message said "so you can be told if I need help", which nobody is; it now says "so you can see my calls there".
 
 - 2026-11-07 "I'm safe" now shows only when at least one contact is on a delay; details on [after-call.md](after-call.md).
 - 2026-11-07 card created. Settings rename is live on prod but not committed yet.

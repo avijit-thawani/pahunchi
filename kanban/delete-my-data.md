@@ -1,8 +1,9 @@
 ---
 feature: Delete all my data, and where data lives
 tags: [prod-web, dev-android]
-tests: []
+tests: [test:preprod deletes through the button and checks no phoney.* calls/contacts/settings remain]
 transcripts:
+  - 3773fae9-00cb-4eff-a661-5ad3ac519194 2026-11-07 fixed: rename made delete skip the phone and signed-out recordings; preprod checks it
   - 46387402-d07d-478b-ba09-e5d050eba0a5 2026-11-07 renamed phoney -> Pahunchi
   - a1ebdb03-7df7-4906-9901-5f652abbb468 2026-11-07 created card from past chats
   - 677281f8-7021-4886-996b-bf89e9077fdd 2026-11-07 delete also clears scheduled Android notifications
@@ -34,5 +35,7 @@ Android emulator, signed out, 2026-11-07: the Settings tab, then the confirmatio
 None yet. The recording-deletion step was run against the real bucket; the full button flow never end to end.
 
 ## Log
+
+- 2026-11-07 Bug from the rename (`efd722d`, never on prod): `forget.ts` looked for `Pahunchi.*` keys while the app stores `phoney.*`, so delete left her calls, contacts and settings on the phone, and a signed-out user's recordings on the server. Fixed in `926a066`; `npm run test:preprod` now deletes through the button and checks the phone is empty. Privacy page now also lists location and IP/browser among what delete removes.
 
 - 2026-11-07 card created. Live on prod; the Settings page itself is not committed yet. The deletion itself runs on the server (account function, recordings bucket); the button and clearing what's stored on the phone run on the device, so it keeps platform tags rather than `server`.
