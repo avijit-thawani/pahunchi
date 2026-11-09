@@ -92,12 +92,12 @@ export const LANGUAGES: { id: Language; label: string }[] = [
   { id: 'english', label: 'English (Indian)' },
 ]
 
-export const DEFAULT_PERSONA = 'dad'
+export const DEFAULT_PERSONA = 'sister'
 
 export function pickVoice(p: Persona): VoiceOption | undefined {
   return p.voices?.length ? p.voices[Math.floor(Math.random() * p.voices.length)] : undefined
 }
 
 export function persona(id: string): Persona {
-  return PERSONAS.find((p) => p.id === id) ?? PERSONAS[0]
+  return PERSONAS.find((p) => p.id === id) ?? PERSONAS.find((p) => p.id === DEFAULT_PERSONA)!
 }

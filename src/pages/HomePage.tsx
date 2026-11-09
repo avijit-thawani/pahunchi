@@ -137,6 +137,7 @@ export default function HomePage() {
     ? stored
     : { ...stored, personaId: DEFAULT_PERSONA, name: persona(DEFAULT_PERSONA).defaultName }
   const callee = settings.name.trim() || persona(settings.personaId).defaultName
+  const she = persona(settings.personaId).gender === 'f'
   const [later, setLater] = useState<Later>(null)
   const laterRef = useRef<HTMLDivElement>(null)
   const mic = useMicPermission()
@@ -213,7 +214,7 @@ export default function HomePage() {
             />
           </label>
           <label className="block">
-            <span className="text-sm font-bold text-base-content/70">When he calls to get you out, his reason</span>
+            <span className="text-sm font-bold text-base-content/70">When {she ? 'she' : 'he'} calls to get you out, {she ? 'her' : 'his'} reason</span>
             <select
               className="select w-full mt-1 font-semibold"
               value={excuse(settings.excuse).id}
@@ -228,7 +229,7 @@ export default function HomePage() {
 
       {mic === 'denied' && (
         <p role="alert" className="flex items-center gap-2 rounded-box bg-error/15 text-error px-4 py-3 text-sm font-bold">
-          <MicOff className="w-4 h-4 shrink-0" /> Mic is blocked, so he can't hear you. Allow it in your browser's site settings.
+          <MicOff className="w-4 h-4 shrink-0" /> Mic is blocked, so {callee} can't hear you. Allow it in your browser's site settings.
         </p>
       )}
 
@@ -260,7 +261,7 @@ export default function HomePage() {
         </div>
       )}
       {mic === 'prompt' && (
-        <p className="text-center text-sm text-base-content/70 font-semibold -mt-3">{isNative ? 'Pahunchi' : 'Your browser'} will ask for the mic so he can hear you.</p>
+        <p className="text-center text-sm text-base-content/70 font-semibold -mt-3">{isNative ? 'Pahunchi' : 'Your browser'} will ask for the mic so {callee} can hear you.</p>
       )}
       <HomeHowTo name={callee} onLater={setLater} />
       <p className="flex justify-center items-center gap-2 text-xs text-base-content/70 font-semibold">

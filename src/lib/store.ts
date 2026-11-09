@@ -3,7 +3,7 @@
 
 import { useCallback, useState } from 'react'
 import type { Turn } from '../../shared/api.ts'
-import type { Language } from '../../shared/personas.ts'
+import { DEFAULT_PERSONA, persona, type Language } from '../../shared/personas.ts'
 import { syncCall } from './sync.ts'
 
 export type Settings = {
@@ -81,7 +81,7 @@ function useStored<T>(key: string, fallback: T): [T, (v: T) => void] {
   return [value, set]
 }
 
-export const DEFAULT_SETTINGS: Settings = { personaId: 'dad', name: 'Papa', language: 'hinglish', ambience: true }
+export const DEFAULT_SETTINGS: Settings = { personaId: DEFAULT_PERSONA, name: persona(DEFAULT_PERSONA).defaultName, language: 'hinglish', ambience: true }
 
 export const useSettings = () => useStored<Settings>(KEYS.settings, DEFAULT_SETTINGS)
 export const useContacts = () => useStored<Contact[]>(KEYS.contacts, [])
