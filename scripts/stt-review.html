@@ -45,6 +45,7 @@
     <div class="sub">Play each line, fix the text if it isn't what you said, press Correct (or Enter). Hindi in Devanagari, English words in English letters. Blank = no speech. <b id="count"></b></div>
   </div>
   <h2>1. Can we trust the judges? <span class="sub" id="calcount"></span></h2>
+  <div class="sub">New examples first; ones you already scored are at the end (green). Reload the page for another batch.</div>
   <div class="sub">Each example: listen, fix "what was said" if needed, then score the engine's text yourself. The 3 judges' scores appear after you pick. 2 = every word right · 1 = small slip, wouldn't change his reply · 0 = meaning lost, changed or translated.</div>
   <div id="cal"></div>
   <h2>2. All 57 reference transcripts</h2>
@@ -100,6 +101,14 @@ CAL.forEach((c) => {
     v.style.display = 'block';
     d.classList.add('done'); calDone.add(c.id); calCount();
   });
+  if (c.done) {
+    d.classList.add('done'); calDone.add(c.id);
+    const on = d.querySelector('.scores button[data-s="' + (c.user === null ? 'x' : c.user) + '"]');
+    if (on) on.classList.add('on');
+    const v = d.querySelector('.verdicts');
+    v.innerHTML = c.judges.map((j) => '<div><span class="s ' + (c.user === null ? '' : j.score === c.user ? 'match' : 'miss') + '">' + j.score + '</span><b>' + j.name + '</b> <span class="m">' + String(j.why || '').replace(/</g, '&lt;') + '</span></div>').join('');
+    v.style.display = 'block';
+  }
   document.getElementById('cal').append(d);
 });
 calCount();

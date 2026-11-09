@@ -208,9 +208,14 @@ export function language(t: string): 'Hindi' | 'Hinglish' | 'English' | 'none' {
   return d && l ? 'Hinglish' : d ? 'Hindi' : l ? 'English' : 'none'
 }
 
-/** Per language: one each where all judges gave 2, 1, 0, plus the two engine outputs they disagree on most. */
+/**
+ * Per language, 5 new examples each load: one each where all judges gave 2, 1, 0, plus those they disagree on most.
+ * Clips already scored (calibration.json) are skipped; scored examples come back first, marked done.
+ */
 function calibration(cs: Clip[], engines: { n: string; label: string; res: Record<string, Result> }[], ref: (k: string) => string) {
   const judges = JUDGE_FILES.map((f) => (existsSync(`${OUT}/judges/${f}.json`) ? JSON.parse(readFileSync(`${OUT}/judges/${f}.json`, 'utf8')) : {}))
+  const scored: Record<string, { key: string; user: number | null }> = existsSync(`${OUT}/calibration.json`) ? JSON.parse(readFileSync(`${OUT}/calibration.json`, 'utf8')) : {}
+  const doneClips = new Set(Object.values(scored).map((v) => v.key))
   const hash = (s: string) => [...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7)
   const items: object[] = []
   for (const lang of ['Hindi', 'Hinglish', 'English']) {
@@ -218,7 +223,7 @@ function calibration(cs: Clip[], engines: { n: string; label: string; res: Recor
       const js = judges.map((j) => j[`${e.n}|${c.key}`])
       return { c, e, js, scores: js.map((j) => j?.score) as number[] }
     })).filter((x) => x.scores.every((v) => typeof v === 'number')).sort((a, b) => hash(a.c.key + a.e.n) - hash(b.c.key + b.e.n))
-    const used = new Set<string>()
+    const used = new Set<string>(doneClips)
     const take = (x?: (typeof cands)[number]) => {
       if (!x || used.has(x.c.key)) return
       used.add(x.c.key)
@@ -229,9 +234,18 @@ function calibration(cs: Clip[], engines: { n: string; label: string; res: Recor
     }
     for (const v of [2, 1, 0]) take(cands.find((x) => !used.has(x.c.key) && x.scores.every((s) => s === v)))
     const spread = (x: (typeof cands)[number]) => Math.max(...x.scores) - Math.min(...x.scores)
-    cands.filter((x) => spread(x) > 0).sort((a, b) => spread(b) - spread(a)).forEach((x) => { if (items.filter((i) => (i as { lang: string }).lang === lang).length < 5) take(x) })
+    const fresh = () => items.filter((i) => (i as { lang: string; done?: boolean }).lang === lang && !(i as { done?: boolean }).done).length
+    cands.filter((x) => spread(x) > 0).sort((a, b) => spread(b) - spread(a)).forEach((x) => { if (fresh() < 5) take(x) })
+    cands.forEach((x) => { if (fresh() < 5) take(x) })
   }
-  return items
+  const done = Object.entries(scored).flatMap(([id, v]) => {
+    const [n, key] = id.split('|')
+    const e = engines.find((x) => x.n === n)
+    if (!e || !cs.some((c) => c.key === key)) return []
+    return [{ id, key, lang: language(ref(key)), src: `/audio/${key}`, ref: ref(key), engine: e.label, hyp: e.res[key]?.text ?? '', done: true, user: v.user,
+      judges: judges.map((j, i) => ({ name: JUDGE_FILES[i].split('_')[1], score: j[id]?.score, why: j[id]?.why })) }]
+  })
+  return [...items, ...done]
 }
 
 function serve() {
@@ -242,15 +256,18 @@ function serve() {
   const draft: Record<string, string> = existsSync(refereeFile)
     ? Object.fromEntries(Object.entries(JSON.parse(readFileSync(refereeFile, 'utf8')) as Record<string, { transcript: string }>).map(([k, v]) => [k, v.transcript]))
     : JSON.parse(readFileSync(`${OUT}/gold-draft.json`, 'utf8'))
-  const gold = existsSync(`${OUT}/gold.json`) ? JSON.parse(readFileSync(`${OUT}/gold.json`, 'utf8')) : {}
-  const rows = cs.map((c, i) => ({ i: i + 1, key: c.key, src: `/audio/${c.key}`, seconds: +c.seconds.toFixed(1), text: gold[c.key]?.text ?? draft[c.key] ?? '', done: !!gold[c.key], others: engines.map((e) => [e.label, e.res[c.key]?.text ?? '']) }))
-  const cal = calibration(cs, engines, (k) => gold[k]?.text ?? draft[k] ?? '')
-  const page = readFileSync(new URL('./stt-review.html', import.meta.url), 'utf8')
-    .replace('/*ROWS*/[]', JSON.stringify(rows).replace(/</g, '\\u003c'))
-    .replace('/*CAL*/[]', JSON.stringify(cal).replace(/</g, '\\u003c'))
+  // Rebuilt per load, so a reload brings the next calibration batch.
+  const page = () => {
+    const gold = existsSync(`${OUT}/gold.json`) ? JSON.parse(readFileSync(`${OUT}/gold.json`, 'utf8')) : {}
+    const rows = cs.map((c, i) => ({ i: i + 1, key: c.key, src: `/audio/${c.key}`, seconds: +c.seconds.toFixed(1), text: gold[c.key]?.text ?? draft[c.key] ?? '', done: !!gold[c.key], others: engines.map((e) => [e.label, e.res[c.key]?.text ?? '']) }))
+    const cal = calibration(cs, engines, (k) => gold[k]?.text ?? draft[k] ?? '')
+    return readFileSync(new URL('./stt-review.html', import.meta.url), 'utf8')
+      .replace('/*ROWS*/[]', JSON.stringify(rows).replace(/</g, '\\u003c'))
+      .replace('/*CAL*/[]', JSON.stringify(cal).replace(/</g, '\\u003c'))
+  }
   http.createServer((req, res) => {
     const url = new URL(req.url!, 'http://x')
-    if (url.pathname === '/') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(page); return }
+    if (url.pathname === '/') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(page()); return }
     if (url.pathname.startsWith('/audio/')) {
       const c = cs.find((x) => `/audio/${x.key}` === decodeURIComponent(url.pathname))
       if (!c) { res.writeHead(404); res.end(); return }
