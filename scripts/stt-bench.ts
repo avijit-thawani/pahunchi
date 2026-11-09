@@ -202,6 +202,38 @@ async function run(names: string[]) {
   }))
 }
 
+export const JUDGE_FILES = ['anthropic_claude-sonnet-5.5', 'openai_gpt-6.1-sol', 'google_gemini-4-argon']
+export function language(t: string): 'Hindi' | 'Hinglish' | 'English' | 'none' {
+  const d = /[\u0900-\u097F]/.test(t), l = /[A-Za-z]/.test(t)
+  return d && l ? 'Hinglish' : d ? 'Hindi' : l ? 'English' : 'none'
+}
+
+/** Per language: one each where all judges gave 2, 1, 0, plus the two engine outputs they disagree on most. */
+function calibration(cs: Clip[], engines: { n: string; label: string; res: Record<string, Result> }[], ref: (k: string) => string) {
+  const judges = JUDGE_FILES.map((f) => (existsSync(`${OUT}/judges/${f}.json`) ? JSON.parse(readFileSync(`${OUT}/judges/${f}.json`, 'utf8')) : {}))
+  const hash = (s: string) => [...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7)
+  const items: object[] = []
+  for (const lang of ['Hindi', 'Hinglish', 'English']) {
+    const cands = cs.filter((c) => language(ref(c.key)) === lang).flatMap((c) => engines.map((e) => {
+      const js = judges.map((j) => j[`${e.n}|${c.key}`])
+      return { c, e, js, scores: js.map((j) => j?.score) as number[] }
+    })).filter((x) => x.scores.every((v) => typeof v === 'number')).sort((a, b) => hash(a.c.key + a.e.n) - hash(b.c.key + b.e.n))
+    const used = new Set<string>()
+    const take = (x?: (typeof cands)[number]) => {
+      if (!x || used.has(x.c.key)) return
+      used.add(x.c.key)
+      items.push({
+        id: `${x.e.n}|${x.c.key}`, key: x.c.key, lang, src: `/audio/${x.c.key}`, ref: ref(x.c.key), engine: x.e.label, hyp: x.e.res[x.c.key]?.text ?? '',
+        judges: x.js.map((j, i) => ({ name: JUDGE_FILES[i].split('_')[1], score: j.score, why: j.why })),
+      })
+    }
+    for (const v of [2, 1, 0]) take(cands.find((x) => !used.has(x.c.key) && x.scores.every((s) => s === v)))
+    const spread = (x: (typeof cands)[number]) => Math.max(...x.scores) - Math.min(...x.scores)
+    cands.filter((x) => spread(x) > 0).sort((a, b) => spread(b) - spread(a)).forEach((x) => { if (items.filter((i) => (i as { lang: string }).lang === lang).length < 5) take(x) })
+  }
+  return items
+}
+
 function serve() {
   const cs = clips()
   const engines = Object.keys(ENGINES).filter((n) => existsSync(`${OUT}/${n}.json`)).map((n) => ({ n, label: ENGINES[n].label, res: JSON.parse(readFileSync(`${OUT}/${n}.json`, 'utf8')) }))
@@ -212,7 +244,10 @@ function serve() {
     : JSON.parse(readFileSync(`${OUT}/gold-draft.json`, 'utf8'))
   const gold = existsSync(`${OUT}/gold.json`) ? JSON.parse(readFileSync(`${OUT}/gold.json`, 'utf8')) : {}
   const rows = cs.map((c, i) => ({ i: i + 1, key: c.key, src: `/audio/${c.key}`, seconds: +c.seconds.toFixed(1), text: gold[c.key]?.text ?? draft[c.key] ?? '', done: !!gold[c.key], others: engines.map((e) => [e.label, e.res[c.key]?.text ?? '']) }))
-  const page = readFileSync(new URL('./stt-review.html', import.meta.url), 'utf8').replace('/*ROWS*/[]', JSON.stringify(rows).replace(/</g, '\\u003c'))
+  const cal = calibration(cs, engines, (k) => gold[k]?.text ?? draft[k] ?? '')
+  const page = readFileSync(new URL('./stt-review.html', import.meta.url), 'utf8')
+    .replace('/*ROWS*/[]', JSON.stringify(rows).replace(/</g, '\\u003c'))
+    .replace('/*CAL*/[]', JSON.stringify(cal).replace(/</g, '\\u003c'))
   http.createServer((req, res) => {
     const url = new URL(req.url!, 'http://x')
     if (url.pathname === '/') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(page); return }
@@ -220,6 +255,24 @@ function serve() {
       const c = cs.find((x) => `/audio/${x.key}` === decodeURIComponent(url.pathname))
       if (!c) { res.writeHead(404); res.end(); return }
       res.writeHead(200, { 'Content-Type': 'audio/wav' }); createReadStream(c.file).pipe(res); return
+    }
+    if (url.pathname === '/calib' && req.method === 'POST') {
+      let body = ''
+      req.on('data', (d) => (body += d))
+      req.on('end', () => {
+        const { id, ...v } = JSON.parse(body)
+        const f = `${OUT}/calibration.json`
+        const all = existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : {}
+        all[id] = { ...v, at: new Date().toISOString() }
+        writeFileSync(f, JSON.stringify(all, null, 1))
+        if (v.refEdited) {
+          const g = existsSync(`${OUT}/gold.json`) ? JSON.parse(readFileSync(`${OUT}/gold.json`, 'utf8')) : {}
+          g[v.key] = { text: v.ref, at: new Date().toISOString() }
+          writeFileSync(`${OUT}/gold.json`, JSON.stringify(g, null, 1))
+        }
+        res.writeHead(200); res.end()
+      })
+      return
     }
     if (url.pathname === '/save' && req.method === 'POST') {
       let body = ''

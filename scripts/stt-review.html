@@ -21,6 +21,21 @@
   details { margin-top: 6px; color: #8b909a; font-size: 13px; }
   details div { margin: 2px 0; }
   details b { color: #b9bdc6; font-weight: 600; }
+  h2 { font-size: 16px; margin: 22px 0 2px; }
+  .cal { background: #1a1c21; border: 1px solid #2c2f36; border-radius: 12px; padding: 12px 14px; margin-top: 10px; }
+  .cal.done { border-color: #3a7d4f; }
+  .tag { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: #4cc9f0; }
+  .k { color: #8b909a; font-size: 12px; margin-top: 8px; }
+  .hyp { font-size: 17px; margin-top: 2px; }
+  .cal input { width: 100%; box-sizing: border-box; background: #101114; color: #eceef2; border: 1px solid #3a3e47; border-radius: 8px; font: 17px inherit; padding: 6px 8px; margin-top: 2px; }
+  .scores { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .scores button { border: 1px solid #3a3e47; background: #23262d; color: #eceef2; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 14px; }
+  .scores button.on { background: #ffcc00; color: #111; border-color: #ffcc00; }
+  .verdicts { margin-top: 8px; font-size: 13px; display: none; }
+  .verdicts div { margin: 3px 0; }
+  .verdicts .s { display: inline-block; width: 18px; font-weight: 800; }
+  .verdicts .m { color: #8b909a; }
+  .match { color: #5adc78; } .miss { color: #ff5c8a; }
 </style>
 </head>
 <body>
@@ -29,10 +44,15 @@
     <h1>Check the reference transcripts</h1>
     <div class="sub">Play each line, fix the text if it isn't what you said, press Correct (or Enter). Hindi in Devanagari, English words in English letters. Blank = no speech. <b id="count"></b></div>
   </div>
+  <h2>1. Can we trust the judges? <span class="sub" id="calcount"></span></h2>
+  <div class="sub">Each example: listen, fix "what was said" if needed, then score the engine's text yourself. The 3 judges' scores appear after you pick. 2 = every word right · 1 = small slip, wouldn't change his reply · 0 = meaning lost, changed or translated.</div>
+  <div id="cal"></div>
+  <h2>2. All 57 reference transcripts</h2>
   <div id="rows"></div>
 </main>
 <script>
 const ROWS = /*ROWS*/[];
+const CAL = /*CAL*/[];
 const audio = new Audio();
 const count = () => { document.getElementById('count').textContent = ROWS.filter((r) => r.done).length + ' / ' + ROWS.length + ' done'; };
 ROWS.forEach((r) => {
@@ -56,6 +76,33 @@ ROWS.forEach((r) => {
   document.getElementById('rows').append(d);
 });
 count();
+
+const calDone = new Set();
+const calCount = () => { document.getElementById('calcount').textContent = calDone.size + ' / ' + CAL.length + ' scored'; };
+CAL.forEach((c) => {
+  const d = document.createElement('div');
+  d.className = 'cal';
+  d.innerHTML = '<div class="top"><button class="play">▶</button><span class="tag">' + c.lang + '</span><span class="sub">' + c.engine + '</span></div>' +
+    '<div class="k">What was said (reference; fix if wrong)</div><input class="ref">' +
+    '<div class="k">What the engine wrote</div><div class="hyp"></div>' +
+    '<div class="scores"><button data-s="2">2 · all right</button><button data-s="1">1 · small slip</button><button data-s="0">0 · meaning wrong</button><button data-s="x">reference unsure</button></div>' +
+    '<div class="verdicts"></div>';
+  d.querySelector('.ref').value = c.ref;
+  d.querySelector('.hyp').textContent = c.hyp || '(nothing)';
+  d.querySelector('.play').onclick = () => { audio.src = c.src; audio.play(); };
+  d.querySelectorAll('.scores button').forEach((b) => b.onclick = async () => {
+    d.querySelectorAll('.scores button').forEach((x) => x.classList.toggle('on', x === b));
+    const s = b.dataset.s === 'x' ? null : Number(b.dataset.s);
+    const ref = d.querySelector('.ref').value.trim();
+    await fetch('/calib', { method: 'POST', body: JSON.stringify({ id: c.id, key: c.key, lang: c.lang, user: s, ref, refEdited: ref !== c.ref, judges: c.judges.map((j) => ({ name: j.name, score: j.score })) }) });
+    const v = d.querySelector('.verdicts');
+    v.innerHTML = c.judges.map((j) => '<div><span class="s ' + (s === null ? '' : j.score === s ? 'match' : 'miss') + '">' + j.score + '</span><b>' + j.name + '</b> <span class="m">' + String(j.why || '').replace(/</g, '&lt;') + '</span></div>').join('');
+    v.style.display = 'block';
+    d.classList.add('done'); calDone.add(c.id); calCount();
+  });
+  document.getElementById('cal').append(d);
+});
+calCount();
 </script>
 </body>
 </html>

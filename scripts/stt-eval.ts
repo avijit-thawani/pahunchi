@@ -4,6 +4,7 @@
 //   node scripts/stt-eval.ts referee        2 audio LLMs pick the reference from those -> referee/<model>.json
 //   node scripts/stt-eval.ts judge          3 text LLMs score each engine vs the reference -> judges/<model>.json
 //   node scripts/stt-eval.ts report         stats + script-neutral CER + cost -> report2.md, stats.json
+//   node scripts/stt-eval.ts calib          judges vs the user's own scores (review page, section 1)
 //   uv run --with matplotlib scripts/stt-chart.py   charts from stats.json
 // The user's checked transcripts (gold.json, from `stt-bench.ts serve`) override the referee's.
 
@@ -258,10 +259,32 @@ async function report() {
   console.log(lines.join('\n'))
 }
 
+/** Judges vs the user's own scores on the review page's calibration examples, per language. */
+function calib() {
+  const cal = load<Record<string, { lang: string; user: number | null; judges: { name: string; score: number }[] }>>(`${OUT}/calibration.json`, {})
+  const rows = Object.values(cal).filter((x) => x.user !== null)
+  if (!rows.length) { console.log('no scored examples yet (review page, section 1)'); return }
+  const names = rows[0].judges.map((j) => j.name)
+  console.log(`${rows.length} examples scored by the user (${Object.values(cal).length - rows.length} marked "reference unsure")\n`)
+  console.log('judge'.padEnd(22) + ['all', 'Hindi', 'Hinglish', 'English'].map((l) => l.padEnd(20)).join('') + 'bias')
+  for (const n of [...names, 'majority']) {
+    const cell = (lang: string) => {
+      const rs = rows.filter((r) => lang === 'all' || r.lang === lang)
+      if (!rs.length) return '-'
+      const js = rs.map((r) => n === 'majority' ? [...r.judges.map((j) => j.score)].sort()[1] : r.judges.find((j) => j.name === n)!.score)
+      const exact = rs.filter((r, i) => js[i] === r.user).length
+      return `${exact}/${rs.length} exact`
+    }
+    const bias = mean(rows.map((r) => (n === 'majority' ? [...r.judges.map((j) => j.score)].sort()[1] : r.judges.find((j) => j.name === n)!.score) - r.user!))
+    console.log(n.padEnd(22) + ['all', 'Hindi', 'Hinglish', 'English'].map((l) => cell(l).padEnd(20)).join('') + `${bias >= 0 ? '+' : ''}${bias.toFixed(2)} (judge - you)`)
+  }
+}
+
 const [cmd, arg] = process.argv.slice(2)
-if (cmd === 'lat') await lat(Number(arg) || 3)
+if (cmd === 'calib') calib()
+else if (cmd === 'lat') await lat(Number(arg) || 3)
 else if (cmd === 'refs') await refs()
 else if (cmd === 'referee') await referee()
 else if (cmd === 'judge') await judge()
 else if (cmd === 'report') await report()
-else console.log('usage: stt-eval.ts lat [rounds] | refs | referee | judge | report')
+else console.log('usage: stt-eval.ts lat [rounds] | refs | referee | judge | report | calib')
