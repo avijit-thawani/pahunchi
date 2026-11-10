@@ -136,7 +136,7 @@ R.clips.forEach((c) => {
   const b = el('div', 'clip');
   b.style.left = (100 * c.start / R.durationS) + '%'; b.style.width = Math.max(0.3, 100 * c.dur / R.durationS) + '%';
   b.style.background = COLOR[c.who]; b.style.cursor = 'pointer';
-  if (c.dropped) { b.style.background = 'none'; b.style.border = '1px dashed var(--ai)'; b.style.boxSizing = 'border-box'; }
+  if (c.dropped) { b.style.background = 'none'; b.style.top = '15px'; b.style.height = '0'; b.style.borderRadius = '0'; b.style.borderTop = '2px dashed var(--ai)'; } // a thin line under the row, so it can't be read as sound
   b.title = (c.dropped ? 'never played (the next turn replaced it) · ' : '') + (c.who === 'filler' ? 'ai filler' : c.who) + ': ' + (c.who === 'filler' ? 'हम्म / हाँ' : (c.text || '')) + ' (' + c.dur.toFixed(1) + ' s)';
   b.onclick = (e) => { e.stopPropagation(); play(c.start); };
   track.append(b);

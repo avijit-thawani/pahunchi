@@ -338,7 +338,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       if (url === '/') { res.writeHead(302, { Location: '/replay/' }); res.end(); return }
       const p = path.join(root, url.endsWith('/') ? url + 'index.html' : url)
       if (!p.startsWith(root) || !existsSync(p) || statSync(p).isDirectory()) { res.writeHead(404); res.end(); return }
-      res.writeHead(200, { 'Content-Type': types[path.extname(p)] ?? 'application/octet-stream' })
+      res.writeHead(200, { 'Content-Type': types[path.extname(p)] ?? 'application/octet-stream', 'Cache-Control': 'no-store' }) // rebuilt pages must never come from the browser's cache
       createReadStream(p).pipe(res)
     }).listen(5199, '127.0.0.1', () => console.log('replays: http://localhost:5199/'))
   }
