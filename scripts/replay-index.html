@@ -44,13 +44,10 @@ const speed = (ms) => (ms == null ? '' : ms >= 3500 ? 'slow' : ms <= 2700 ? 'ok'
 const len = (s) => (s == null ? '–' : s >= 60 ? Math.floor(s / 60) + 'm ' + String(Math.round(s % 60)).padStart(2, '0') + 's' : Math.round(s) + ' s')
 const when = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 // Calls logged since 2026-11-10 carry the phone's zone ("Asia/Kolkata"). Older ones only give a UTC offset (from the
-// session id): offsets with one obvious zone get its name, the rest say where that offset is used.
+// session id): offsets with one obvious zone get its name, the rest stay as an offset.
 const ZONES = { 330: 'IST', '-300': 'EST', '-240': 'EDT', '-360': 'CST', '-420': 'MST', '-480': 'PST', 0: 'GMT', 60: 'CET', 345: 'NPT', 480: 'SGT', 540: 'JST' }
 const utc = (min) => 'UTC' + (min < 0 ? '−' : '+') + Math.floor(Math.abs(min) / 60) + (min % 60 ? ':' + String(Math.abs(min) % 60).padStart(2, '0') : '')
-const WHERE = { 120: 'E. Europe, Egypt or S. Africa', 180: 'Gulf, Turkey, Moscow or E. Africa', 240: 'UAE or Oman', 300: 'Pakistan or Uzbekistan', 360: 'Bangladesh', 420: 'Thailand or Vietnam', '-180': 'Brazil or Argentina' }
 const zone = (min, tz) => (tz ? tz.split('/').pop().replace(/_/g, ' ') + ' time' : ZONES[min] ?? utc(min))
-/** For group headers: an offset alone can't name a country, so list the usual ones. */
-const zoneLong = (min, tz) => zone(min, tz) + (!tz && !ZONES[min] && WHERE[min] ? ' (' + WHERE[min] + ')' : '')
 const theirClock = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })
 /** The call's start on the caller's own clock (their UTC offset comes from the session id); hover for yours. */
 function started(r) {
@@ -101,11 +98,8 @@ function render() {
       const g = groups.get(name)
       const totals = g.flatMap((r) => r.totals)
       const med = median(totals)
-      const devices = [...new Set(g.map((r) => r.device).filter(Boolean))].join(', ')
-      const tz = [...new Set(g.filter((r) => r.tzMin != null).map((r) => zoneLong(r.tzMin, r.timeZone)))].join(', ')
-      const bits = [g[0].known || '', devices, tz, `${g.length} call${g.length > 1 ? 's' : ''}`,
-        totals.length ? `median <b class="${speed(med)}" style="font-size:inherit;margin:0">${secs(med)}</b> over ${totals.length} turns` : ''].filter(Boolean)
-      html += `<tr class="g"><td colspan="${shown.length}"><span class="gh"><b>${esc(name)}</b>${bits.join(' · ')}</span></td></tr>` + g.map(tr).join('')
+      const bits = totals.length ? `median <b class="${speed(med)}" style="font-size:inherit;margin:0">${secs(med)}</b> over ${totals.length} turns` : ''
+      html += `<tr class="g"><td colspan="${shown.length}"><span class="gh"><b>${esc(name)}</b>${bits}</span></td></tr>` + g.map(tr).join('')
     }
   }
   document.getElementById('body').innerHTML = html
