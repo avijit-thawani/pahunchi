@@ -202,7 +202,7 @@ async function run(names: string[]) {
   }))
 }
 
-export const JUDGE_FILES = ['anthropic_claude-sonnet-5.5', 'openai_gpt-6.1-sol', 'google_gemini-4-argon']
+export const JUDGE_FILES = ['google_gemini-4-argon', 'openai_gpt-6.1-sol']
 export function language(t: string): 'Hindi' | 'Hinglish' | 'English' | 'none' {
   const d = /[\u0900-\u097F]/.test(t), l = /[A-Za-z]/.test(t)
   return d && l ? 'Hinglish' : d ? 'Hindi' : l ? 'English' : 'none'

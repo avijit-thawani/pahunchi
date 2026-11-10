@@ -15,7 +15,8 @@ import { ENGINES, OUT, b64, clips, openrouterCost, pool, wav, type Clip, type Re
 const AUDIO_MODELS = ['google/gemini-4-argon', 'google/gemini-3.1-pro-preview', 'xiaomi/mimo-v2.6-pro', 'qwen/qwen3.8-omni-flash']
 // gemini-3.1-pro-preview timed out on 14 of 57 lines (60 s), so the second referee is MiMo (another lab).
 const REFEREES = ['google/gemini-4-argon', 'xiaomi/mimo-v2.6-pro']
-const JUDGES = ['anthropic/claude-sonnet-5.5', 'openai/gpt-6.1-sol', 'google/gemini-4-argon']
+// Claude Sonnet 5.5 dropped 2026-11-10: matched the user's own scores least (4/9 vs 7/9 Argon, 6/9 Sol).
+const JUDGES = ['google/gemini-4-argon', 'openai/gpt-6.1-sol']
 const INR_PER_USD = 85
 /** List prices per audio minute (USD), 2026-11-07; Sarvam is ₹0.49/min pay-as-you-go for every mode. */
 const PRICE_PER_MIN: Record<string, number> = {
