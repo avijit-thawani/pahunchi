@@ -2,37 +2,32 @@
 <meta charset="utf-8">
 <title>phoney replays</title>
 <style>
-  /* Title and legend stay put; only the table scrolls (both ways), under its own header and first column. */
-  body { font: 14px -apple-system, system-ui; background: #101114; color: #eceef2; margin: 0; padding: 20px 20px 0; height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden }
+  /* Title and toggles stay put; only the table scrolls (both ways), under its own header and first column. */
+  body { font: 14px -apple-system, system-ui; background: #fff; color: #1a1c21; margin: 0; padding: 20px 20px 0; height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden }
+  a { color: #0b57d0; text-decoration: none } a:hover { text-decoration: underline }
+  .top { display: flex; align-items: baseline; gap: 18px; margin-bottom: 10px }
+  h1 { font-size: 20px; margin: 0 auto 0 0 }
+  .top label { font-size: 13px; cursor: pointer; user-select: none }
   .wrap { flex: 1; min-height: 0; overflow: auto; padding-bottom: 40px }
-  td:first-child, th:first-child { position: sticky; left: 0; background: #101114; z-index: 1 }
-  th:first-child { z-index: 3 }
-  tr.g td:first-child { position: static }
-  tr.g .gh { position: sticky; left: 10px; display: inline-block }
-  a { color: #ffcc00; text-decoration: none } a:hover { text-decoration: underline }
-  h1 { font-size: 20px; margin: 0 }
-  p { color: #8b909a; margin: 4px 0 }
-  .lg { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; color: #8b909a; font-size: 12px; margin: 8px 0 12px }
-  .lg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px }
-  .lg label { margin-left: auto; color: #eceef2; cursor: pointer; user-select: none }
   table { border-collapse: collapse; width: 100% }
   td, th { padding: 5px 10px; text-align: left; white-space: nowrap }
-  th { position: sticky; top: 0; z-index: 2; background: #101114; color: #8b909a; font-size: 11px; text-transform: uppercase;
-       cursor: pointer; user-select: none; box-shadow: 0 1px 0 #2a2d34 }
-  th:hover, th.on { color: #eceef2 }
+  th { position: sticky; top: 0; z-index: 2; background: #fff; color: #6b7280; font-size: 11px; text-transform: uppercase;
+       cursor: pointer; user-select: none; box-shadow: 0 1px 0 #e3e5e8 }
+  th:hover, th.on { color: #1a1c21 }
   th.num, td.num { text-align: right; font-variant-numeric: tabular-nums }
-  tbody tr:hover td { background: #181a1f }
-  tr.g td { padding-top: 16px; border-bottom: 1px solid #2a2d34; color: #8b909a }
-  tr.g b { color: #eceef2; font-size: 15px; margin-right: 8px }
+  td:first-child, th:first-child { position: sticky; left: 0; background: #fff; z-index: 1 }
+  th:first-child { z-index: 3 }
+  tbody tr:hover td { background: #f4f5f7 }
+  tr.g td { padding-top: 16px; border-bottom: 1px solid #e3e5e8 }
+  tr.g td:first-child { position: static }
+  tr.g .gh { position: sticky; left: 10px; display: inline-block }
+  tr.g b { font-size: 15px }
   tr.g:hover td { background: none }
-  td.dim, .dim { color: #8b909a }
-  td.said { max-width: 260px; overflow: hidden; text-overflow: ellipsis; color: #c5c9d1 }
-  td.bar { min-width: 320px }
-  td.bar i { display: inline-block; vertical-align: top; height: 18px; font: 700 11px system-ui; color: #111; text-align: center; line-height: 18px; font-style: normal }
-  .slow { color: #ff5c8a } .ok { color: #7ddc8a }
+  .dim { color: #6b7280 }
+  td.said { max-width: 320px; overflow: hidden; text-overflow: ellipsis; color: #3c4048 }
+  .slow { color: #d6336c } .ok { color: #1a7f37 }
 </style>
-<h1>phoney calls: user's last word → AI's first sound</h1>
-<div class="lg" id="lg"></div>
+<div class="top"><h1>phoney calls</h1><label><input type="checkbox" id="spoke"> Only calls where the user spoke</label><label><input type="checkbox" id="grp" checked> Group by user</label></div>
 <div class="wrap"><table><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table></div>
 <script>
 const D = /*DATA*/null
@@ -54,12 +49,6 @@ function started(r) {
   const text = r.tzMin == null ? when.format(r.at) : `${theirClock.format(r.at + r.tzMin * 60000)} <span class="dim">${zone(r.tzMin, r.timeZone)}</span>`
   return `<a href="${esc(r.id)}.html" title="${esc(when.format(r.at))} your time · ${esc(r.id)}">${text}</a>`
 }
-function bar(r) {
-  return Object.keys(D.colors).map((k) => {
-    const ms = r.steps[k]
-    return ms > 0 ? `<i title="${D.labels[k]} ${Math.round(ms)} ms" style="width:${(100 * ms) / D.scaleMs}%;background:${D.colors[k]}">${ms > 450 ? (ms / 1000).toFixed(1) : ''}</i>` : ''
-  }).join('')
-}
 const cols = [
   { k: 'at', label: 'When', cell: started },
   { k: 'user', label: 'User', cell: (r) => esc(r.user), grouped: false },
@@ -68,7 +57,6 @@ const cols = [
   { k: 'median', label: 'Median', num: true, cell: (r) => `<b class="${speed(r.median)}">${secs(r.median)}</b>` },
   { k: 'slowest', label: 'Slowest', num: true, cell: (r) => `<span class="${speed(r.slowest)}">${secs(r.slowest)}</span>` },
   { k: 'lengthS', label: 'Length', num: true, cell: (r) => len(r.lengthS) },
-  { k: 'median', label: 'Breakdown', cls: 'bar', id: 'bar', cell: bar },
   { k: 'who', label: 'Role', cell: (r) => esc(r.who) },
   { k: 'language', label: 'Language', cell: (r) => esc(r.language) },
   { k: 'device', label: 'Device', cell: (r) => esc(r.device) || '<span class="dim">–</span>' },
@@ -82,7 +70,7 @@ function cmp(a, b) {
 function render() {
   const shown = cols.filter((c) => !(state.group && c.grouped === false))
   document.getElementById('head').innerHTML = shown.map((c, i) => {
-    const on = c.k === state.key && !c.id
+    const on = c.k === state.key
     return `<th data-i="${cols.indexOf(c)}" class="${c.num ? 'num ' : ''}${on ? 'on' : ''}">${c.label}${on ? (state.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`
   }).join('')
   const rows = D.rows.filter((r) => !state.spoke || r.userTurns > 0).sort(cmp)
@@ -109,8 +97,6 @@ document.getElementById('head').onclick = (e) => {
   else { state.key = c.k; state.dir = c.num || c.k === 'at' ? -1 : 1 }
   render()
 }
-document.getElementById('lg').innerHTML = Object.keys(D.colors).map((k) => `<span><i style="background:${D.colors[k]}"></i>${D.labels[k]}</span>`).join('') +
-  `<label><input type="checkbox" id="spoke"> Only calls where the user spoke</label><label style="margin-left:0"><input type="checkbox" id="grp" checked> Group by user</label>`
 document.getElementById('spoke').onchange = (e) => { state.spoke = e.target.checked; render() }
 document.getElementById('grp').onchange = (e) => { state.group = e.target.checked; render() }
 render()

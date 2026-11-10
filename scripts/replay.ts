@@ -221,9 +221,6 @@ function page(r: Replay, user?: string): string {
 
 const median = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : NaN)
 
-const COLORS = { wait: '#6b7280', stt: '#be8cff', llm: '#ff8c3c', tts: '#ff5c8a', play: '#4b5563' }
-const LABELS = { wait: 'pause wait', stt: 'STT', llm: 'LLM to first phrase', tts: 'TTS to first audio', play: 'phone playback' }
-const SCALE_MS = 5000
 const SCRIPTS = 'test scripts'
 const INDEX = readFileSync(new URL('./replay-index.html', import.meta.url), 'utf8')
 
@@ -280,14 +277,16 @@ async function accounts(): Promise<Record<string, string>> {
   }
 }
 
-/** One row per call: who called (account, else a nickname per device + screen + timezone), when, and step medians. */
 /** Who made each call: a name given with `replay.ts name`, else the signed-in account, else a nickname for the device. */
 function callers(rs: Replay[], account: Record<string, string>): Map<string, string> {
   const taken = new Set<string>(), nick = new Map<string, string>()
   const named: Record<string, string> = json(NAMES) ?? {}
   return new Map([...rs].sort((a, b) => (a.startedAt ?? '').localeCompare(b.startedAt ?? '')).map((r) => {
     const key = fingerprint(r)
-    return [r.id, r.script ? SCRIPTS : named[key] ?? account[r.id] ?? nick.get(key) ?? nick.set(key, nickname(key, taken)).get(key)!]
+    if (r.script) return [r.id, SCRIPTS]
+    // Every device gets its nickname even when a real name hides it, so naming one caller never renames the others.
+    const made = nick.get(key) ?? nick.set(key, nickname(key, taken)).get(key)!
+    return [r.id, named[key] ?? account[r.id] ?? made]
   }))
 }
 
@@ -296,16 +295,14 @@ function index(rs: Replay[], who: Map<string, string>): string {
     const real = r.turns.filter((x) => !x.estimated && x.user)
     const totals = real.map((x) => x.totalMs)
     const user = who.get(r.id)!
-    const steps = Object.fromEntries((Object.keys(COLORS) as (keyof typeof COLORS)[]).map((k) =>
-      [k, real.length ? median(real.map((x) => { const s = x.steps.find((y) => y.key === k); return s ? (s.gate ?? s.to - s.from) : 0 })) : 0]))
     return {
       id: r.id, at: Date.parse(r.startedAt ?? '') || 0, tzMin: r.tzMin, timeZone: r.timeZone, user, device: r.device ?? '', who: r.name || r.persona,
       language: r.language, lengthS: r.callS ?? r.durationS, userTurns: r.turns.filter((x) => x.user).length,
       median: totals.length ? median(totals) : null, slowest: totals.length ? Math.max(...totals) : null, totals,
-      said: r.turns.find((x) => x.user)?.user ?? '', steps,
+      said: r.turns.find((x) => x.user)?.user ?? '',
     }
   })
-  const data = { rows, colors: COLORS, labels: LABELS, scaleMs: SCALE_MS, scripts: SCRIPTS }
+  const data = { rows, scripts: SCRIPTS }
   return INDEX.replace('/*DATA*/null', () => JSON.stringify(data).replace(/</g, '\\u003c'))
 }
 
