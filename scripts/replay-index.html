@@ -1,0 +1,117 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>phoney replays</title>
+<style>
+  body { font: 14px -apple-system, system-ui; background: #101114; color: #eceef2; margin: 0; padding: 20px 20px 60px }
+  a { color: #ffcc00; text-decoration: none } a:hover { text-decoration: underline }
+  h1 { font-size: 20px; margin: 0 }
+  p { color: #8b909a; margin: 4px 0 }
+  .lg { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; color: #8b909a; font-size: 12px; margin: 8px 0 12px }
+  .lg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px }
+  .lg label { margin-left: auto; color: #eceef2; cursor: pointer; user-select: none }
+  table { border-collapse: collapse; width: 100% }
+  td, th { padding: 5px 10px; text-align: left; white-space: nowrap }
+  th { position: sticky; top: 0; z-index: 2; background: #101114; color: #8b909a; font-size: 11px; text-transform: uppercase;
+       cursor: pointer; user-select: none; box-shadow: 0 1px 0 #2a2d34 }
+  th:hover, th.on { color: #eceef2 }
+  th.num, td.num { text-align: right; font-variant-numeric: tabular-nums }
+  tbody tr:hover td { background: #181a1f }
+  tr.g td { padding-top: 16px; border-bottom: 1px solid #2a2d34; color: #8b909a; white-space: normal }
+  tr.g b { color: #eceef2; font-size: 15px; margin-right: 8px }
+  tr.g:hover td { background: none }
+  td.dim, .dim { color: #8b909a }
+  td.said { max-width: 260px; overflow: hidden; text-overflow: ellipsis; color: #c5c9d1 }
+  td.bar { width: 100%; min-width: 300px }
+  td.bar i { display: inline-block; vertical-align: top; height: 18px; font: 700 11px system-ui; color: #111; text-align: center; line-height: 18px; font-style: normal }
+  .slow { color: #ff5c8a } .ok { color: #7ddc8a }
+</style>
+<h1>phoney calls: user's last word → AI's first sound</h1>
+<p id="sub"></p>
+<div class="lg" id="lg"></div>
+<table><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table>
+<script>
+const D = /*DATA*/null
+const state = { key: 'at', dir: -1, group: true }
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const median = (xs) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : null)
+const secs = (ms) => (ms == null ? '–' : (ms / 1000).toFixed(1) + ' s')
+const speed = (ms) => (ms == null ? '' : ms >= 3500 ? 'slow' : ms <= 2700 ? 'ok' : '')
+const len = (s) => (s == null ? '–' : s >= 60 ? Math.floor(s / 60) + 'm ' + String(Math.round(s % 60)).padStart(2, '0') + 's' : Math.round(s) + ' s')
+const when = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+const utc = (min) => 'UTC' + (min < 0 ? '−' : '+') + Math.floor(Math.abs(min) / 60) + (min % 60 ? ':' + String(Math.abs(min) % 60).padStart(2, '0') : '')
+/** The caller's own clock time, from their UTC offset. */
+function theirs(r) {
+  if (r.tzMin == null) return '<span class="dim">–</span>'
+  const d = new Date(r.at + r.tzMin * 60000)
+  const h = d.getUTCHours(), m = String(d.getUTCMinutes()).padStart(2, '0')
+  return `${h % 12 || 12}:${m} ${h < 12 ? 'AM' : 'PM'} <span class="dim">${utc(r.tzMin)}</span>`
+}
+function bar(r) {
+  return Object.keys(D.colors).map((k) => {
+    const ms = r.steps[k]
+    return ms > 0 ? `<i title="${D.labels[k]} ${Math.round(ms)} ms" style="width:${(100 * ms) / D.scaleMs}%;background:${D.colors[k]}">${ms > 450 ? (ms / 1000).toFixed(1) : ''}</i>` : ''
+  }).join('')
+}
+const cols = [
+  { k: 'at', label: 'When', cell: (r) => `<a href="${esc(r.id)}.html" title="${esc(r.id)}">${when.format(r.at)}</a>` },
+  { k: 'user', label: 'User', cell: (r) => esc(r.user), grouped: false },
+  { k: 'tzMin', label: 'Their time', cell: theirs },
+  { k: 'device', label: 'Device', cell: (r) => esc(r.device) || '<span class="dim">–</span>' },
+  { k: 'who', label: 'Called', cell: (r) => esc(r.who) },
+  { k: 'language', label: 'Language', cell: (r) => esc(r.language) },
+  { k: 'lengthS', label: 'Length', num: true, cell: (r) => len(r.lengthS) },
+  { k: 'userTurns', label: 'User turns', num: true, cell: (r) => r.userTurns },
+  { k: 'median', label: 'Median', num: true, cell: (r) => `<b class="${speed(r.median)}">${secs(r.median)}</b>` },
+  { k: 'slowest', label: 'Slowest', num: true, cell: (r) => `<span class="${speed(r.slowest)}">${secs(r.slowest)}</span>` },
+  { k: 'said', label: 'First words', cls: 'said', cell: (r) => `<span title="${esc(r.said)}">${esc(r.said)}</span>` },
+  { k: 'median', label: 'Breakdown', cls: 'bar', id: 'bar', cell: bar },
+]
+function cmp(a, b) {
+  const x = a[state.key], y = b[state.key]
+  if (x == null || x === '') return y == null || y === '' ? 0 : 1 // blanks last in either direction
+  if (y == null || y === '') return -1
+  return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y))) * state.dir
+}
+function render() {
+  const shown = cols.filter((c) => !(state.group && c.grouped === false))
+  document.getElementById('head').innerHTML = shown.map((c, i) => {
+    const on = c.k === state.key && !c.id
+    return `<th data-i="${cols.indexOf(c)}" class="${c.num ? 'num ' : ''}${on ? 'on' : ''}">${c.label}${on ? (state.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`
+  }).join('')
+  const rows = [...D.rows].sort(cmp)
+  const tr = (r) => `<tr>${shown.map((c) => `<td class="${c.num ? 'num ' : ''}${c.cls ?? ''}">${c.cell(r)}</td>`).join('')}</tr>`
+  let html = ''
+  if (!state.group) html = rows.map(tr).join('')
+  else {
+    // Groups keep the sort: each appears where its first call lands; test scripts go last.
+    const groups = new Map()
+    for (const r of rows) (groups.get(r.user) ?? groups.set(r.user, []).get(r.user)).push(r)
+    const order = [...groups.keys()].sort((a, b) => (a === D.scripts) - (b === D.scripts))
+    for (const name of order) {
+      const g = groups.get(name)
+      const totals = g.flatMap((r) => r.totals)
+      const med = median(totals)
+      const devices = [...new Set(g.map((r) => r.device).filter(Boolean))].join(', ')
+      const tz = [...new Set(g.map((r) => r.tzMin).filter((x) => x != null))].map(utc).join(', ')
+      const bits = [g[0].known ? 'signed in' : '', devices, tz, `${g.length} call${g.length > 1 ? 's' : ''}`,
+        totals.length ? `median <b class="${speed(med)}" style="font-size:inherit;margin:0">${secs(med)}</b> over ${totals.length} turns` : ''].filter(Boolean)
+      html += `<tr class="g"><td colspan="${shown.length}"><b>${esc(name)}</b>${bits.join(' · ')}</td></tr>` + g.map(tr).join('')
+    }
+  }
+  document.getElementById('body').innerHTML = html
+}
+document.getElementById('head').onclick = (e) => {
+  const th = e.target.closest('th')
+  if (!th) return
+  const c = cols[+th.dataset.i]
+  if (state.key === c.k) state.dir = -state.dir
+  else { state.key = c.k; state.dir = c.num || c.k === 'at' ? -1 : 1 }
+  render()
+}
+document.getElementById('sub').textContent = `${D.rows.length} calls. Click a time to replay that call, a column to sort. Median and breakdown cover user turns timed on the phone (– = none); full bar width = ${D.scaleMs / 1000} s. ` +
+  `Users are a guess (same device, screen and timezone) unless signed in; names are made up.`
+document.getElementById('lg').innerHTML = Object.keys(D.colors).map((k) => `<span><i style="background:${D.colors[k]}"></i>${D.labels[k]}</span>`).join('') +
+  `<label><input type="checkbox" id="grp" checked> Group by user</label>`
+document.getElementById('grp').onchange = (e) => { state.group = e.target.checked; render() }
+render()
+</script>

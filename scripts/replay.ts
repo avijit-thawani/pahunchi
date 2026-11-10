@@ -1,6 +1,6 @@
 // Replays logged calls as pages: the call's real audio on one timeline (user lines, ai clauses,
 // fillers) and, per turn, the user's last word -> the ai's first sound split by pipeline step.
-//   node scripts/replay.ts serve                  builds every call, serves http://localhost:5199/ (click a call, Replay)
+//   node scripts/replay.ts serve                  builds every call, serves http://localhost:5199/ (calls grouped by user; click one, Replay)
 //   node scripts/replay.ts [<id>|latest|all]      -> logs/replay/<id>.html (+ index.html)
 //   node scripts/replay-shot.mjs <id> [--video]   -> PNG (and MP4 with the call audio)
 // Deployed calls: `node scripts/logs.ts --remote <id>` downloads one into logs/calls/ first.
@@ -28,6 +28,8 @@ type Turn = { turn: string; user?: string; ai: string; userEnd: number; speechMs
 export type Replay = {
   id: string; persona: string; name: string; language: string; voice?: string; device?: string
   durationS: number; clips: Clip[]; turns: Turn[]
+  /** For the index: when it started (UTC), the caller's UTC offset, screen size, hang-up time. */
+  startedAt?: string; tzMin?: number; screen?: string; callS?: number; script?: boolean
 }
 
 const jsonl = (f: string): Ev[] => readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l))
@@ -49,11 +51,25 @@ function wavSeconds(file: string): number {
 
 function device(ua?: string): string | undefined {
   if (!ua) return undefined
-  if (/Android/.test(ua)) return /wv\)/.test(ua) ? 'Android app' : 'Android browser'
+  const test = /Headless|Cursor\//.test(ua) ? ' (test browser)' : ''
+  if (/Android/.test(ua)) {
+    // Chrome hides the model ("K"); the app's WebView reports it.
+    const model = ua.match(/Android [\d.]+; ([^;)]+?)(?: Build|[;)])/)?.[1]
+    return (/wv\)/.test(ua) ? 'Android app' : 'Android browser') + (model && model !== 'K' ? `, ${model}` : '')
+  }
   if (/iPhone|iPad/.test(ua)) return 'iPhone'
-  if (/Macintosh/.test(ua)) return 'Mac'
-  if (/Linux/.test(ua)) return 'Linux'
-  return ua.slice(0, 30)
+  if (/Macintosh/.test(ua)) return 'Mac' + test
+  if (/Windows/.test(ua)) return 'Windows'
+  if (/Linux/.test(ua)) return 'Linux' + test
+  return ua.split('/')[0].slice(0, 30)
+}
+
+/** Session ids start with the caller's local time, so id time - UTC start = their UTC offset (minutes). */
+function tzOffset(id: string, startedAt?: string): number | undefined {
+  const m = id.match(/^(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)(\d\d)-/)
+  if (!m || !startedAt) return undefined
+  const [y, mo, d, h, mi, sec] = m.slice(1).map(Number)
+  return Math.round((Date.UTC(y, mo - 1, d, h, mi, sec) - t(startedAt)) / 900000) * 15
 }
 
 export function build(id: string): Replay | undefined {
@@ -155,11 +171,14 @@ export function build(id: string): Replay | undefined {
   })
 
   const lastEv = Math.max(...events.map((e) => t(e.at)))
+  const startedAt: string | undefined = start?.startedAt ?? end?.startedAt
   const durationS = Math.max((lastEv - t0) / 1000, ...clips.map((c) => c.start + c.dur)) + 0.5
   return {
     id, persona: end?.personaId ?? start?.personaId ?? '?', name: end?.name ?? start?.name ?? '', language: end?.language ?? start?.language ?? '',
     voice: end?.voiceId ?? start?.voiceId, device: device(start?.userAgent ?? end?.userAgent), durationS: +durationS.toFixed(2),
     clips: clips.sort((a, b) => a.start - b.start), turns,
+    startedAt: startedAt ?? new Date(t0).toISOString(), tzMin: tzOffset(id, startedAt), screen: start?.screen ?? end?.screen,
+    callS: end?.durationS, script: !startedAt,
   }
 }
 
@@ -172,30 +191,75 @@ function page(r: Replay): string {
 const median = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : NaN)
 
 const COLORS = { wait: '#6b7280', stt: '#be8cff', llm: '#ff8c3c', tts: '#ff5c8a', play: '#4b5563' }
+const LABELS = { wait: 'pause wait', stt: 'STT', llm: 'LLM to first phrase', tts: 'TTS to first audio', play: 'phone playback' }
 const SCALE_MS = 5000
+const SCRIPTS = 'test scripts'
+const INDEX = readFileSync(new URL('./replay-index.html', import.meta.url), 'utf8')
 
-/** Real calls only: user turns with phone timings; per-step medians as one bar per call. */
-function index(rs: Replay[]): string {
-  const rows = rs.map((r) => {
+// Made-up names for callers we can't name, like experiment trackers do: stable per caller.
+const ADJ = ['amber', 'brisk', 'calm', 'dusky', 'eager', 'fuzzy', 'gentle', 'hazy', 'ivory', 'jolly', 'keen', 'lively', 'mellow', 'nimble', 'olive', 'plucky', 'quiet', 'rosy', 'sunny', 'tidy', 'umber', 'vivid', 'witty', 'zesty']
+const NOUN = ['banyan', 'chai', 'dhow', 'egret', 'ferry', 'gulmohar', 'heron', 'jamun', 'kite', 'lotus', 'mango', 'neem', 'otter', 'peacock', 'quail', 'rickshaw', 'sparrow', 'tamarind', 'tulsi', 'veena', 'wagtail', 'yak']
+function nickname(key: string, taken: Set<string>): string {
+  let h = 2166136261
+  for (const c of key) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0
+  for (let i = 0; ; i++) {
+    const name = `${ADJ[(h + i) % ADJ.length]}-${NOUN[(Math.floor(h / ADJ.length) + i) % NOUN.length]}`
+    if (!taken.has(name)) { taken.add(name); return name }
+  }
+}
+
+function env(name: string): string | undefined {
+  if (process.env[name]) return process.env[name]
+  for (const f of ['.env', '../.env']) {
+    const m = existsSync(f) && readFileSync(f, 'utf8').match(new RegExp(`^${name}=(.*)$`, 'm'))
+    if (m && m[1].trim()) return m[1].trim().replace(/^["']|["']$/g, '')
+  }
+}
+
+/** Call id -> account name, for calls made while signed in (they are mirrored to `calls`). Cached in logs/replay/. */
+async function accounts(): Promise<Record<string, string>> {
+  const cache = path.join(OUT, 'accounts.json')
+  const url = env('SUPABASE_URL'), key = env('SUPABASE_SERVICE_ROLE_KEY')
+  try {
+    if (!url || !key) throw new Error('no Supabase keys')
+    const get = async (p: string) => {
+      const r = await fetch(url + p, { headers: { Authorization: `Bearer ${key}`, apikey: key }, signal: AbortSignal.timeout(6000) })
+      if (!r.ok) throw new Error(`${p} ${r.status}`)
+      return r.json()
+    }
+    const calls: { id: string; owner_id: string }[] = await get('/rest/v1/calls?select=id,owner_id')
+    const users: { id: string; email?: string; user_metadata?: { full_name?: string; name?: string } }[] = (await get('/auth/v1/admin/users?per_page=1000')).users ?? []
+    const names = new Map(users.map((u) => [u.id, u.user_metadata?.full_name || u.user_metadata?.name || u.email || u.id.slice(0, 8)]))
+    const out = Object.fromEntries(calls.map((c) => [c.id, names.get(c.owner_id) ?? c.owner_id.slice(0, 8)]))
+    writeFileSync(cache, JSON.stringify(out))
+    return out
+  } catch (e) {
+    const cached = json(cache)
+    console.log(`account names: ${cached ? 'using cache' : 'none'} (${String(e).slice(0, 80)})`)
+    return cached ?? {}
+  }
+}
+
+/** One row per call: who called (account, else a nickname per device + screen + timezone), when, and step medians. */
+function index(rs: Replay[], account: Record<string, string>): string {
+  const taken = new Set<string>(), nick = new Map<string, string>()
+  const rows = [...rs].sort((a, b) => (a.startedAt ?? '').localeCompare(b.startedAt ?? '')).map((r) => {
     const real = r.turns.filter((x) => !x.estimated && x.user)
-    if (!real.length) return `<tr><td><a href="${r.id}.html">${r.id}</a></td><td>${r.name}</td><td>${r.device ?? ''}</td><td>${r.turns.length}</td><td>–</td><td class="bar"></td></tr>`
-    const segs = (Object.keys(COLORS) as (keyof typeof COLORS)[]).map((k) => {
-      const ms = median(real.map((x) => { const s = x.steps.find((y) => y.key === k); return s ? (s.gate ?? s.to - s.from) : 0 }))
-      return ms > 0 ? `<i title="${k} ${Math.round(ms)} ms" style="width:${(100 * ms) / SCALE_MS}%;background:${COLORS[k]}">${ms > 450 ? (ms / 1000).toFixed(1) : ''}</i>` : ''
-    }).join('')
-    return `<tr><td><a href="${r.id}.html">${r.id}</a></td><td>${r.name}</td><td>${r.device ?? ''}</td><td>${real.length}</td>` +
-      `<td><b>${(median(real.map((x) => x.totalMs)) / 1000).toFixed(1)} s</b></td><td class="bar">${segs}</td></tr>`
-  }).join('\n')
-  const legend = Object.entries(COLORS).map(([k, c]) => `<span><i style="background:${c}"></i>${{ wait: 'pause wait', stt: 'STT', llm: 'LLM to first phrase', tts: 'TTS to first audio', play: 'phone playback' }[k]}</span>`).join('')
-  return `<!doctype html><meta charset="utf-8"><title>phoney replays</title><style>
-body{font:14px -apple-system,system-ui;background:#101114;color:#eceef2;margin:0;padding:20px}a{color:#ffcc00}
-td,th{padding:5px 10px;text-align:left;white-space:nowrap}th{color:#8b909a;font-size:11px;text-transform:uppercase}
-td.bar{width:100%;min-width:360px}td.bar i{display:inline-block;vertical-align:top;height:18px;font:700 11px system-ui;color:#111;text-align:center;line-height:18px;font-style:normal}
-.lg{display:flex;gap:14px;color:#8b909a;font-size:12px;margin:6px 0 12px}.lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}</style>
-<h1 style="font-size:20px;margin:0">phoney calls: user's last word → AI's first sound</h1>
-<p style="color:#8b909a;margin:4px 0">Click a call to replay it. Median per call over user turns timed on the phone (– = none, e.g. test scripts); bar = median of each step, full width = ${SCALE_MS / 1000} s.</p>
-<div class="lg">${legend}</div>
-<table><tr><th>call</th><th>who</th><th>device</th><th>turns</th><th>median</th><th>breakdown</th></tr>${rows}</table>`
+    const totals = real.map((x) => x.totalMs)
+    const known = !!account[r.id]
+    const key = `${r.device}|${r.screen}|${r.tzMin}`
+    const user = r.script ? SCRIPTS : known ? account[r.id] : nick.get(key) ?? nick.set(key, nickname(key, taken)).get(key)!
+    const steps = Object.fromEntries((Object.keys(COLORS) as (keyof typeof COLORS)[]).map((k) =>
+      [k, real.length ? median(real.map((x) => { const s = x.steps.find((y) => y.key === k); return s ? (s.gate ?? s.to - s.from) : 0 })) : 0]))
+    return {
+      id: r.id, at: Date.parse(r.startedAt ?? '') || 0, tzMin: r.tzMin, user, known, device: r.device ?? '', who: r.name || r.persona,
+      language: r.language, lengthS: r.callS ?? r.durationS, userTurns: r.turns.filter((x) => x.user).length,
+      median: totals.length ? median(totals) : null, slowest: totals.length ? Math.max(...totals) : null, totals,
+      said: r.turns.find((x) => x.user)?.user ?? '', steps,
+    }
+  })
+  const data = { rows, colors: COLORS, labels: LABELS, scaleMs: SCALE_MS, scripts: SCRIPTS }
+  return INDEX.replace('/*DATA*/null', () => JSON.stringify(data).replace(/</g, '\\u003c'))
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -213,8 +277,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const real = r.turns.filter((x) => !x.estimated && x.user)
     console.log(`${OUT}/${id}.html  ${r.turns.length} turns, ${r.clips.length} clips, median ${real.length ? median(real.map((x) => x.totalMs)) : '-'} ms`)
   }
-  const all = readdirSync(OUT).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(path.join(OUT, f), 'utf8')) as Replay)
-  writeFileSync(path.join(OUT, 'index.html'), index(all.sort((a, b) => a.id.localeCompare(b.id))))
+  const all = readdirSync(OUT).filter((f) => f.endsWith('.json') && f !== 'accounts.json').map((f) => JSON.parse(readFileSync(path.join(OUT, f), 'utf8')) as Replay)
+  writeFileSync(path.join(OUT, 'index.html'), index(all, await accounts()))
   if (arg === 'serve') {
     const root = path.resolve('logs')
     const types: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.wav': 'audio/wav', '.json': 'application/json', '.png': 'image/png', '.mp4': 'video/mp4' }
