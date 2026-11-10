@@ -148,6 +148,32 @@ const scribeStream = (c: Clip) => stream(
   c,
 )
 
+// Smallest Pulse: `hi` is bilingual Hindi/English in mixed script (`hi-dev` would force Devanagari).
+// Batch allows 25 requests a minute on the standard plan, so calls are spaced; the wait isn't timed.
+let smallestNext = 0
+async function smallestRest(c: Clip): Promise<Result> {
+  const wait = smallestNext - Date.now()
+  if (wait > 0) await sleep(wait)
+  smallestNext = Date.now() + 2600
+  return timed(async () => {
+    const r = await ok(await fetch('https://api.smallest.ai/waves/v1/stt/?model=pulse&language=hi', {
+      method: 'POST', headers: { Authorization: `Bearer ${process.env.SMALLEST_API_KEY}`, 'Content-Type': 'application/octet-stream' }, body: wav(c),
+    }))
+    return String((await r.json()).transcription ?? '')
+  })
+}
+
+const smallestStream = (c: Clip) => stream(
+  // @ts-expect-error undici's WebSocket takes headers
+  () => new WebSocket('wss://api.smallest.ai/waves/v1/stt/live?model=pulse&language=hi&sample_rate=16000&encoding=linear16', { headers: { Authorization: `Bearer ${process.env.SMALLEST_API_KEY}` } }),
+  (ws, chunk, last) => {
+    ws.send(chunk)
+    if (last) ws.send(JSON.stringify({ type: 'finalize' }))
+  },
+  (m) => (m.is_final ? { text: String(m.transcript ?? ''), final: true } : undefined),
+  c,
+)
+
 export const ENGINES: Record<string, { label: string; kind: 'batch' | 'stream'; run: (c: Clip) => Promise<Result> }> = {
   'sarvam': { label: 'Sarvam saaras:v4, hi-IN (today)', kind: 'batch', run: sarvamRest('transcribe') },
   'sarvam-codemix': { label: 'Sarvam saaras:v4, codemix', kind: 'batch', run: sarvamRest('codemix') },
@@ -155,6 +181,8 @@ export const ENGINES: Record<string, { label: string; kind: 'batch' | 'stream'; 
   'scribe': { label: 'ElevenLabs Scribe v2', kind: 'batch', run: scribeRest },
   'scribe-stream': { label: 'ElevenLabs Scribe v2 Realtime', kind: 'stream', run: scribeStream },
   'gpt-mini': { label: 'OpenAI gpt-4o-mini-transcribe', kind: 'batch', run: openrouterStt('openai/gpt-4o-mini-transcribe') },
+  'smallest': { label: 'Smallest Pulse', kind: 'batch', run: smallestRest },
+  'smallest-stream': { label: 'Smallest Pulse streaming', kind: 'stream', run: smallestStream },
 }
 
 const DRAFT_PROMPT = `Transcribe this phone-call audio exactly as spoken. The speaker is a young woman in India talking to a family member; she may speak Hindi, English or a mix (Hinglish).

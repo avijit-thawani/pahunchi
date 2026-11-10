@@ -22,6 +22,8 @@ const INR_PER_USD = 85
 const PRICE_PER_MIN: Record<string, number> = {
   'sarvam': 0.49 / INR_PER_USD, 'sarvam-codemix': 0.49 / INR_PER_USD, 'sarvam-stream': 0.49 / INR_PER_USD,
   'scribe': 0.22 / 60, 'scribe-stream': 0.39 / 60,
+  // smallest.ai/pricing/models, 2026-11-10 (a May changelog said $0.0035 / $0.006).
+  'smallest': 0.003, 'smallest-stream': 0.004,
 }
 const file = (name: string) => name.replace(/\//g, '_')
 for (const d of ['lat', 'refs', 'referee', 'judges']) mkdirSync(`${OUT}/${d}`, { recursive: true })

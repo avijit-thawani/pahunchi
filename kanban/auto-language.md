@@ -8,6 +8,8 @@ transcripts:
 
 # Auto language
 
+Refresher (pipeline, where language hints go, the user's first-turn proposal): [docs/language.md](../docs/language.md).
+
 ## Goal (the user's, 2026-11-07)
 
 1. **No language picker.** He speaks her language without her choosing it.
