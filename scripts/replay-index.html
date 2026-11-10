@@ -96,10 +96,7 @@ function render() {
     const order = [...groups.keys()].sort((a, b) => (a === D.scripts) - (b === D.scripts))
     for (const name of order) {
       const g = groups.get(name)
-      const totals = g.flatMap((r) => r.totals)
-      const med = median(totals)
-      const bits = totals.length ? `median <b class="${speed(med)}" style="font-size:inherit;margin:0">${secs(med)}</b> over ${totals.length} turns` : ''
-      html += `<tr class="g"><td colspan="${shown.length}"><span class="gh"><b>${esc(name)}</b>${bits}</span></td></tr>` + g.map(tr).join('')
+      html += `<tr class="g"><td colspan="${shown.length}"><span class="gh"><b>${esc(name)}</b></span></td></tr>` + g.map(tr).join('')
     }
   }
   document.getElementById('body').innerHTML = html
