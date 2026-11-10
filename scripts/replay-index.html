@@ -64,13 +64,13 @@ function bar(r) {
   }).join('')
 }
 const cols = [
-  { k: 'at', label: 'When (their time)', cell: started },
+  { k: 'at', label: 'When', cell: started },
   { k: 'user', label: 'User', cell: (r) => esc(r.user), grouped: false },
-  { k: 'lengthS', label: 'Length', num: true, cell: (r) => len(r.lengthS) },
-  { k: 'userTurns', label: 'User spoke (turns)', num: true, cell: (r) => r.userTurns },
+  { k: 'said', label: 'First words', cls: 'said', cell: (r) => `<span title="${esc(r.said)}">${esc(r.said)}</span>` },
+  { k: 'userTurns', label: 'User turns', num: true, cell: (r) => r.userTurns },
   { k: 'median', label: 'Median', num: true, cell: (r) => `<b class="${speed(r.median)}">${secs(r.median)}</b>` },
   { k: 'slowest', label: 'Slowest', num: true, cell: (r) => `<span class="${speed(r.slowest)}">${secs(r.slowest)}</span>` },
-  { k: 'said', label: 'First words', cls: 'said', cell: (r) => `<span title="${esc(r.said)}">${esc(r.said)}</span>` },
+  { k: 'lengthS', label: 'Length', num: true, cell: (r) => len(r.lengthS) },
   { k: 'median', label: 'Breakdown', cls: 'bar', id: 'bar', cell: bar },
   { k: 'who', label: 'Role', cell: (r) => esc(r.who) },
   { k: 'language', label: 'Language', cell: (r) => esc(r.language) },
