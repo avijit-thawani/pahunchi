@@ -27,7 +27,7 @@ function serve() {
 
 /** The call's clips mixed at their replay times, as one WAV (what the page plays). */
 function mix(r, out) {
-  const clips = r.clips.filter((c) => fs.existsSync(path.join(LOGS, 'replay', c.src)))
+  const clips = r.clips.filter((c) => !c.dropped && fs.existsSync(path.join(LOGS, 'replay', c.src)))
   const args = ['-v', 'error', '-y']
   clips.forEach((c) => args.push('-i', path.join(LOGS, 'replay', c.src)))
   const chains = clips.map((c, i) => `[${i}:a]aresample=24000,aformat=channel_layouts=mono,adelay=${Math.max(0, Math.round(c.start * 1000))}[a${i}]`)

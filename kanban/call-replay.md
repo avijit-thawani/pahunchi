@@ -3,6 +3,7 @@ feature: Call replay (listen to a logged call, see where each reply's delay went
 tags: []
 tests: [replay-serve, replay-shot]
 transcripts:
+  - efb09834-6f42-40b0-aac0-b2aad62a205e 2026-11-10 replay queues ai audio like the phone and marks replies that never played (local commit)
   - efb09834-6f42-40b0-aac0-b2aad62a205e 2026-11-10 index: times on the caller's clock with zone names, `replay.ts name`, nicknames no longer repeat words (local commit, not pushed)
   - efb09834-6f42-40b0-aac0-b2aad62a205e 2026-11-10 index reworked: calls grouped by user, sortable columns, sticky header
   - efb09834-6f42-40b0-aac0-b2aad62a205e 2026-11-10 card created retroactively, screenshots, first use on a tester's calls
@@ -48,7 +49,7 @@ Deployed calls must be downloaded first: `node scripts/logs.ts --remote` lists t
 ## Notes
 
 - 2026-11-10 The logged `ip` can't tell callers apart: unrelated devices in different timezones share one address and one call's start and end differ, so it isn't used for grouping. Not investigated.
-- 2026-11-10 A reply to each of two back-to-back user turns shows as two AI clips in a row (turns 09 and 10 of a tester's call); the page doesn't flag it, you have to spot it. Worth a marker when an AI clip starts before the next user turn's reply.
+- 2026-11-10 The replay used to play every reply the server generated at its own logged time, so two replies could sound at once. The phone can't do that: it plays ai audio through one queue. The replay now does the same: a reply that arrived while another was playing is moved behind it and labelled "queued after X, heard after Y", and a reply the phone never played (missing from its transcript, replaced by the next turn) is dashed, greyed and silent. On a tester's call: turn 10 queued at 3.96 s but heard at about 5.7 s, behind turn 09; turn 11 never played. The app's own `totalMs` has the same blind spot (stamped when audio is queued, not when it sounds). Start times of turns without phone timings are still estimates.
 - 2026-11-10 `logs.ts --remote <id>` took about a minute per call for ten calls (one request per file); a bulk download would help.
 - 2026-11-10 Today's calls from India: 4.0-4.5 s median against 2.2-2.6 s for the 2026-11-05 Mac calls; details on [the-call.md](the-call.md).
 - 2026-11-07 Idea on [home-and-navigation.md](home-and-navigation.md): show this whole-call row in History.

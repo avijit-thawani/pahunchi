@@ -125,7 +125,8 @@ if (real.length) {
   sum.append(el('div', 'label', 'No phone timings in this call; per-turn bars use server timings and are marked ~'));
 }
 
-// Whole call: one row (no barge-in, so user and ai never overlap); hover a clip for its words.
+// Whole call: one row (the phone queues ai audio, so ai clips never overlap); hover a clip for its words.
+// Dashed = generated but never played: a newer turn replaced it before its audio arrived.
 const callLanes = $('callLanes');
 const callHead = el('div', 'head');
 const COLOR = { user: 'var(--user)', ai: 'var(--ai)', filler: 'rgba(76,201,240,.45)' };
@@ -135,7 +136,8 @@ R.clips.forEach((c) => {
   const b = el('div', 'clip');
   b.style.left = (100 * c.start / R.durationS) + '%'; b.style.width = Math.max(0.3, 100 * c.dur / R.durationS) + '%';
   b.style.background = COLOR[c.who]; b.style.cursor = 'pointer';
-  b.title = (c.who === 'filler' ? 'ai filler' : c.who) + ': ' + (c.who === 'filler' ? 'हम्म / हाँ' : (c.text || '')) + ' (' + c.dur.toFixed(1) + ' s)';
+  if (c.dropped) { b.style.background = 'none'; b.style.border = '1px dashed var(--ai)'; b.style.boxSizing = 'border-box'; }
+  b.title = (c.dropped ? 'never played (the next turn replaced it) · ' : '') + (c.who === 'filler' ? 'ai filler' : c.who) + ': ' + (c.who === 'filler' ? 'हम्म / हाँ' : (c.text || '')) + ' (' + c.dur.toFixed(1) + ' s)';
   b.onclick = (e) => { e.stopPropagation(); play(c.start); };
   track.append(b);
 });
@@ -154,7 +156,7 @@ R.turns.forEach((t) => {
   const u = R.clips.find((c) => c.who === 'user' && c.turn === t.turn);
   if (u && t.user) lines.push({ who: 'user', start: u.start, end: u.start + u.dur, text: t.user });
   const a = R.clips.filter((c) => c.who === 'ai' && c.turn === t.turn);
-  if (a.length) lines.push({ who: 'ai', start: a[0].start, end: a[a.length - 1].start + a[a.length - 1].dur, text: t.ai, ms: t.user ? t.totalMs : null, est: t.estimated });
+  if (a.length) lines.push({ who: 'ai', start: a[0].start, end: a[a.length - 1].start + a[a.length - 1].dur, text: t.ai, ms: t.user ? t.totalMs : null, est: t.estimated, t });
 });
 R.clips.filter((c) => c.who === 'filler').forEach((c) => lines.push({ who: 'filler', start: c.start, end: c.start + c.dur, text: 'हम्म / हाँ (filler)' }));
 lines.sort((a, b) => a.start - b.start);
@@ -162,7 +164,10 @@ const script = $('script');
 lines.forEach((l) => {
   const mmss = Math.floor(l.start / 60) + ':' + String(Math.floor(l.start % 60)).padStart(2, '0');
   l.el = el('div', 'line ' + l.who, '<span class="t">' + mmss + '</span><span class="w">' + (l.who === 'filler' ? 'ai' : l.who) + '</span><span class="x">' + esc(l.text) +
-    (l.ms ? ' <span class="sub">· answered after ' + (l.est ? '~' : '') + s1(l.ms) + '</span>' : '') + '</span>');
+    (l.t && l.t.dropped ? ' <span class="sub">· never played: the next turn replaced it</span>'
+      : l.ms ? ' <span class="sub">· ' + (l.t.heardMs ? 'queued after ' : 'answered after ') + (l.est ? '~' : '') + s1(l.ms) +
+        (l.t.heardMs ? ', heard after ' + s1(l.t.heardMs) + ' (waited for ' + l.t.behind + ' to finish)' : '') + '</span>' : '') + '</span>');
+  if (l.t && l.t.dropped) l.el.style.opacity = 0.5;
   l.el.onclick = () => play(l.start);
   script.append(l.el);
 });
@@ -177,7 +182,9 @@ const cards = [];
 R.turns.forEach((t) => {
   const c = el('div', 'card turn');
   c.append(el('h3', '', '<span>Turn ' + t.turn + (t.user ? '' : ' · ai opens <span class="sub">· prepared during ringback; server timings + network guess</span>') +
-    (t.speculative ? ' <span class="sub">· started at the short pause</span>' : '') + '</span>' +
+    (t.speculative ? ' <span class="sub">· started at the short pause</span>' : '') +
+    (t.dropped ? ' <span class="sub">· never played: the next turn replaced it</span>' : '') +
+    (t.heardMs ? ' <span class="sub">· heard after ' + s1(t.heardMs) + ': waited for ' + t.behind + ' to finish</span>' : '') + '</span>' +
     '<span class="big" style="font-size:22px">' + (t.estimated ? '~' : '') + s1(t.totalMs) + '</span>'));
   if (t.user) c.append(el('div', 'said', '<b>user</b>' + esc(t.user)));
   c.append(el('div', 'said', '<b>ai</b>' + esc(t.ai)));
@@ -202,9 +209,9 @@ R.turns.forEach((t) => {
   const spoke = t.speechMs || (userClip ? userClip.dur * 1000 - 600 : 800);
   const talk = [];
   if (t.user) talk.push(bar(-Math.min(spoke, before), 0, 'var(--user)', 'user ' + (spoke > before ? '… ' : '') + s1(spoke)));
-  let at = t.totalMs;
+  let at = t.heardMs || t.totalMs;
   R.clips.filter((x) => x.who === 'ai' && x.turn === t.turn).forEach((a, i) => {
-    talk.push(bar(at, at + a.dur * 1000, 'var(--ai)', i === 0 ? 'ai ' + esc((a.text || '').slice(0, 36)) : ''));
+    talk.push(bar(at, at + a.dur * 1000, 'var(--ai)', i === 0 ? 'ai ' + esc((a.text || '').slice(0, 36)) : '', null, t.dropped));
     at += a.dur * 1000;
   });
   add('conversation', talk);
@@ -246,7 +253,7 @@ async function play(from) {
   stop();
   offset = from; startedAt = ctx.currentTime - from; playing = true;
   R.clips.forEach((c, i) => {
-    const b = buffers[i]; if (!b || c.start + c.dur < from) return;
+    const b = buffers[i]; if (!b || c.dropped || c.start + c.dur < from) return;
     const s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination);
     const when = c.start - from;
     if (when >= 0) s.start(ctx.currentTime + when); else s.start(0, -when);

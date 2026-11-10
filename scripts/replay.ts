@@ -24,8 +24,11 @@ type Ev = { at: string; kind: string; turn?: string; text?: string; ms?: number;
 type Metrics = { turn?: string; speechMs?: number; vadMs?: number; sttMs?: number; llmMs?: number; replyMs?: number; ttsFirstByteMs?: number; totalMs?: number; speculative?: boolean }
 /** `llm` runs to the whole reply; `gate` = ms until its first phrase, where `tts` starts. */
 type Step = { key: 'wait' | 'stt' | 'llm' | 'tts' | 'play'; from: number; to: number; server?: number; gate?: number }
-type Clip = { who: 'user' | 'ai' | 'filler'; src: string; start: number; dur: number; text?: string; turn?: string }
-type Turn = { turn: string; user?: string; ai: string; userEnd: number; speechMs?: number; totalMs: number; estimated: boolean; speculative?: boolean; steps: Step[] }
+/** `dropped`: generated on the server but never played on the phone (a newer turn replaced it). */
+type Clip = { who: 'user' | 'ai' | 'filler'; src: string; start: number; dur: number; text?: string; turn?: string; dropped?: boolean }
+type Turn = { turn: string; user?: string; ai: string; userEnd: number; speechMs?: number; totalMs: number; estimated: boolean; speculative?: boolean; steps: Step[]
+  /** The phone plays ai audio through one queue: `heardMs` = user's last word -> audible, when it waited behind turn `behind`. */
+  dropped?: boolean; heardMs?: number; behind?: string }
 export type Replay = {
   id: string; persona: string; name: string; language: string; voice?: string; device?: string
   durationS: number; clips: Clip[]; turns: Turn[]
@@ -146,9 +149,11 @@ export function build(id: string): Replay | undefined {
       clips.push({ who: 'user', src: src(herFile), start: (herEnd + vad) / 1000 - dur, dur, text: stt?.text, turn: label })
     }
     // Clause files are named when their audio started arriving, not in spoken order.
+    const used = new Set<Ev>()
     const him = himFiles.map((f) => {
       const dur = wavSeconds(path.join(dir, f))
-      const ev = tts.find((e) => Math.abs((e.seconds ?? 0) - dur) < 0.05)
+      const ev = tts.find((e) => !used.has(e) && Math.abs((e.seconds ?? 0) - dur) < 0.05)
+      if (ev) used.add(ev)
       const pos = ev ? replyText.indexOf(String(ev.text)) : -1
       return { f, dur, text: ev?.text, pos: pos < 0 ? Infinity : pos }
     }).sort((a, b) => a.pos - b.pos)
@@ -170,6 +175,31 @@ export function build(id: string): Replay | undefined {
     if (!f) return
     clips.push({ who: 'filler', src: src(f), start: (e.at + skew - t0) / 1000, dur: wavSeconds(path.join(dir, f)), text: 'filler' })
   })
+
+  // A reply the phone never finished queueing is missing from its transcript. If a later turn did play, that
+  // turn replaced it before its audio arrived (call.ts bumps `gen`); the server still logged its TTS.
+  const said: Set<string> | undefined = end?.turns && new Set(end.turns.filter((x: { who: string }) => x.who === 'them').map((x: { text: string }) => x.text))
+  if (said) turns.forEach((x, i) => {
+    if (x.estimated && x.user && !said.has(x.ai) && turns.slice(i + 1).some((y) => !y.estimated || said.has(y.ai))) x.dropped = true
+  })
+  const droppedTurns = new Set(turns.filter((x) => x.dropped).map((x) => x.turn))
+  for (const c of clips) if (c.who === 'ai' && droppedTurns.has(c.turn!)) c.dropped = true
+  // The phone has one playhead (audio.ts schedule): a clip that arrives while another is playing waits its turn.
+  // Its logged delay is when it was queued, so add the wait to get when the user heard it.
+  let playhead = 0, last: string | undefined
+  for (const c of clips.filter((x) => x.who !== 'user' && !x.dropped).sort((a, b) => a.start - b.start)) {
+    const wait = playhead - c.start
+    if (wait > 0.05) {
+      const turn = turns.find((x) => x.turn === c.turn)
+      // Only claim it where both sides are solid: this turn timed on the phone, and not behind the opener (whose start is a guess).
+      if (turn && !turn.estimated && turn.heardMs == null && wait > 0.3 && last && last !== `turn ${c.turn}` && last !== 'turn 00') {
+        turn.heardMs = Math.round(turn.totalMs + wait * 1000); turn.behind = last
+      }
+      c.start = playhead
+    }
+    playhead = c.start + c.dur
+    last = c.who === 'filler' ? 'the filler' : `turn ${c.turn}`
+  }
 
   const lastEv = Math.max(...events.map((e) => t(e.at)))
   const startedAt: string | undefined = start?.startedAt ?? end?.startedAt
