@@ -277,7 +277,7 @@ async function accounts(): Promise<Record<string, string>> {
   }
 }
 
-/** Who made each call: a name given with `replay.ts name`, else the signed-in account, else a nickname for the device. */
+/** Who made each call: the signed-in account, else a name given with `replay.ts name`, else a nickname for the device. */
 function callers(rs: Replay[], account: Record<string, string>): Map<string, string> {
   const taken = new Set<string>(), nick = new Map<string, string>()
   const named: Record<string, string> = json(NAMES) ?? {}
@@ -286,7 +286,7 @@ function callers(rs: Replay[], account: Record<string, string>): Map<string, str
     if (r.script) return [r.id, SCRIPTS]
     // Every device gets its nickname even when a real name hides it, so naming one caller never renames the others.
     const made = nick.get(key) ?? nick.set(key, nickname(key, taken)).get(key)!
-    return [r.id, named[key] ?? account[r.id] ?? made]
+    return [r.id, account[r.id] ?? named[key] ?? made] // a signed-in call is that account's, whatever the device was named
   }))
 }
 
