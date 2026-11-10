@@ -215,8 +215,8 @@ export function build(id: string): Replay | undefined {
 
 const TEMPLATE = readFileSync(new URL('./replay.html', import.meta.url), 'utf8')
 
-function page(r: Replay): string {
-  return TEMPLATE.replace('/*DATA*/null', JSON.stringify(r).replace(/</g, '\\u003c')).replace('<title>phoney replay</title>', `<title>${r.id} replay</title>`)
+function page(r: Replay, user?: string): string {
+  return TEMPLATE.replace('/*DATA*/null', () => JSON.stringify({ ...r, user }).replace(/</g, '\\u003c')).replace('<title>phoney replay</title>', `<title>${r.id} replay</title>`)
 }
 
 const median = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : NaN)
@@ -281,20 +281,25 @@ async function accounts(): Promise<Record<string, string>> {
 }
 
 /** One row per call: who called (account, else a nickname per device + screen + timezone), when, and step medians. */
-function index(rs: Replay[], account: Record<string, string>): string {
+/** Who made each call: a name given with `replay.ts name`, else the signed-in account, else a nickname for the device. */
+function callers(rs: Replay[], account: Record<string, string>): Map<string, string> {
   const taken = new Set<string>(), nick = new Map<string, string>()
   const named: Record<string, string> = json(NAMES) ?? {}
+  return new Map([...rs].sort((a, b) => (a.startedAt ?? '').localeCompare(b.startedAt ?? '')).map((r) => {
+    const key = fingerprint(r)
+    return [r.id, r.script ? SCRIPTS : named[key] ?? account[r.id] ?? nick.get(key) ?? nick.set(key, nickname(key, taken)).get(key)!]
+  }))
+}
+
+function index(rs: Replay[], who: Map<string, string>): string {
   const rows = [...rs].sort((a, b) => (a.startedAt ?? '').localeCompare(b.startedAt ?? '')).map((r) => {
     const real = r.turns.filter((x) => !x.estimated && x.user)
     const totals = real.map((x) => x.totalMs)
-    const key = fingerprint(r)
-    // Who: a name given with `replay.ts name`, else the signed-in account, else a nickname for the device.
-    const known = named[key] ? 'named by you' : account[r.id] ? 'signed in' : ''
-    const user = r.script ? SCRIPTS : named[key] ?? account[r.id] ?? nick.get(key) ?? nick.set(key, nickname(key, taken)).get(key)!
+    const user = who.get(r.id)!
     const steps = Object.fromEntries((Object.keys(COLORS) as (keyof typeof COLORS)[]).map((k) =>
       [k, real.length ? median(real.map((x) => { const s = x.steps.find((y) => y.key === k); return s ? (s.gate ?? s.to - s.from) : 0 })) : 0]))
     return {
-      id: r.id, at: Date.parse(r.startedAt ?? '') || 0, tzMin: r.tzMin, timeZone: r.timeZone, user, known, device: r.device ?? '', who: r.name || r.persona,
+      id: r.id, at: Date.parse(r.startedAt ?? '') || 0, tzMin: r.tzMin, timeZone: r.timeZone, user, device: r.device ?? '', who: r.name || r.persona,
       language: r.language, lengthS: r.callS ?? r.durationS, userTurns: r.turns.filter((x) => x.user).length,
       median: totals.length ? median(totals) : null, slowest: totals.length ? Math.max(...totals) : null, totals,
       said: r.turns.find((x) => x.user)?.user ?? '', steps,
@@ -322,14 +327,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   for (const id of pick) {
     const r = build(id)
     if (!r || !r.turns.length) continue
-    writeFileSync(path.join(OUT, `${id}.html`), page(r))
     writeFileSync(path.join(OUT, `${id}.json`), JSON.stringify(r, null, 1))
     built.push(r)
     const real = r.turns.filter((x) => !x.estimated && x.user)
     console.log(`${OUT}/${id}.html  ${r.turns.length} turns, ${r.clips.length} clips, median ${real.length ? median(real.map((x) => x.totalMs)) : '-'} ms`)
   }
   const all = readdirSync(OUT).filter((f) => f.endsWith('.json') && f !== 'accounts.json' && f !== 'names.json').map((f) => JSON.parse(readFileSync(path.join(OUT, f), 'utf8')) as Replay)
-  writeFileSync(path.join(OUT, 'index.html'), index(all, await accounts()))
+  const who = callers(all, await accounts())
+  // Every page carries its caller's name, so pages are rewritten whenever names may have changed.
+  for (const r of all) writeFileSync(path.join(OUT, `${r.id}.html`), page(r, who.get(r.id)))
+  writeFileSync(path.join(OUT, 'index.html'), index(all, who))
   if (arg === 'serve') {
     const root = path.resolve('logs')
     const types: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.wav': 'audio/wav', '.json': 'application/json', '.png': 'image/png', '.mp4': 'video/mp4' }

@@ -101,7 +101,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<'
 /** How much of a step the user waited for: the LLM only until its first phrase. */
 const waited = (s) => (s.gate != null ? s.gate : s.to - s.from);
 
-$('title').textContent = R.name + ' (' + R.persona + ') · ' + R.language;
+$('title').textContent = (R.user ? R.user + ' → ' : '') + R.name + ' (' + R.persona + ') · ' + R.language;
 $('meta').textContent = [R.id, R.device, R.voice && R.voice.replace('sarvam:', 'voice '), Math.round(R.durationS) + ' s'].filter(Boolean).join(' · ');
 
 // Summary: median of what the user waited for in each step, over user turns timed on the phone.
