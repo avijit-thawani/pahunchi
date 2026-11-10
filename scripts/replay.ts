@@ -33,7 +33,7 @@ export type Replay = {
   id: string; persona: string; name: string; language: string; voice?: string; device?: string
   durationS: number; clips: Clip[]; turns: Turn[]
   /** For the index: when it started (UTC), the caller's UTC offset, screen size, hang-up time. */
-  startedAt?: string; tzMin?: number; screen?: string; callS?: number; script?: boolean
+  startedAt?: string; tzMin?: number; timeZone?: string; screen?: string; callS?: number; script?: boolean
 }
 
 const jsonl = (f: string): Ev[] => readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l))
@@ -208,7 +208,7 @@ export function build(id: string): Replay | undefined {
     id, persona: end?.personaId ?? start?.personaId ?? '?', name: end?.name ?? start?.name ?? '', language: end?.language ?? start?.language ?? '',
     voice: end?.voiceId ?? start?.voiceId, device: device(start?.userAgent ?? end?.userAgent), durationS: +durationS.toFixed(2),
     clips: clips.sort((a, b) => a.start - b.start), turns,
-    startedAt: startedAt ?? new Date(t0).toISOString(), tzMin: tzOffset(id, startedAt), screen: start?.screen ?? end?.screen,
+    startedAt: startedAt ?? new Date(t0).toISOString(), tzMin: tzOffset(id, startedAt), timeZone: start?.timeZone, screen: start?.screen ?? end?.screen,
     callS: end?.durationS, script: !startedAt,
   }
 }
@@ -294,7 +294,7 @@ function index(rs: Replay[], account: Record<string, string>): string {
     const steps = Object.fromEntries((Object.keys(COLORS) as (keyof typeof COLORS)[]).map((k) =>
       [k, real.length ? median(real.map((x) => { const s = x.steps.find((y) => y.key === k); return s ? (s.gate ?? s.to - s.from) : 0 })) : 0]))
     return {
-      id: r.id, at: Date.parse(r.startedAt ?? '') || 0, tzMin: r.tzMin, user, known, device: r.device ?? '', who: r.name || r.persona,
+      id: r.id, at: Date.parse(r.startedAt ?? '') || 0, tzMin: r.tzMin, timeZone: r.timeZone, user, known, device: r.device ?? '', who: r.name || r.persona,
       language: r.language, lengthS: r.callS ?? r.durationS, userTurns: r.turns.filter((x) => x.user).length,
       median: totals.length ? median(totals) : null, slowest: totals.length ? Math.max(...totals) : null, totals,
       said: r.turns.find((x) => x.user)?.user ?? '', steps,

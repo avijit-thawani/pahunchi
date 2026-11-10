@@ -149,6 +149,8 @@ export class CallEngine {
       startedAt: new Date(this.session.startedAt).toISOString(), personaId: this.settings.personaId,
       voiceId: this.session.voiceId,
       name: this.settings.name, language: this.settings.language, ambience: this.settings.ambience, scene: this.scene,
+      // e.g. "Asia/Kolkata": the call log's reader sees her local time and zone, not just a UTC offset
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       screen: `${screen.width}x${screen.height}`, standalone: matchMedia('(display-mode: standalone)').matches,
     })
     // In the Android WebView, audio only follows the call route (earpiece / Bluetooth) if the mic is
