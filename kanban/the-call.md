@@ -3,6 +3,7 @@ feature: The call (he answers and talks back)
 tags: [prod-web, dev-android]
 tests: [smoke-call, replay]
 transcripts:
+  - efb09834-6f42-40b0-aac0-b2aad62a205e 2026-11-10 linked the new call-replay card
   - 46387402-d07d-478b-ba09-e5d050eba0a5 2026-11-07 renamed phoney -> Pahunchi
   - 15926a89-9396-4e58-9f44-692e7b77e141 2026-11-07 committed plain-words errors to main (9d0ad3b), live on dev
   - 3773fae9-00cb-4eff-a661-5ad3ac519194 2026-11-07 smoke-call on dev: latency fails (STT), sister-voice option added
@@ -38,7 +39,7 @@ Left: web, demo data, 2026-11-05. Right: Android emulator, 2026-11-07, the "Can'
 
 - `smoke-call` (web): `node scripts/smoke-call.ts cab_night dad hinglish` completes with replies; `PHONEY_HER=sarvam:aparna_hi_customer` voices her lines in the sister's Sarvam voice instead of the lab's Gemini clips. `smoke-call short` uses her real one- to three-word lines. Passes when he opens and replies with audio; latency is logged, not a gate. Last run: dev, 2026-11-07, pass. Short lines: median 2.6 s (2.6-3.2 s), STT 1.0-1.3 s, and he stayed silent after "हम्म" and "ठीक है". Long lab lines (2-6 s): medians 3.5-4.0 s. Server-side STT (Sarvam `saaras:v4`) took 1.6-1.8 s per turn, against 0.5-1.2 s for Scribe in `docs/latency.md`. LLM first clause 0.5-0.8 s and TTS first byte 0.4-1.1 s are on target.
 
-- `replay` (any logged call): `node scripts/replay.ts serve`, open `localhost:5199`, click a call, Replay (or click a line or the timeline); `replay-shot.mjs <id> [--video]` for a PNG (and MP4 with the call audio), `replay-shot.mjs index` for every call's step breakdown. Output in `logs/replay/` (gitignored).
+- `replay` (any logged call; card: [call-replay.md](call-replay.md)): `node scripts/replay.ts serve`, open `localhost:5199`, click a call, Replay (or click a line or the timeline); `replay-shot.mjs <id> [--video]` for a PNG (and MP4 with the call audio), `replay-shot.mjs index` for every call's step breakdown. Output in `logs/replay/` (gitignored).
 
 ## Log
 
