@@ -2,7 +2,13 @@
 <meta charset="utf-8">
 <title>phoney replays</title>
 <style>
-  body { font: 14px -apple-system, system-ui; background: #101114; color: #eceef2; margin: 0; padding: 20px 20px 60px }
+  /* Title and legend stay put; only the table scrolls (both ways), under its own header and first column. */
+  body { font: 14px -apple-system, system-ui; background: #101114; color: #eceef2; margin: 0; padding: 20px 20px 0; height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden }
+  .wrap { flex: 1; min-height: 0; overflow: auto; padding-bottom: 40px }
+  td:first-child, th:first-child { position: sticky; left: 0; background: #101114; z-index: 1 }
+  th:first-child { z-index: 3 }
+  tr.g td:first-child { position: static }
+  tr.g .gh { position: sticky; left: 10px; display: inline-block }
   a { color: #ffcc00; text-decoration: none } a:hover { text-decoration: underline }
   h1 { font-size: 20px; margin: 0 }
   p { color: #8b909a; margin: 4px 0 }
@@ -16,18 +22,18 @@
   th:hover, th.on { color: #eceef2 }
   th.num, td.num { text-align: right; font-variant-numeric: tabular-nums }
   tbody tr:hover td { background: #181a1f }
-  tr.g td { padding-top: 16px; border-bottom: 1px solid #2a2d34; color: #8b909a; white-space: normal }
+  tr.g td { padding-top: 16px; border-bottom: 1px solid #2a2d34; color: #8b909a }
   tr.g b { color: #eceef2; font-size: 15px; margin-right: 8px }
   tr.g:hover td { background: none }
   td.dim, .dim { color: #8b909a }
   td.said { max-width: 260px; overflow: hidden; text-overflow: ellipsis; color: #c5c9d1 }
-  td.bar { width: 100%; min-width: 300px }
+  td.bar { min-width: 320px }
   td.bar i { display: inline-block; vertical-align: top; height: 18px; font: 700 11px system-ui; color: #111; text-align: center; line-height: 18px; font-style: normal }
   .slow { color: #ff5c8a } .ok { color: #7ddc8a }
 </style>
 <h1>phoney calls: user's last word → AI's first sound</h1>
 <div class="lg" id="lg"></div>
-<table><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table>
+<div class="wrap"><table><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table></div>
 <script>
 const D = /*DATA*/null
 const state = { key: 'at', dir: -1, group: true, spoke: false }
@@ -60,15 +66,15 @@ function bar(r) {
 const cols = [
   { k: 'at', label: 'When (their time)', cell: started },
   { k: 'user', label: 'User', cell: (r) => esc(r.user), grouped: false },
-  { k: 'device', label: 'Device', cell: (r) => esc(r.device) || '<span class="dim">–</span>' },
-  { k: 'who', label: 'Called', cell: (r) => esc(r.who) },
-  { k: 'language', label: 'Language', cell: (r) => esc(r.language) },
   { k: 'lengthS', label: 'Length', num: true, cell: (r) => len(r.lengthS) },
   { k: 'userTurns', label: 'User spoke (turns)', num: true, cell: (r) => r.userTurns },
   { k: 'median', label: 'Median', num: true, cell: (r) => `<b class="${speed(r.median)}">${secs(r.median)}</b>` },
   { k: 'slowest', label: 'Slowest', num: true, cell: (r) => `<span class="${speed(r.slowest)}">${secs(r.slowest)}</span>` },
   { k: 'said', label: 'First words', cls: 'said', cell: (r) => `<span title="${esc(r.said)}">${esc(r.said)}</span>` },
   { k: 'median', label: 'Breakdown', cls: 'bar', id: 'bar', cell: bar },
+  { k: 'who', label: 'Role', cell: (r) => esc(r.who) },
+  { k: 'language', label: 'Language', cell: (r) => esc(r.language) },
+  { k: 'device', label: 'Device', cell: (r) => esc(r.device) || '<span class="dim">–</span>' },
 ]
 function cmp(a, b) {
   const x = a[state.key], y = b[state.key]
@@ -99,7 +105,7 @@ function render() {
       const tz = [...new Set(g.filter((r) => r.tzMin != null).map((r) => zoneLong(r.tzMin, r.timeZone)))].join(', ')
       const bits = [g[0].known || '', devices, tz, `${g.length} call${g.length > 1 ? 's' : ''}`,
         totals.length ? `median <b class="${speed(med)}" style="font-size:inherit;margin:0">${secs(med)}</b> over ${totals.length} turns` : ''].filter(Boolean)
-      html += `<tr class="g"><td colspan="${shown.length}"><b>${esc(name)}</b>${bits.join(' · ')}</td></tr>` + g.map(tr).join('')
+      html += `<tr class="g"><td colspan="${shown.length}"><span class="gh"><b>${esc(name)}</b>${bits.join(' · ')}</span></td></tr>` + g.map(tr).join('')
     }
   }
   document.getElementById('body').innerHTML = html
