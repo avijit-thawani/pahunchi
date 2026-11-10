@@ -9,7 +9,7 @@
 // The user's checked transcripts (gold.json, from `stt-bench.ts serve`) override the referee's.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { ENGINES, OUT, b64, clips, openrouterCost, pool, wav, type Clip, type Result } from './stt-bench.ts'
+import { ENGINES, OUT, b64, clips, language, openrouterCost, pool, wav, type Clip, type Result } from './stt-bench.ts'
 
 // openai/gpt-audio was dropped: it refused ("I can't help with that") or invented whole conversations.
 const AUDIO_MODELS = ['google/gemini-4-argon', 'google/gemini-3.1-pro-preview', 'xiaomi/mimo-v2.6-pro', 'qwen/qwen3.8-omni-flash']
@@ -251,6 +251,20 @@ async function report() {
     lines.push(`| ${e.label} | ${e.kind} | ${r0(s.p50)} ms (${r0(s.p50ci[0])}-${r0(s.p50ci[1])}) | ${r0(s.p90)} ms (${r0(s.p90ci[0])}-${r0(s.p90ci[1])}) | ` +
       `${s.score.toFixed(2)} (${s.scoreci[0].toFixed(2)}-${s.scoreci[1].toFixed(2)}) | ${s.sure.toFixed(2)} (${s.sureci[0].toFixed(2)}-${s.sureci[1].toFixed(2)}, ${s.sureN} lines) | ${wrong}/${perClip.length} | ${(100 * s.cer).toFixed(0)}% (${(100 * s.cerci[0]).toFixed(0)}-${(100 * s.cerci[1]).toFixed(0)}) | ` +
       `${Math.round((100 * agree) / Math.max(1, perClip.length))}% | ${price ? '$' + price.toFixed(4) : '?'} |`)
+  }
+  // Accuracy split by the language of the reference line.
+  const LANGS = ['Hindi', 'Hinglish', 'English'] as const
+  const nBy = Object.fromEntries(LANGS.map((l) => [l, cs.filter((c) => language(refsBy[c.key].text) === l).length]))
+  lines.push('', '## Accuracy by language (judge score /2, 95% CI)', '', `| Engine | ${LANGS.map((l) => `${l} (${nBy[l]} lines)`).join(' | ')} |`, `|---|${LANGS.map(() => '---|').join('')}`)
+  for (const [name, e] of Object.entries(ENGINES)) {
+    if (!existsSync(`${OUT}/${name}.json`)) continue
+    const cells = LANGS.map((l) => {
+      const g = cs.filter((c) => language(refsBy[c.key].text) === l).map((c) => judgeData.map((j) => j[`${name}|${c.key}`]?.score).filter((x): x is number => x !== undefined)).filter((x) => x.length).map((x) => [mean(x)])
+      if (!g.length) return '-'
+      const ci = boot(g, mean)
+      return `${mean(g.flat()).toFixed(2)} (${ci[0].toFixed(2)}-${ci[1].toFixed(2)})`
+    })
+    lines.push(`| ${e.label} | ${cells.join(' | ')} |`)
   }
   lines.push('', `Latency: ${'batch = request -> transcript, sent when she stops; streaming = last 100 ms chunk (sent in real time) -> final transcript'}. Samples per engine = rounds x lines (no-speech lines excluded for streaming).`)
   lines.push('Cost: list prices per minute of audio sent; streaming billed for every second the connection carries audio.')
