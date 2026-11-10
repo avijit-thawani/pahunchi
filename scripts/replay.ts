@@ -1,6 +1,7 @@
 // Replays logged calls as pages: the call's real audio on one timeline (user lines, ai clauses,
 // fillers) and, per turn, the user's last word -> the ai's first sound split by pipeline step.
 //   node scripts/replay.ts serve                  builds every call, serves http://localhost:5199/ (calls grouped by user; click one, Replay)
+//   thumbs on a call page (STT / LLM / TTS per turn) save at once to logs/replay/ratings.json while `serve` runs
 //   node scripts/replay.ts name <id> <name>       names every call from that call's device (kept in logs/, not git)
 //   node scripts/replay.ts [<id>|latest|all]      -> logs/replay/<id>.html (+ index.html)
 //   node scripts/replay-shot.mjs <id> [--video]   -> PNG (and MP4 with the call audio)
@@ -243,6 +244,8 @@ function nickname(key: string, taken: Set<string>): string {
 }
 
 const NAMES = path.join(OUT, 'names.json')
+const RATINGS = path.join(OUT, 'ratings.json') // thumbs from the call pages: { <call id>: { <turn>: { stt|llm|tts: 1 | -1 } } }
+const SIDE_FILES = ['accounts.json', 'names.json', 'ratings.json']
 const fingerprint = (r: Replay) => `${r.device}|${r.screen}|${r.tzMin}`
 
 function env(name: string): string | undefined {
@@ -329,7 +332,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const real = r.turns.filter((x) => !x.estimated && x.user)
     console.log(`${OUT}/${id}.html  ${r.turns.length} turns, ${r.clips.length} clips, median ${real.length ? median(real.map((x) => x.totalMs)) : '-'} ms`)
   }
-  const all = readdirSync(OUT).filter((f) => f.endsWith('.json') && f !== 'accounts.json' && f !== 'names.json').map((f) => JSON.parse(readFileSync(path.join(OUT, f), 'utf8')) as Replay)
+  const all = readdirSync(OUT).filter((f) => f.endsWith('.json') && !SIDE_FILES.includes(f)).map((f) => JSON.parse(readFileSync(path.join(OUT, f), 'utf8')) as Replay)
   const who = callers(all, await accounts())
   // Every page carries its caller's name, so pages are rewritten whenever names may have changed.
   for (const r of all) writeFileSync(path.join(OUT, `${r.id}.html`), page(r, who.get(r.id)))
@@ -339,6 +342,26 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const types: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.wav': 'audio/wav', '.json': 'application/json', '.png': 'image/png', '.mp4': 'video/mp4' }
     http.createServer((req, res) => {
       const url = decodeURIComponent(new URL(req.url!, 'http://x').pathname)
+      if (req.method === 'POST' && url === '/rate') {
+        // A thumb on a call page: written straight to disk so nothing is lost if the tab closes.
+        let body = ''
+        req.on('data', (c) => (body += c))
+        req.on('end', () => {
+          try {
+            const { id, turn, step, v } = JSON.parse(body)
+            if (!/^[\w-]+$/.test(id) || !/^\d+$/.test(turn) || !['stt', 'llm', 'tts'].includes(step) || ![1, 0, -1].includes(v)) throw new Error('bad rating')
+            const all = json(RATINGS) ?? {}
+            const t = ((all[id] ??= {})[turn] ??= {})
+            if (v) t[step] = v
+            else delete t[step]
+            if (!Object.keys(all[id][turn]).length) delete all[id][turn]
+            if (!Object.keys(all[id]).length) delete all[id]
+            writeFileSync(RATINGS, JSON.stringify(all, null, 1))
+            res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"ok":true}')
+          } catch (e) { res.writeHead(400); res.end(String(e)) }
+        })
+        return
+      }
       if (url === '/') { res.writeHead(302, { Location: '/replay/' }); res.end(); return }
       const p = path.join(root, url.endsWith('/') ? url + 'index.html' : url)
       if (!p.startsWith(root) || !existsSync(p) || statSync(p).isDirectory()) { res.writeHead(404); res.end(); return }
