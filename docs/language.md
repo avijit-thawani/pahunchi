@@ -52,7 +52,7 @@ Untested: how often the LLM picks the right language from two transcripts of one
 | Scribe v2 | 378 / 517 ms | 1.03 | 0.22 |
 | Scribe v2 Realtime | 94 / 149 ms | 0.92 | 0.39 |
 | Sarvam `hi-IN` (today) | 608 / 1007 ms | 1.08 | 0.35 |
-| Smallest Pulse | 500 / 933 ms | 1.11 | 0.18 |
-| Smallest Pulse streaming | 136 / 176 ms (1 round so far) | 0.84 | 0.24 |
+| Smallest Pulse | 522 / 904 ms | 1.11 | 0.18 |
+| Smallest Pulse streaming | 143 / 201 ms | 0.84 | 0.24 |
 
 Differences under ~0.25 in accuracy are noise. By language (Hindi 12 / Hinglish 26 / English 10 lines; `logs/stt-bench/report2.md`): Scribe is best on English (1.60) but weak on Hinglish (0.81); Sarvam is even across all three (0.92-1.30); Smallest batch is best on Hindi (1.21); all streaming modes drop on Hinglish (0.65-1.02). Per-language groups are small: CIs span ~±0.5.
