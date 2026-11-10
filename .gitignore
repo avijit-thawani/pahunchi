@@ -23,5 +23,9 @@ video/screens/
 video/audio/
 video/renders/
 video/fonts/
+# kanban cards and their screenshots: local working notes for agents, not published
+kanban/
+# kanban cards and their screenshots: local working notes for agents, not on GitHub
+kanban/
 # written by netlify deploy (edge function bundling)
 deno.lock

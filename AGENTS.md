@@ -37,9 +37,9 @@ Only a human edits these two files (helped by one designated maintainer chat). E
 
 ## kanban/: one card per feature
 
-One markdown file per feature we want to ship, e.g. `kanban/call-me-later.md`. New cards only when the user asks; [kanban/example.md](kanban/example.md) shows one shape. Write whatever helps the next reader: what the feature does, where it lives on web and Android, what's tested, what's broken. About 400 words.
+One markdown file per feature we want to ship, e.g. `kanban/call-me-later.md`. The folder is local and gitignored: edit cards in place, never commit them. New cards only when the user asks; [kanban/example.md](kanban/example.md) shows one shape. Write whatever helps the next reader: what the feature does, where it lives on web and Android, what's tested, what's broken. About 400 words.
 
-Front matter: `tags:`, `tests:` (whatever covers the feature, commands or short manual checks), and `transcripts:`, where each agent that writes to the card adds `<transcript-uuid> YYYY-MM-DD <what changed>`, newest first. In Cursor the uuid is your chat's file name under the project's `agent-transcripts/`; in Claude Code, the session id. Commit the uuid only, not an absolute path.
+Front matter: `tags:`, `tests:` (whatever covers the feature, commands or short manual checks), and `transcripts:`, where each agent that writes to the card adds `<transcript-uuid> YYYY-MM-DD <what changed>`, newest first. In Cursor the uuid is your chat's file name under the project's `agent-transcripts/`; in Claude Code, the session id. Write the uuid only, not an absolute path.
 
 ### Tags
 

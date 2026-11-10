@@ -1,18 +1,10 @@
-<!-- META RULE: cap this file at 150 lines. It is a working map for humans and
-     agents, not a manual. If `wc -l README.md` exceeds 150, rephrase or truncate
-     rather than append: tighten prose, delete what has stopped being true, or
-     move a section into docs/ and link it from here. Check before every commit.
-     Sibling docs carry their own caps. -->
+<!-- HUMAN-ONLY FILE. Agents: never edit README.md or AGENTS.md; track work in kanban/ (rules in AGENTS.md). Cap: 1700 words (`wc -w README.md`); one line per paragraph or bullet, no hard wraps. Tighten, delete what stopped being true, or move a section into docs/ and link it, rather than append. Sibling docs carry their own caps. -->
 
 # Pahunchi
 
 **Try it here, free: <https://pahunchi.netlify.app>**
 
-A fake phone call that talks back. In India many women call someone, or pretend to,
-when walking alone or riding in a cab at night. Pahunchi places a call to an AI "dad",
-"mom", "brother" or "friend" who answers in a natural Indian voice (Hindi, English or
-Hinglish), reacts like a real person, and keeps quiet when she just wants to scroll.
-Why: women already fake "haan papa, bas pahunch rahi hoon" calls in cabs; evidence and competitors in [docs/landscape.md](docs/landscape.md).
+A fake phone call that talks back. In India many women call someone, or pretend to, when walking alone or riding in a cab at night. Pahunchi places a call to an AI "dad", "mom", "brother" or "friend" who answers in a natural Indian voice (Hindi, English or Hinglish), reacts like a real person, and keeps quiet when she just wants to scroll. Why: women already fake "haan papa, bas pahunch rahi hoon" calls in cabs; evidence and competitors in [docs/landscape.md](docs/landscape.md).
 
 Free to use. React PWA + Netlify + Supabase + OpenRouter (one key for LLM, STT and TTS).
 <p><a href="docs/media/phoney-demo.mp4"><img src="docs/media/phoney-demo.webp" width="300" alt="Demo: a real call with Papa, then I'm safe, contacts and Call me later"></a><br><sub>Demo with sound: <a href="docs/media/phoney-demo.mp4">full, 81 s</a> · <a href="docs/media/phoney-demo-teaser.mp4">teaser, 37 s</a>. The call audio is the real app (her lines in a Sarvam voice); reply times are measured.</sub></p>
@@ -20,53 +12,36 @@ Free to use. React PWA + Netlify + Supabase + OpenRouter (one key for LLM, STT a
 
 ## The call
 
-- Pick who answers: male/female, parent/sibling/friend. Language: Hindi, English,
-  Hinglish, all with Indian accents (more languages later).
-- The responder mostly responds. Sometimes it asks something useful, like a person would:
-  "gaadi ka number bata zara" when she mentions a cab, "haan, location share aa gaya",
-  "toh kitni der mein pahunch jaogi?". It is not nosy and is fine with long silences.
+- Pick who answers: male/female, parent/sibling/friend. Language: Hindi, English, Hinglish, all with Indian accents (more languages later).
+- The responder mostly responds. Sometimes it asks something useful, like a person would: "gaadi ka number bata zara" when she mentions a cab, "haan, location share aa gaya", "toh kitni der mein pahunch jaogi?". It is not nosy and is fine with long silences.
 - Realism: phone-band audio, TV/fan in their room, natural pauses; bar: "a bystander believes it".
 
 ## Safety features (order to be decided)
 
-- **Trusted contacts.** Notify them immediately or only after a delay. The delayed
-  mode is for when she does not want to disturb anyone: like Google's inactive-account
-  manager, data is released only if she does not tap **"I'm safe"** in time.
-- **Gentle nudge.** If a session goes quiet, contacts get "a call was started, please
-  check on her", with the call audio, transcript, and anything she mentioned (cab
-  plate, route).
-- **Location sharing**, later, if needed.
+- **Trusted contacts.** Notify them immediately or only after a delay. The delayed mode is for when she does not want to disturb anyone: like Google's inactive-account manager, data is released only if she does not tap **"I'm safe"** in time.
+- **Gentle nudge.** If a session goes quiet, contacts get "a call was started, please check on her", with the call audio, transcript, and anything she mentioned (cab plate, route).
+- **Location sharing** during calls (opt-in on Contacts): contacts get a map + trail under the same delay rule.
 - **Records retained** for a possible investigation, even after "I'm safe".
 
 Later: make call time useful (voice journal, a listener); export just her side of the transcript.
 
+## Shipping intent
+
+Two channels: **dev** (branch `main`, `main--pahunchi.netlify.app`, debug build on our Pixel), where agents ship freely, and **prod** (branch `prod`, `pahunchi.netlify.app`; Play Store later), what users get. The bar for prod is **feature and UI/UX parity**: each feature exists, looks and sits in the same place on web and Android (same screen, entry point, copy), or its card says why not. Before a prod release, [docs/preprod-checklist.md](docs/preprod-checklist.md) runs on the dev release. Agents track features in a local, gitignored `kanban/`; rules in [AGENTS.md](AGENTS.md).
+
 ## Status
 
-Live at <https://pahunchi.netlify.app> (public; rate limits + key cap): call loop, server-side call logging, voice
-lab. Google sign-in (Supabase Auth) gates trusted contacts, linked via a `/join/<token>` link or the email she typed.
-Signed-in calls sync to `calls`; contacts see them in History per their delay (`shared_calls()`). No contact alerts yet.
+Live at <https://pahunchi.netlify.app> (public; rate limits + key cap): call loop, server-side call logging, voice lab. Google sign-in (Supabase Auth) gates trusted contacts, linked via a `/join/<token>` link or the email she typed. Signed-in calls sync to `calls`; contacts see them in History per their delay (`shared_calls()`). No contact alerts yet.
 
-- **Call loop:** ringback -> responder picks up -> browser VAD -> STT Sarvam `saaras:v4` (Scribe fallback) -> reply
-  `google/gemini-3.5-flash-lite` (reasoning `minimal`), streamed -> TTS per clause as soon as it is complete ->
-  phone-band filter with a TV room behind. A cached "हम्म / हाँ" plays if he hasn't started 2.5 s after she stops.
-  Long silences ask the model, which usually stays quiet. Mic is ignored while he talks (no barge-in yet).
-- **Turn detection (speculative):** at 300 ms of silence the app sends STT + reply + TTS; it plays
-  only once the silence reaches 600 ms and drops it all if she resumes (mostly caught during STT).
-- **Voices (A/B, all Sarvam Bulbul v4 Flash):** 2 per role, one picked at random per call and logged (`voiceId`):
-  dad sumit/girish, mom shreya/suchitra, sister aparna/sanchita, brother shubh/kabir; Dost/Saheli reuse the
-  sibling voices with their own prompt note (`shared/personas.ts`). Fallbacks: Fish clone of Algenib (dad), then Smallest AI `lightning_v3.1` (needs `SMALLEST_API_KEY`), then two Gemini voices. Optional 👍/👎 + note after the call → `feedback.json`.
-- **Latency** (her last word -> his first sound, median of 8 lab turns): **~2.3-2.5 s** (was ~4.3), local and
-  deployed. Real browser calls: 1.9-2.9 s. See [docs/latency.md](docs/latency.md).
+- **Call loop:** ringback -> responder picks up -> browser VAD -> STT Sarvam `saaras:v4` (Scribe fallback) -> reply `google/gemini-3.5-flash-lite` (reasoning `minimal`), streamed -> TTS per clause as soon as it is complete -> phone-band filter with a TV room behind. A cached "हम्म / हाँ" plays if he hasn't started 2.5 s after she stops. Long silences ask the model, which usually stays quiet. Mic is ignored while he talks (no barge-in yet).
+- **Turn detection (speculative):** at 300 ms of silence the app sends STT + reply + TTS; it plays only once the silence reaches 600 ms and drops it all if she resumes (mostly caught during STT).
+- **Voices (A/B, all Sarvam Bulbul v4 Flash):** 2 per role, one picked at random per call and logged (`voiceId`): dad sumit/girish, mom shreya/suchitra, sister aparna/sanchita, brother shubh/kabir; Dost/Saheli reuse the sibling voices with their own prompt note (`shared/personas.ts`). Fallbacks: Fish clone of Algenib (dad), then Smallest AI `lightning_v3.1` (needs `SMALLEST_API_KEY`), then two Gemini voices. Optional 👍/👎 + note after the call → `feedback.json`.
+- **Latency** (her last word -> his first sound, median of 8 lab turns): **~2.3-2.5 s** (was ~4.3), local and deployed. Real browser calls: 1.9-2.9 s. See [docs/latency.md](docs/latency.md).
 - **Cost:** voice is Sarvam ₹1 per 1,000 chars (~$0.0065 per minute of him talking); a busy call is well under $0.01/min.
-- **Screens:** pick responder + language, a dialer-style call screen (transcript behind "Text"; latency with `phoney.debug`),
-  "I'm safe" + optional 👍/👎 note after the call (→ `feedback.json`), history, trusted contacts + join page.
-- **Call me later:** she picks when (5 m-1 h, or a clock time) and why: "Get me out" (a preset excuse) or "Check on
-  me". At that time a Web Push (no sign-in; Netlify Blobs + per-minute `ring.ts`) or, if Pahunchi is open, the app itself
-  rings; she answers on `/incoming` and he speaks first. iPhone: push needs Add to Home Screen.
-- **Voice lab** (`sim/`): OpenRouter, Smallest and Sarvam voices auditioned; roles cast with a v2 judge
-  (estimated age/gender, hard lines) in `sim/roles.py`; page `sim/out/index.html`. See [docs/voices.md](docs/voices.md).
-
-A PWA in the background (she switches apps to scroll) may lose mic/audio, especially on iOS; native wrapper later.
+- **Screens:** pick responder + language, a dialer-style call screen (transcript behind "Text"; latency with `phoney.debug`), "I'm safe" + optional 👍/👎 note after the call (→ `feedback.json`), history, trusted contacts + join page.
+- **Call me later:** she picks when (5 m-1 h, or a clock time) and why: "Get me out" (a preset excuse) or "Check on me". At that time a Web Push (no sign-in; Netlify Blobs + per-minute `ring.ts`) or, if Pahunchi is open, the app itself rings; she answers on `/incoming` and he speaks first. iPhone: push needs Add to Home Screen.
+- **Voice lab** (`sim/`): OpenRouter, Smallest and Sarvam voices auditioned; roles cast with a v2 judge (estimated age/gender, hard lines) in `sim/roles.py`; page `sim/out/index.html`. See [docs/voices.md](docs/voices.md).
+- **Android app** (Capacitor, `android/`): the same build in a native shell; `/api/*` goes to the site (`server/cors.ts`), Google sign-in via the system browser + deep link. Call mic and location sharing keep going in the background. iOS next.
 
 ## Layout
 
@@ -74,14 +49,14 @@ A PWA in the background (she switches apps to scroll) may lose mic/audio, especi
 src/            React app: pages/, lib/call.ts (call loop, speculative turns), api.ts (streamed
                 reply -> per-clause TTS), audio.ts (phone chain, ringback, PCM playback),
                 mic.ts (VAD -> WAV), store.ts (localStorage), supabase.ts (auth client)
-supabase/       migrations/ (trusted_contacts + calls, RLS, invite/email-link/shared_calls functions)
+supabase/       migrations/ (trusted_contacts, calls, call_locations, RLS, invite/shared_calls/shared_call_path)
 server/         API handlers as Request -> Response: api.ts (stt, reply as NDJSON stream, tts
                 with fallback, log), voices/ (clone reference clips), log.ts (call logging),
                 limits.ts (request caps), auth.ts (password gate), prompt.ts, schedule.ts (call me later)
 netlify/        functions/api.ts (all of /api/*), ring.ts (due pushes), edge-functions/gate.ts (password gate)
 shared/         personas (voices, style), scene.ts (call-me-later purposes), clauses.ts, API types
-scripts/        smoke-call.ts (headless call with lab clips), logs.ts (inspect call logs),
-                setup-supabase.ts (creates the log bucket)
+scripts/        smoke-call.ts (headless call), logs.ts (inspect call logs), setup-supabase.ts (log bucket)
+android/        Capacitor app (capacitor.config.ts); web side in src/lib/native.ts, location.ts
 sim/            voice lab: scenes.json, lab.py, orlib.py; out/ + ledger gitignored
 video/          demo video: capture.mjs (screens on demo data), take.ts (real call takes), build.py (cut)
 docs/voices.md  TTS findings, scores, costs, latency
@@ -95,57 +70,37 @@ npm run dev                  # http://localhost:5173, /api/* served by vite.conf
 npm run dev:phone            # HTTPS on the LAN so a phone can use the mic
 node scripts/smoke-call.ts cab_night dad hinglish   # headless check (PHONEY_URL/PASSWORD: deployed)
 uv run sim/lab.py all        # voice lab (needs ffmpeg); open sim/out/index.html
+npm run android              # build + copy into android/, then android/gradlew assembleDebug (JDK 21)
 ```
 
-Needs `OPENROUTER_API_KEY` in `phoney/.env` or the shared `../.env` (server-side only).
-Models are overridable with `PHONEY_LLM_MODEL`, `PHONEY_STT_MODEL`, `PHONEY_TTS_MODEL`.
-The lab stops at `PHONEY_BUDGET_USD` (default $8); the app's calls are not budgeted.
+Needs `OPENROUTER_API_KEY` in `phoney/.env` or `../.env` (server-side only). Models: `PHONEY_LLM_MODEL`, `PHONEY_STT_MODEL`, `PHONEY_TTS_MODEL`. The lab stops at `PHONEY_BUDGET_USD` (default $8); the app's calls are not budgeted.
 
 ## Call logs
 
-Every call is logged server-side for debugging: per turn her WAV (as sent to STT), transcript, reply, his TTS audio,
-timings (STT, LLM first clause, TTS first byte), models, TTS engine and errors; plus the client's start/end summaries
-(persona, language, user agent, per-turn latency, silences, fillers). The client sends `X-Phoney-Session` /
-`X-Phoney-Turn` headers and posts to `/api/log`; failures never break a call.
+Every call is logged server-side for debugging: per turn her WAV (as sent to STT), transcript, reply, his TTS audio, timings (STT, LLM first clause, TTS first byte), models, TTS engine and errors; plus the client's start/end summaries (persona, language, user agent, per-turn latency, silences, fillers). The client sends `X-Phoney-Session` / `X-Phoney-Turn` headers and posts to `/api/log`; failures never break a call.
 
 - **Dev:** `logs/calls/<session>/` (gitignored; session ids start with the date).
-- **Deployed:** private Supabase Storage bucket `phoney-logs` in the phoney project (same one as
-  accounts, so "Delete all my data" reaches both), same layout, events as `events/*.json`. Also
-  one `[log]` line per request in the Netlify function logs. `scripts/move-logs.ts` copied the
-  bucket over from the old `mandarin` project.
-- `node scripts/logs.ts [latest|<id>]` shows a timeline; `--remote [<id>]` lists or
-  downloads deployed sessions into `logs/calls/`.
+- **Deployed:** private Supabase Storage bucket `phoney-logs` in the phoney project (same one as accounts, so "Delete all my data" reaches both), same layout, events as `events/*.json`. Also one `[log]` line per request in the Netlify function logs (`scripts/move-logs.ts` moved it from `mandarin`).
+- `node scripts/logs.ts [latest|<id>]` shows a timeline; `--remote [<id>]` lists or downloads deployed sessions into `logs/calls/`.
 
 ## Deploy (Netlify)
 
-`netlify deploy --build --prod` from `phoney/` (site `phoney-call`, already linked). Password gate
-(edge function + rechecked in the API function, HttpOnly HMAC cookie) is off while `PHONEY_PUBLIC=1`. Caps: Netlify per-IP rate limits (400 req/min site, 200/min
-API) plus in-memory 150/min per IP and 2500 requests per call session.
-Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_URL`,
-`SUPABASE_SERVICE_ROLE_KEY`, `PHONEY_PASSWORD` (spaces or hyphens between words both work),
-`PHONEY_COOKIE_SECRET` (random hex; rotating either logs everyone out), `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY`
-(Web Push; `npx web-push generate-vapid-keys`; changing them breaks existing subscriptions). Locally,
-`phoney/.env` holds the Supabase pair for `logs.ts --remote` and `setup-supabase.ts`.
+Site `phoney-call` deploys from GitHub: every push to `main` goes to `main--pahunchi.netlify.app` (dev), and pushing `main` to `prod` (`git push origin main:prod`) releases `pahunchi.netlify.app`. Password gate (edge function + rechecked in the API function, HttpOnly HMAC cookie) is off while `PHONEY_PUBLIC=1`. Caps: Netlify per-IP rate limits (400 req/min site, 200/min API) plus in-memory 150/min per IP and 2500 requests per call session. Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PHONEY_PASSWORD` (spaces or hyphens between words both work), `PHONEY_COOKIE_SECRET` (random hex; rotating either logs everyone out), `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (Web Push; `npx web-push generate-vapid-keys`; changing them breaks existing subscriptions). Locally, `phoney/.env` holds the Supabase pair for `logs.ts --remote` and `setup-supabase.ts`.
 
 ## Roadmap
 
-- [x] Voice lab: provider audition, scripted calls, phone-call mix
-- [x] Live loop: mic -> STT -> LLM -> TTS, latency shown per turn
+Done: voice lab; live loop; latency 4.3 -> 2.3 s; voices for every role; rate limits, password gate, call logging; Google auth + trusted contacts; call me later; Android app + location sharing. Open items become kanban cards when picked up.
 - [ ] Try it on a phone; tune VAD thresholds, prompt, filler frequency
-- [x] Cut latency: streamed reply, per-clause Fish TTS, speculative turn detection (4.3 -> 2.3 s)
 - [ ] Barge-in; re-measure latency from an Indian network
-- [ ] Audition voices for mom / siblings / friends
-- [x] Rate-limit /api, password gate, call logging (local + Supabase Storage)
-- [x] Supabase: Google auth, trusted contacts + invite links (RLS); [ ] sessions, transcripts
-- [x] Call me later: scheduled "Get me out" / "Check on me" call via Web Push; [ ] alert contacts if unanswered
+- [ ] Supabase sessions + transcripts; call me later: alert contacts if unanswered
 - [ ] "I'm safe" timer + delayed notify (Netlify scheduled function)
-- [ ] Move the logs bucket from `mandarin` into the `Pahunchi` project (accounts already live there)
+- [ ] Play Store listing, iOS app
 
 ## Conventions
 
 - Never commit secrets or generated audio; `sim/out/` and the ledger are gitignored.
 - Lab paid calls go through `orlib` so they are logged and budget-checked.
 - The OpenRouter key stays server-side (`server/`); the browser only calls `/api/*`.
-- Before committing: `npm run build && npm run lint`, and `wc -l README.md` <= 150.
-- After a notable app change (new feature, persona, voice, flow): update this README, the GitHub repo (description, homepage, screenshots in `docs/media/`) and, if needed, the in-app home copy and instructions.
+- Before committing: `npm run build && npm run lint`, and `wc -w README.md` <= 1700.
+- After a notable app change (new feature, persona, voice, flow): update its kanban card and, if needed, the in-app home copy; a human folds it into this README, the GitHub repo and `docs/media/` screenshots now and then.
 - TTS text: Hindi in Devanagari (better pronunciation), with a roman transcript beside it for display.
