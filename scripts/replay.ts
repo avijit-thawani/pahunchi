@@ -1,6 +1,7 @@
 // Replays logged calls as pages: the call's real audio on one timeline (user lines, ai clauses,
 // fillers) and, per turn, the user's last word -> the ai's first sound split by pipeline step.
 //   node scripts/replay.ts serve                  builds every call, serves http://localhost:5199/ (calls grouped by user; click one, Replay)
+//   node scripts/replay.ts name <id> <name>       names every call from that call's device (kept in logs/, not git)
 //   node scripts/replay.ts [<id>|latest|all]      -> logs/replay/<id>.html (+ index.html)
 //   node scripts/replay-shot.mjs <id> [--video]   -> PNG (and MP4 with the call audio)
 // Deployed calls: `node scripts/logs.ts --remote <id>` downloads one into logs/calls/ first.
@@ -202,11 +203,20 @@ const NOUN = ['banyan', 'chai', 'dhow', 'egret', 'ferry', 'gulmohar', 'heron', '
 function nickname(key: string, taken: Set<string>): string {
   let h = 2166136261
   for (const c of key) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0
-  for (let i = 0; ; i++) {
-    const name = `${ADJ[(h + i) % ADJ.length]}-${NOUN[(Math.floor(h / ADJ.length) + i) % NOUN.length]}`
-    if (!taken.has(name)) { taken.add(name); return name }
+  h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0 // similar keys differ only in their last characters: mix
+  // No adjective or noun repeats until the list runs out, so names are easy to tell apart.
+  const pick = (words: string[], from: number) => {
+    for (let i = 0; i < words.length; i++) {
+      const w = words[(from + i) % words.length]
+      if (!taken.has(w)) { taken.add(w); return w }
+    }
+    return words[from % words.length]
   }
+  return `${pick(ADJ, h % ADJ.length)}-${pick(NOUN, (h >>> 8) % NOUN.length)}`
 }
+
+const NAMES = path.join(OUT, 'names.json')
+const fingerprint = (r: Replay) => `${r.device}|${r.screen}|${r.tzMin}`
 
 function env(name: string): string | undefined {
   if (process.env[name]) return process.env[name]
@@ -243,12 +253,14 @@ async function accounts(): Promise<Record<string, string>> {
 /** One row per call: who called (account, else a nickname per device + screen + timezone), when, and step medians. */
 function index(rs: Replay[], account: Record<string, string>): string {
   const taken = new Set<string>(), nick = new Map<string, string>()
+  const named: Record<string, string> = json(NAMES) ?? {}
   const rows = [...rs].sort((a, b) => (a.startedAt ?? '').localeCompare(b.startedAt ?? '')).map((r) => {
     const real = r.turns.filter((x) => !x.estimated && x.user)
     const totals = real.map((x) => x.totalMs)
-    const known = !!account[r.id]
-    const key = `${r.device}|${r.screen}|${r.tzMin}`
-    const user = r.script ? SCRIPTS : known ? account[r.id] : nick.get(key) ?? nick.set(key, nickname(key, taken)).get(key)!
+    const key = fingerprint(r)
+    // Who: a name given with `replay.ts name`, else the signed-in account, else a nickname for the device.
+    const known = named[key] ? 'named by you' : account[r.id] ? 'signed in' : ''
+    const user = r.script ? SCRIPTS : named[key] ?? account[r.id] ?? nick.get(key) ?? nick.set(key, nickname(key, taken)).get(key)!
     const steps = Object.fromEntries((Object.keys(COLORS) as (keyof typeof COLORS)[]).map((k) =>
       [k, real.length ? median(real.map((x) => { const s = x.steps.find((y) => y.key === k); return s ? (s.gate ?? s.to - s.from) : 0 })) : 0]))
     return {
@@ -264,8 +276,17 @@ function index(rs: Replay[], account: Record<string, string>): string {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const arg = process.argv[2] || 'latest'
+  mkdirSync(OUT, { recursive: true })
+  if (arg === 'name') {
+    // Stays in logs/ (gitignored): real people's names never go to git.
+    const [id, ...words] = process.argv.slice(3)
+    const r = id ? build(id) : undefined
+    if (!r || !words.length) { console.log('usage: replay.ts name <call id> <name>   (names every call from that device)'); process.exit(1) }
+    writeFileSync(NAMES, JSON.stringify({ ...(json(NAMES) ?? {}), [fingerprint(r)]: words.join(' ') }, null, 1))
+    console.log(`${fingerprint(r)} -> ${words.join(' ')}`)
+  }
   const ids = readdirSync(CALLS).filter((d) => statSync(path.join(CALLS, d)).isDirectory()).sort()
-  const pick = arg === 'all' || arg === 'serve' ? ids : arg === 'latest' ? ids.filter((d) => /^2026\d{4}-/.test(d)).slice(-1) : [arg]
+  const pick = arg === 'all' || arg === 'serve' || arg === 'name' ? ids : arg === 'latest' ? ids.filter((d) => /^2026\d{4}-/.test(d)).slice(-1) : [arg]
   mkdirSync(OUT, { recursive: true })
   const built: Replay[] = []
   for (const id of pick) {
@@ -277,7 +298,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const real = r.turns.filter((x) => !x.estimated && x.user)
     console.log(`${OUT}/${id}.html  ${r.turns.length} turns, ${r.clips.length} clips, median ${real.length ? median(real.map((x) => x.totalMs)) : '-'} ms`)
   }
-  const all = readdirSync(OUT).filter((f) => f.endsWith('.json') && f !== 'accounts.json').map((f) => JSON.parse(readFileSync(path.join(OUT, f), 'utf8')) as Replay)
+  const all = readdirSync(OUT).filter((f) => f.endsWith('.json') && f !== 'accounts.json' && f !== 'names.json').map((f) => JSON.parse(readFileSync(path.join(OUT, f), 'utf8')) as Replay)
   writeFileSync(path.join(OUT, 'index.html'), index(all, await accounts()))
   if (arg === 'serve') {
     const root = path.resolve('logs')

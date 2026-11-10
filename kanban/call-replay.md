@@ -3,6 +3,7 @@ feature: Call replay (listen to a logged call, see where each reply's delay went
 tags: []
 tests: [replay-serve, replay-shot]
 transcripts:
+  - efb09834-6f42-40b0-aac0-b2aad62a205e 2026-11-10 index: times on the caller's clock with zone names, `replay.ts name`, nicknames no longer repeat words (local commit, not pushed)
   - efb09834-6f42-40b0-aac0-b2aad62a205e 2026-11-10 index reworked: calls grouped by user, sortable columns, sticky header
   - efb09834-6f42-40b0-aac0-b2aad62a205e 2026-11-10 card created retroactively, screenshots, first use on a tester's calls
   - b8e89f5b-88b6-49b8-8c53-42ff14b8c27e 2026-11-07 built the viewer (commits bce7cc5, 0f9c946, add1d31)
@@ -18,7 +19,7 @@ A local debugging page, not part of the app: it plays back any logged call on on
 <img src="media/call-replay-page.png" width="200" alt="One call: summary, whole-call row, transcript, a panel per turn">
 <img src="media/call-replay-playing.png" width="260" alt="Mid-replay: playhead crossing turn 01">
 
-Left: the index, 2026-11-10, with real callers' first words hidden for the screenshot. Middle and right: a scripted `smoke-call` with lab voices, so every bar is dashed and marked "~" (server timings plus a network guess); real calls show solid bars for the server's share and hatched for upload, network and decode. Real callers' pages are never committed.
+Left: the index, 2026-11-10, with real callers' first words and given names hidden for the screenshot. Middle and right: a scripted `smoke-call` with lab voices, so every bar is dashed and marked "~" (server timings plus a network guess); real calls show solid bars for the server's share and hatched for upload, network and decode. Real callers' pages are never committed.
 
 ## Where it lives
 
@@ -34,8 +35,8 @@ Deployed calls must be downloaded first: `node scripts/logs.ts --remote` lists t
 ## How to read it
 
 - Step lengths come from the phone's per-turn metrics, so they add up to the delay she heard. The STT bar therefore includes the upload; the solid part is the server's own time.
-- Index: one row per call (when, the caller's own clock time, device, who she called, length, user turns, median and slowest delay, first words, per-step bar). Click a header to sort; blanks always sort last. Median covers user turns timed on the phone; "–" means none (test scripts, or she hung up before speaking).
-- Users: a signed-in call takes the account's name (looked up through the `calls` table with the service key in `.env`, cached in `logs/replay/accounts.json`). Everyone else gets a made-up adjective-noun name per device + screen size + UTC offset, so two people with the same phone model in one timezone merge, and one person on two devices splits. The UTC offset comes from the session id, which starts with the caller's local time. "Group by user" can be switched off.
+- Index: one row per call (when on the caller's own clock, with the zone's name where the offset has one obvious zone, e.g. IST, EST, else the offset; device, who she called, length, user turns, median and slowest delay, first words, per-step bar). Click a header to sort; blanks always sort last. Median covers user turns timed on the phone; "–" means none (test scripts, or she hung up before speaking).
+- Users: `node scripts/replay.ts name <call id> <name>` names every call from that call's device (kept in `logs/replay/names.json`, never in git). Otherwise a signed-in call takes the account's name (looked up through the `calls` table with the service key in `.env`, cached in `logs/replay/accounts.json`). Everyone else gets a made-up adjective-noun name (no word reused across callers) per device + screen size + UTC offset, so two people with the same phone model in one timezone merge, and one person on two devices splits. The UTC offset comes from the session id, which starts with the caller's local time. "Group by user" can be switched off.
 - The opening line and turns the call ended on have no phone metrics, so they use server timings and are marked "~".
 - Fillers are placed from the phone's clock, corrected by the start event's skew.
 

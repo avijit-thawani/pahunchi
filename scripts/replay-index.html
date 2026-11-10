@@ -38,13 +38,15 @@ const secs = (ms) => (ms == null ? '–' : (ms / 1000).toFixed(1) + ' s')
 const speed = (ms) => (ms == null ? '' : ms >= 3500 ? 'slow' : ms <= 2700 ? 'ok' : '')
 const len = (s) => (s == null ? '–' : s >= 60 ? Math.floor(s / 60) + 'm ' + String(Math.round(s % 60)).padStart(2, '0') + 's' : Math.round(s) + ' s')
 const when = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+// Offsets with one obvious zone get its name; the rest could be several countries, so they stay as an offset.
+const ZONES = { 330: 'IST', '-300': 'EST', '-240': 'EDT', '-360': 'CST', '-420': 'MST', '-480': 'PST', 0: 'GMT', 60: 'CET', 345: 'NPT', 480: 'SGT', 540: 'JST' }
 const utc = (min) => 'UTC' + (min < 0 ? '−' : '+') + Math.floor(Math.abs(min) / 60) + (min % 60 ? ':' + String(Math.abs(min) % 60).padStart(2, '0') : '')
-/** The caller's own clock time, from their UTC offset. */
-function theirs(r) {
-  if (r.tzMin == null) return '<span class="dim">–</span>'
-  const d = new Date(r.at + r.tzMin * 60000)
-  const h = d.getUTCHours(), m = String(d.getUTCMinutes()).padStart(2, '0')
-  return `${h % 12 || 12}:${m} ${h < 12 ? 'AM' : 'PM'} <span class="dim">${utc(r.tzMin)}</span>`
+const zone = (min) => ZONES[min] ?? utc(min)
+const theirClock = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC' })
+/** The call's start on the caller's own clock (their UTC offset comes from the session id); hover for yours. */
+function started(r) {
+  const text = r.tzMin == null ? when.format(r.at) : `${theirClock.format(r.at + r.tzMin * 60000)} <span class="dim">${zone(r.tzMin)}</span>`
+  return `<a href="${esc(r.id)}.html" title="${esc(when.format(r.at))} your time · ${esc(r.id)}">${text}</a>`
 }
 function bar(r) {
   return Object.keys(D.colors).map((k) => {
@@ -53,9 +55,8 @@ function bar(r) {
   }).join('')
 }
 const cols = [
-  { k: 'at', label: 'When', cell: (r) => `<a href="${esc(r.id)}.html" title="${esc(r.id)}">${when.format(r.at)}</a>` },
+  { k: 'at', label: 'When (their time)', cell: started },
   { k: 'user', label: 'User', cell: (r) => esc(r.user), grouped: false },
-  { k: 'tzMin', label: 'Their time', cell: theirs },
   { k: 'device', label: 'Device', cell: (r) => esc(r.device) || '<span class="dim">–</span>' },
   { k: 'who', label: 'Called', cell: (r) => esc(r.who) },
   { k: 'language', label: 'Language', cell: (r) => esc(r.language) },
@@ -92,8 +93,8 @@ function render() {
       const totals = g.flatMap((r) => r.totals)
       const med = median(totals)
       const devices = [...new Set(g.map((r) => r.device).filter(Boolean))].join(', ')
-      const tz = [...new Set(g.map((r) => r.tzMin).filter((x) => x != null))].map(utc).join(', ')
-      const bits = [g[0].known ? 'signed in' : '', devices, tz, `${g.length} call${g.length > 1 ? 's' : ''}`,
+      const tz = [...new Set(g.map((r) => r.tzMin).filter((x) => x != null))].map(zone).join(', ')
+      const bits = [g[0].known || '', devices, tz, `${g.length} call${g.length > 1 ? 's' : ''}`,
         totals.length ? `median <b class="${speed(med)}" style="font-size:inherit;margin:0">${secs(med)}</b> over ${totals.length} turns` : ''].filter(Boolean)
       html += `<tr class="g"><td colspan="${shown.length}"><b>${esc(name)}</b>${bits.join(' · ')}</td></tr>` + g.map(tr).join('')
     }
@@ -108,8 +109,8 @@ document.getElementById('head').onclick = (e) => {
   else { state.key = c.k; state.dir = c.num || c.k === 'at' ? -1 : 1 }
   render()
 }
-document.getElementById('sub').textContent = `${D.rows.length} calls. Click a time to replay that call, a column to sort. Median and breakdown cover user turns timed on the phone (– = none); full bar width = ${D.scaleMs / 1000} s. ` +
-  `Users are a guess (same device, screen and timezone) unless signed in; names are made up.`
+document.getElementById('sub').textContent = `${D.rows.length} calls. Click a time to replay that call, a column to sort. Times are on the caller's clock. Median and breakdown cover user turns timed on the phone (– = none); full bar width = ${D.scaleMs / 1000} s. ` +
+  `Users are a guess (same device, screen and timezone) unless signed in or named with replay.ts name; other names are made up.`
 document.getElementById('lg').innerHTML = Object.keys(D.colors).map((k) => `<span><i style="background:${D.colors[k]}"></i>${D.labels[k]}</span>`).join('') +
   `<label><input type="checkbox" id="grp" checked> Group by user</label>`
 document.getElementById('grp').onchange = (e) => { state.group = e.target.checked; render() }
