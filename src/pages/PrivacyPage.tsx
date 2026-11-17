@@ -8,10 +8,10 @@ export default function PrivacyPage() {
       <h1 className="text-3xl font-extrabold tracking-tight">Privacy</h1>
       <p className="text-sm text-base-content/60 font-semibold">Pahunchi is free. Last updated November 2026.</p>
       <Section title="Calls">
-        Calls are recorded to debug and improve Pahunchi: your audio, the transcript, his replies, timings, your
-        phone's IP address and browser, and any feedback you leave are stored on our servers (Supabase). Your
-        speech is transcribed by Sarvam, his replies are written by Google's Gemini, and his voice comes from
-        Sarvam; when one of them fails, ElevenLabs, Fish Audio, Smallest AI or Google step in. Google, ElevenLabs
+        Calls are recorded to debug and improve Pahunchi: your audio, the transcript, the replies, timings, your
+        phone's IP address, browser, screen size and time zone, and any feedback you leave are stored on our
+        servers (Supabase). Your speech is transcribed by Sarvam, the replies are written by Google's Gemini, and
+        the voice comes from Sarvam; when one of them fails, ElevenLabs, Fish Audio, Smallest AI or Google step in. Google, ElevenLabs
         and Fish Audio are reached through OpenRouter.
       </Section>
       <Section title="Your account">
