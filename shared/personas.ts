@@ -35,19 +35,21 @@ export type Persona = {
 const sarvam = (speaker: string): VoiceOption =>
   ({ id: `sarvam:${speaker}`, provider: 'sarvam', model: 'bulbul:v4-flash', speaker })
 
-
+/** In the order she is likely to call them; Home lists them this way and the first is the default. */
 export const PERSONAS: Persona[] = [
   {
-    id: 'dad', label: 'Dad', defaultName: 'Papa', relation: 'father', gender: 'm',
-    voice: 'Algenib', backupVoice: 'Gacrux', smallest: 'ranbir', tested: true, available: true,
-    voices: [sarvam('sumit_hi_conversational'), sarvam('girish_hi_devotional')],
-    style: 'Indian father in his late fifties, deep, warm, unhurried, on the phone with his daughter',
-    talk: 'Call her बेटा now and then. Calm and a little protective; a father of few words.',
-    clone: {
-      model: 'fish-audio/drama-3',
-      ref: 'dad-algenib.mp3',
-      transcript: 'हम्म, लिख लिया। हाँ, location share आ गया है। तो कितनी देर में पहुँच जाओगी?',
-    },
+    id: 'friend_f', label: 'Friend (female)', defaultName: 'Saheli', relation: 'close female friend', gender: 'f',
+    voice: 'Achernar', backupVoice: 'Leda', smallest: 'zoya', tested: true, available: true,
+    voices: [sarvam('aparna_hi_customer'), sarvam('sanchita_enhi_companion')],
+    style: 'young Indian woman in her twenties from Delhi, casual, friendly, on the phone with a close friend',
+    talk: 'Close friend her own age: easy chatter, says यार, small gossip and plans, never बेटा, never parental.',
+  },
+  {
+    id: 'sister', label: 'Sister', defaultName: 'Didi', relation: 'elder sister', gender: 'f',
+    voice: 'Leda', backupVoice: 'Achernar', smallest: 'ishani', tested: true, available: true,
+    voices: [sarvam('aparna_hi_customer'), sarvam('sanchita_enhi_companion')],
+    style: 'Indian woman in her late twenties from Delhi, casual and chatty, on the phone with her younger sister',
+    talk: 'Elder sister: chatty, says यार, shares a bit of gossip, never बेटा. Big-sister protective.',
   },
   {
     id: 'mom', label: 'Mom', defaultName: 'Mummy', relation: 'mother', gender: 'f',
@@ -64,11 +66,16 @@ export const PERSONAS: Persona[] = [
     talk: 'Elder brother: light teasing, call her by name or छोटी, never बेटा. Protective underneath the jokes.',
   },
   {
-    id: 'sister', label: 'Sister', defaultName: 'Didi', relation: 'elder sister', gender: 'f',
-    voice: 'Leda', backupVoice: 'Achernar', smallest: 'ishani', tested: true, available: true,
-    voices: [sarvam('aparna_hi_customer'), sarvam('sanchita_enhi_companion')],
-    style: 'Indian woman in her late twenties from Delhi, casual and chatty, on the phone with her younger sister',
-    talk: 'Elder sister: chatty, says यार, shares a bit of gossip, never बेटा. Big-sister protective.',
+    id: 'dad', label: 'Dad', defaultName: 'Papa', relation: 'father', gender: 'm',
+    voice: 'Algenib', backupVoice: 'Gacrux', smallest: 'ranbir', tested: true, available: true,
+    voices: [sarvam('sumit_hi_conversational'), sarvam('girish_hi_devotional')],
+    style: 'Indian father in his late fifties, deep, warm, unhurried, on the phone with his daughter',
+    talk: 'Call her बेटा now and then. Calm and a little protective; a father of few words.',
+    clone: {
+      model: 'fish-audio/drama-3',
+      ref: 'dad-algenib.mp3',
+      transcript: 'हम्म, लिख लिया। हाँ, location share आ गया है। तो कितनी देर में पहुँच जाओगी?',
+    },
   },
   {
     id: 'friend_m', label: 'Friend (male)', defaultName: 'Dost', relation: 'close male friend', gender: 'm',
@@ -76,13 +83,6 @@ export const PERSONAS: Persona[] = [
     voices: [sarvam('shubh_enhi_companion'), sarvam('kabir_hi_conversational')],
     style: 'young Indian man in his twenties from Delhi, casual, friendly, on the phone with a close friend',
     talk: 'Close friend her own age: casual banter, says यार and bro-ish slang, never बेटा, never parental. Cares but plays it cool.',
-  },
-  {
-    id: 'friend_f', label: 'Friend (female)', defaultName: 'Saheli', relation: 'close female friend', gender: 'f',
-    voice: 'Achernar', backupVoice: 'Leda', smallest: 'zoya', tested: true, available: true,
-    voices: [sarvam('aparna_hi_customer'), sarvam('sanchita_enhi_companion')],
-    style: 'young Indian woman in her twenties from Delhi, casual, friendly, on the phone with a close friend',
-    talk: 'Close friend her own age: easy chatter, says यार, small gossip and plans, never बेटा, never parental.',
   },
 ]
 
@@ -92,7 +92,7 @@ export const LANGUAGES: { id: Language; label: string }[] = [
   { id: 'english', label: 'English (Indian)' },
 ]
 
-export const DEFAULT_PERSONA = 'sister'
+export const DEFAULT_PERSONA = PERSONAS[0].id
 
 export function pickVoice(p: Persona): VoiceOption | undefined {
   return p.voices?.length ? p.voices[Math.floor(Math.random() * p.voices.length)] : undefined

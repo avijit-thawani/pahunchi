@@ -10,6 +10,10 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { account, accountGone, remove, AUTH_KEY, type Account } from './e2e-accounts.ts'
+import { DEFAULT_PERSONA, persona } from '../shared/personas.ts'
+
+/** Who a fresh install calls: the name on the call screen and in History. */
+const WHO = persona(DEFAULT_PERSONA).defaultName
 
 const HEADLESS = new URL('../../scratch/ai-video/tools/headless.mjs', import.meta.url)
 const { headlessShellPath } = (await import(HEADLESS.href)) as { headlessShellPath: () => string }
@@ -142,7 +146,7 @@ try {
   // 5. call now
   await go(p, '/')
   await tap(p, 'button ::-p-text(Call)')
-  check('call screen: Papa, Mute, Speaker, Text', await waitText(p, 'Papa') && (await text(p)).includes('Mute') && (await text(p)).includes('Speaker'))
+  check(`call screen: ${WHO}, Mute, Speaker, Text`, await waitText(p, WHO) && (await text(p)).includes('Mute') && (await text(p)).includes('Speaker'))
   await sleep(4000)
   await shot(p, 'call-connected')
   await sleep(24_000)
@@ -163,7 +167,7 @@ try {
 
   // 9. history
   await go(p, '/history')
-  check('History lists the call', await waitText(p, 'Papa'))
+  check('History lists the call', await waitText(p, WHO))
   await shot(p, 'history')
 
   // 7. her contact sees it ("Right away")
