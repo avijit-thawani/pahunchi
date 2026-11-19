@@ -3,7 +3,7 @@
 
 import type { Turn } from '../../shared/api.ts'
 import { SILENT } from '../../shared/api.ts'
-import { persona, pickVoice } from '../../shared/personas.ts'
+import { persona, pickVoice, type Language } from '../../shared/personas.ts'
 import type { Scene } from '../../shared/scene.ts'
 import * as api from './api.ts'
 import { CallAudio } from './audio.ts'
@@ -29,12 +29,15 @@ export type CallState = {
 const FILLERS: Record<string, string[]> = {
   hinglish: ['हम्म।', 'हाँ।', 'अच्छा।'],
   hindi: ['हम्म।', 'हाँ।', 'अच्छा।'],
-  english: ['Hmm.', 'Haan.', 'Okay.'],
+  english: ['Hmm.', 'Okay.', 'Right.'],
 }
 const fillerCache = new Map<string, { bytes: Uint8Array; rate: number }[]>()
 const FILLER_AT_MS = 2500 // after her last word, if he hasn't started talking
 
 const silenceGap = () => 35000 + Math.random() * 40000
+// Counted from her last word (or from pickup). A quiet call is normal; a forgotten one isn't.
+const CHECK_INS_FOR_MS = 10 * 60_000 // after this he stops asking the model whether to speak, and just stays on the line
+const END_AFTER_MS = 60 * 60_000 // after this the call hangs up by itself
 
 /**
  * A turn started speculatively at the mic's short pause: transcribed and answered while we wait
@@ -58,6 +61,8 @@ function userMessage(e: unknown): string {
   if (!navigator.onLine || /Failed to fetch|NetworkError|Load failed|network/i.test(s)) {
     return "Can't reach Pahunchi. Check your internet."
   }
+  if (/"limit":"daily"/.test(s)) return "You've reached today's calling limit. Try again tomorrow."
+  if (/"limit":"busy"/.test(s)) return 'Pahunchi is busy today. Try again later.'
   if (/: 429\b/.test(s)) return 'Pahunchi is busy right now. Try again in a minute.'
   return "He didn't catch that. Keep talking."
 }
@@ -84,6 +89,8 @@ export class CallEngine {
   private current?: AbortController
   private spec?: Speculation
   private lastActivity = Date.now()
+  private lastHeard = Date.now()
+  private idleEnd?: () => void
   private nextSilence = silenceGap()
   private turnsSinceFiller = 2
   private turnNo = 0
@@ -195,6 +202,7 @@ export class CallEngine {
     }
     if (this.state.phase !== 'ringing') return
     this.set({ phase: 'connected', connectedAt: Date.now() })
+    this.lastHeard = Date.now()
     if (this.settings.ambience) void this.audio.startAmbience('/ambience/tv.mp3').catch(() => undefined)
     this.timer = setInterval(() => this.tick(), 1000)
     try {
@@ -277,6 +285,7 @@ export class CallEngine {
     try {
       const r = await api.transcribe(wav, turn, this.settings.language, spec?.ctl.signal)
       if (spec?.withdrawn) return
+      this.follow(r.language, turn)
       const text = r.text.trim()
       if (!text || /^[\s.,!?।]*$/.test(text)) {
         this.logEvent('empty-transcript', r.text, turn)
@@ -287,6 +296,17 @@ export class CallEngine {
     } catch (e) {
       if (!spec?.withdrawn) this.fail(e, turn)
     }
+  }
+
+  /** She changed language (the server's verdict on her line): prompt, his voice and fillers follow from this reply on. */
+  private follow(language: Language | undefined, turn: string) {
+    // A call she started in Hindi goes back to Hindi, not Hinglish.
+    if (language === 'hinglish' && this.session.language === 'hindi') language = 'hindi'
+    if (!language || language === this.settings.language) return
+    this.logEvent('language', `${this.settings.language} -> ${language}`, turn)
+    this.settings = { ...this.settings, language }
+    api.setLanguage(language)
+    void this.loadFillers()
   }
 
   /** Start streaming a reply (TTS starts per clause as it arrives); nothing plays yet. */
@@ -308,7 +328,7 @@ export class CallEngine {
     if (p.my !== this.gen || this.state.phase !== 'connected') return
     this.push(next)
     if (next.who === 'her') {
-      this.lastActivity = Date.now()
+      this.lastActivity = this.lastHeard = Date.now()
       this.turnsSinceFiller++
     }
     this.set({ activity: 'thinking' })
@@ -362,7 +382,15 @@ export class CallEngine {
   }
 
   private tick() {
-    if (this.state.phase !== 'connected' || this.state.activity !== 'listening') return
+    if (this.state.phase !== 'connected') return
+    const unheard = Date.now() - this.lastHeard
+    if (unheard > END_AFTER_MS) {
+      this.logEvent('idle-end', `no speech for ${Math.round(unheard / 60000)} min`)
+      if (this.idleEnd) this.idleEnd()
+      else this.hangup()
+      return
+    }
+    if (this.state.activity !== 'listening' || unheard > CHECK_INS_FOR_MS) return
     const quiet = Date.now() - this.lastActivity
     if (quiet < this.nextSilence) return
     this.lastActivity = Date.now()
@@ -371,6 +399,14 @@ export class CallEngine {
     const text = `silence ${Math.round(quiet / 1000)}s`
     this.logEvent('silence', text, turn)
     void this.respond({ turn }, Date.now(), { who: 'event', text })
+  }
+
+  /** The call screen asks to be the one that ends a call nobody has spoken on for an hour. */
+  onIdleEnd(fn: () => void) {
+    this.idleEnd = fn
+    return () => {
+      if (this.idleEnd === fn) this.idleEnd = undefined
+    }
   }
 
   toggleMute() {

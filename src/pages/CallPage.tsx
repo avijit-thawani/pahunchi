@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Captions, MicOff, PhoneOff, Volume2 } from 'lucide-react'
 import { activeCall, clearCall } from '../lib/activeCall.ts'
@@ -49,13 +49,17 @@ export default function CallPage() {
     return () => clearInterval(t)
   }, [showText])
 
-  if (!engine || !state) return <Navigate to="/" replace />
-
-  const end = () => {
+  const end = useCallback(() => {
+    if (!engine) return
     const session = engine.hangup()
     clearCall()
     navigate(`/after/${session.id}`, { replace: true })
-  }
+  }, [engine, navigate])
+
+  // A call nobody has spoken on for an hour ends itself, the same way as tapping hang up.
+  useEffect(() => engine?.onIdleEnd?.(end), [engine, end])
+
+  if (!engine || !state) return <Navigate to="/" replace />
 
   const status = state.phase === 'ringing' ? 'Ringing…' : state.phase === 'connected' ? clock : 'Call ended'
   const name = engine.name

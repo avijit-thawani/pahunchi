@@ -5,7 +5,9 @@ import { persona, type Language, type Persona, type VoiceOption } from '../share
 import type { ReplyChunk, ReplyRequest, SttResponse } from '../shared/api.ts'
 import { SILENT } from '../shared/api.ts'
 import { Clauses, speakable, stripMarkup } from '../shared/clauses.ts'
+import { hear, nextLanguage, transcriptFor, type Detected } from '../shared/language.ts'
 import { CallLog, collect, forgetSessions, pcmToWav } from './log.ts'
+import * as budget from './budget.ts'
 import { clientIp, overLimit } from './limits.ts'
 import { systemPrompt } from './prompt.ts'
 import { schedule } from './schedule.ts'
@@ -23,6 +25,8 @@ const MAX_AUDIO_BYTES = 5_000_000
 const MAX_LOG_BYTES = 200_000
 const PCM_RATE = 24000
 const CLONE_HEADERS_TIMEOUT_MS = 4000
+/** How long a turn waits for the auto-detect transcript after the Hindi one is in. */
+const AUTO_GRACE_MS = 300
 
 type Handler = (req: Request, log: CallLog) => Promise<Response>
 
@@ -43,18 +47,33 @@ async function upstreamError(label: string, r: Response, log: CallLog): Promise<
   return json({ error: `${label} failed (${r.status})` }, 502)
 }
 
-// POST raw audio bytes (Content-Type audio/wav, audio/webm, ...) -> { text }
+// POST raw audio bytes (Content-Type audio/wav, audio/webm, ...) -> { text, language }
 export async function stt(req: Request, log: CallLog): Promise<Response> {
   const buf = new Uint8Array(await req.arrayBuffer())
   if (!buf.length || buf.length > MAX_AUDIO_BYTES) return json({ error: 'bad audio size' }, 400)
+  budget.spend(req, (buf.length / 32000) * budget.PRICE.sttSecond) // 16 kHz 16-bit mono WAV
   const format = (req.headers.get('Content-Type') || 'audio/wav').split('/')[1].split(';')[0]
   log.file(`${log.turn}_her.${format}`, buf, `audio/${format}`)
-  const language = new URL(req.url).searchParams.get('lang') === 'english' ? 'en' : 'hi'
+  // The call's language so far. Every line is transcribed twice at once, forced Hindi and
+  // auto-detect, and shared/language.ts decides from both whether she has changed language.
+  const lang = new URL(req.url).searchParams.get('lang')
+  const current: Language = lang === 'english' || lang === 'hindi' ? lang : 'hinglish'
+  const language = current === 'english' ? 'en' : 'hi'
   const t0 = Date.now()
   try {
-    const text = await sarvamStt(buf, format, language)
-    const out: SttResponse = { text, ms: Date.now() - t0, model: SARVAM_STT_MODEL }
-    log.event({ kind: 'stt', text, ms: out.ms, model: SARVAM_STT_MODEL, language, bytes: buf.length })
+    const detecting = sarvamStt(buf, format, 'unknown').catch(() => null)
+    const hindi = await sarvamStt(buf, format, 'hi-IN')
+    const auto = await Promise.race([detecting, new Promise<null>((r) => setTimeout(r, AUTO_GRACE_MS, null))])
+    const heard = hear(hindi.text, auto)
+    const next = nextLanguage(current, heard)
+    let text = transcriptFor(next, heard, hindi.text, auto)
+    // An English call with no auto-detect result: forced Hindi would hand the reply English in Devanagari.
+    if (next === 'english' && !auto) text = (await sarvamStt(buf, format, 'en-IN').catch(() => hindi)).text
+    const out: SttResponse = { text, ms: Date.now() - t0, model: SARVAM_STT_MODEL, language: next }
+    log.event({
+      kind: 'stt', text, ms: out.ms, model: SARVAM_STT_MODEL, language, bytes: buf.length,
+      call: current, next, heard, hindi: hindi.text, auto,
+    })
     return json(out)
   } catch (err) {
     log.event({ kind: 'error', api: 'stt', model: SARVAM_STT_MODEL, detail: String(err).slice(0, 200) })
@@ -77,19 +96,20 @@ export async function stt(req: Request, log: CallLog): Promise<Response> {
 
 // Saaras keeps short Hindi lines in Hindi; Scribe turned "हां, क्या नाम है?" into "How can I help?".
 // `codemix` mode is avoided for the same reason (it rendered that clip as "Okay, now.").
-async function sarvamStt(buf: Uint8Array, format: string, language: 'en' | 'hi'): Promise<string> {
+async function sarvamStt(buf: Uint8Array, format: string, code: 'hi-IN' | 'en-IN' | 'unknown'): Promise<Detected> {
   const key = process.env.SARVAM_API_KEY
   if (!key) throw new Error('SARVAM_API_KEY is not set')
   const form = new FormData()
   form.append('file', new Blob([new Uint8Array(buf)], { type: `audio/${format}` }), `her.${format}`)
   form.append('model', SARVAM_STT_MODEL)
   form.append('mode', 'transcribe')
-  form.append('language_code', language === 'en' ? 'en-IN' : 'hi-IN')
+  form.append('language_code', code)
   const r = await fetch('https://api.sarvam.ai/speech-to-text', {
     method: 'POST', headers: { 'api-subscription-key': key }, body: form, signal: AbortSignal.timeout(4000),
   })
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`)
-  return String((await r.json()).transcript || '').trim()
+  const j = await r.json()
+  return { text: String(j.transcript || '').trim(), lang: j.language_code ?? null, p: j.language_probability ?? null }
 }
 
 /** Yields the `data:` payloads of a server-sent-events stream. */
@@ -111,6 +131,7 @@ async function* sseData(body: ReadableStream<Uint8Array>): AsyncGenerator<string
 // Final text === SILENT means stay quiet.
 export async function reply(req: Request, log: CallLog): Promise<Response> {
   const body = (await req.json()) as ReplyRequest
+  budget.spend(req, budget.PRICE.reply)
   const p = persona(body.personaId)
   const messages = [
     { role: 'system', content: systemPrompt(p, body.name || p.defaultName, body.language, body.scene) },
@@ -267,6 +288,7 @@ export async function tts(req: Request, log: CallLog): Promise<Response> {
   const { personaId, text, voiceId, language = 'hinglish' } =
     (await req.json()) as { personaId: string; text: string; voiceId?: string; language?: Language }
   if (!text || text.length > MAX_TTS_CHARS) return json({ error: 'bad text length' }, 400)
+  budget.spend(req, text.length * budget.PRICE.ttsChar)
   const p = persona(personaId)
   const list = engines(p, text, language, voiceId)
   for (const [i, e] of list.entries()) {
@@ -345,6 +367,9 @@ async function forget(req: Request): Promise<Response> {
   return json({ deleted })
 }
 
+/** The calls that cost money; logging, scheduling and deleting her data are never capped. */
+const PAID = new Set(['stt', 'reply', 'tts'])
+
 export const handlers: Record<string, Handler> = { stt, reply, tts, log: logSession, schedule, forget }
 
 /** Route /api/<name>; `defer` keeps background log writes alive after the response. */
@@ -358,6 +383,14 @@ export async function handle(name: string, req: Request, defer: (p: Promise<unkn
   const handler = handlers[name]
   if (!handler) return json({ error: 'not found' }, 404)
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405)
+  if (PAID.has(name)) {
+    // Daily spend caps (server/budget.ts). `limit` tells the app which plain-words message to show.
+    const limit = budget.check(req, defer)
+    if (limit) {
+      log.event({ kind: 'error', api: name, status: 429, detail: `${limit} spend cap` })
+      return json({ error: limit === 'daily' ? "today's limit reached" : 'busy today', limit }, 429)
+    }
+  }
   try {
     return await handler(req, log)
   } catch (e) {

@@ -1,5 +1,12 @@
 import type { ReplyChunk, ReplyRequest, SttResponse } from '../../shared/api.ts'
 import { Clauses } from '../../shared/clauses.ts'
+import { supabase } from './supabase.ts'
+
+// Signed in: requests carry her access token, so the server's daily cap is per account (and higher)
+// rather than per IP. Kept current as Supabase refreshes it.
+let token: string | undefined
+void supabase?.auth.getSession().then(({ data }) => (token = data.session?.access_token))
+supabase?.auth.onAuthStateChange((_event, s) => (token = s?.access_token))
 
 // Every request carries the call's session id and turn label so the server can log the call.
 let sessionId = ''
@@ -8,9 +15,13 @@ export function setSession(id: string, voiceId?: string, language?: string) {
   sessionId = id
   voice = { voiceId, language }
 }
+/** The call changed language mid-call: his voice follows from the next clause. */
+export function setLanguage(language: string) {
+  voice = { ...voice, language }
+}
 
 function hdrs(turn: string, type = 'application/json'): Record<string, string> {
-  return { 'Content-Type': type, 'X-Phoney-Session': sessionId, 'X-Phoney-Turn': turn }
+  return { 'Content-Type': type, 'X-Phoney-Session': sessionId, 'X-Phoney-Turn': turn, ...(token ? { Authorization: `Bearer ${token}` } : {}) }
 }
 
 async function ok(r: Response): Promise<Response> {

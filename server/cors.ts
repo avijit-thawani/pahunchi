@@ -9,7 +9,7 @@ function corsHeaders(req: Request): Record<string, string> | null {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Phoney-Session, X-Phoney-Turn',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Phoney-Session, X-Phoney-Turn',
     'Access-Control-Expose-Headers': 'X-Sample-Rate, X-Engine, X-Model, X-Upstream-Ms',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
