@@ -14,7 +14,8 @@ export type ReplyRequest = {
 }
 
 export type ReplyResponse = { text: string; ms: number; model: string }
-export type SttResponse = { text: string; ms: number; model: string }
+/** `language`: what the call should be in from this line on (shared/language.ts); absent when undetected. */
+export type SttResponse = { text: string; ms: number; model: string; language?: Language }
 
 // /api/reply streams newline-delimited JSON: text deltas, then one final line (or an error).
 export type ReplyChunk = { d: string } | ({ done: true } & ReplyResponse) | { error: string }

@@ -1,23 +1,35 @@
 // Headless call through a running server: her recorded lines (from the voice lab) go through
 // /api/stt -> /api/reply (streamed) -> /api/tts on the first clause, timed like the browser does.
 //   npm run dev   (in another terminal)
-//   node scripts/smoke-call.ts [scene_id] [personaId] [language]
+//   node scripts/smoke-call.ts [scene_id] [personaId] [language]   (language: what the call starts in)
 // Deployed: PHONEY_URL=https://pahunchi.netlify.app PHONEY_PASSWORD=... node scripts/smoke-call.ts
 // PHONEY_HER=sarvam:aparna_hi_customer voices her lines (sim/scenes.json) in that voice through
 // /api/tts once, cached under sim/out/lines/, instead of the lab's Gemini clips.
-// Scene `short`: the one- to three-word lines she really says, in aparna unless PHONEY_HER is set.
+// Scenes in OWN below (`short`, `en_hello`, `en_cab`, ...) carry their own lines, voiced in aparna.
 // "her end -> his voice" models the app's turn detection: the pipeline starts after PAUSE_MS of
 // silence and playback waits for END_MS (speculative start), so it is max(END, PAUSE + stt + llm + tts).
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { Clauses } from '../shared/clauses.ts'
+import { persona } from '../shared/personas.ts'
 
 const PAUSE_MS = 300
 const END_MS = 600
 const BASE = process.env.PHONEY_URL || 'http://localhost:5173'
-const [scene = 'cab_night', personaId = 'dad', language = 'hinglish'] = process.argv.slice(2)
-const SHORT = ['हाँ पापा।', 'हाँ, cab में हूँ।', 'हम्म।', 'बस दस मिनट।', 'ठीक है।']
-const HER = process.env.PHONEY_HER || (scene === 'short' ? 'sarvam:aparna_hi_customer' : undefined)
+const [scene = 'cab_night', personaId = 'dad', startLanguage = 'hinglish'] = process.argv.slice(2)
+/** The call's language; follows /api/stt's verdict like the app does. */
+let language = startLanguage
+// Her lines when the scene isn't in sim/scenes.json; voiced in aparna unless PHONEY_HER is set.
+const OWN: Record<string, string[]> = {
+  short: ['हाँ पापा।', 'हाँ, cab में हूँ।', 'हम्म।', 'बस दस मिनट।', 'ठीक है।'],
+  // Alicia's 2026-11-19 call, word for word
+  en_hello: ['Hi.', 'Hello.', 'Hello, good day.', 'Hello. Good to see you.', 'Hello.'],
+  en_cab: ["Hi, I just got into the cab. I'll be home in twenty minutes.", 'Yeah, the driver seems fine.', 'Okay.', 'It is a white Swift.', 'I am almost there. Bye.'],
+  en_walk: ['Hey, I am walking back from the station.', 'Ten minutes, maybe.', 'What are you doing?', 'Okay, I can see my building now.'],
+  // starts English, then she goes back to Hindi
+  en_then_hi: ['Hi, I am in the cab now.', 'अच्छा सुनो, मैं बस दस मिनट में पहुँच रही हूँ।', 'हाँ, ठीक है।'],
+}
+const HER = process.env.PHONEY_HER || (OWN[scene] ? 'sarvam:aparna_hi_customer' : undefined)
 const dir = HER ? `sim/out/lines/${HER.replace(/[^\w-]+/g, '-')}` : 'sim/out/lines/google-gemini-3-8-flash-tts'
 
 type Turn = { who: 'her' | 'them' | 'event'; text: string; at: number }
@@ -47,7 +59,7 @@ type Reply = { text: string; clause: number; reply: number; tts: number; engine:
 /** Stream a reply; TTS the first clause the moment it is complete. Times are from the request. */
 async function respond(turn: string): Promise<Reply> {
   const t0 = Date.now()
-  const res = await post('reply', JSON.stringify({ personaId, name: 'Papa', language, turns }), 'application/json', turn)
+  const res = await post('reply', JSON.stringify({ personaId, name: persona(personaId).defaultName, language, turns }), 'application/json', turn)
   const clauses = new Clauses()
   let clause = 0
   let tts: Promise<{ tts: number; engine: string }> | undefined
@@ -56,7 +68,7 @@ async function respond(turn: string): Promise<Reply> {
     clause = Date.now() - t0
     tts = (async () => {
       const t = Date.now()
-      const audio = await post('tts', JSON.stringify({ personaId, text: c }), 'application/json', turn)
+      const audio = await post('tts', JSON.stringify({ personaId, text: c, language }), 'application/json', turn)
       const reader = audio.body!.getReader()
       await reader.read()
       const ms = Date.now() - t
@@ -100,13 +112,13 @@ function wav(pcm: Buffer, rate: number): Buffer {
 /** Her lines of the scene in the PHONEY_HER voice, named like the lab's clips. */
 async function voiceHer() {
   const { scenes } = JSON.parse(readFileSync('sim/scenes.json', 'utf8')) as { scenes: { id: string; lines: { who: string; text: string }[] }[] }
-  const lines = scene === 'short' ? SHORT.map((text) => ({ who: 'girl', text })) : scenes.find((x) => x.id === scene)?.lines
+  const lines = OWN[scene]?.map((text) => ({ who: 'girl', text })) ?? scenes.find((x) => x.id === scene)?.lines
   if (!lines) throw new Error(`no scene ${scene} in sim/scenes.json`)
   mkdirSync(dir, { recursive: true })
   for (const [i, t] of lines.entries()) {
     const file = `${dir}/${scene}_${String(i).padStart(2, '0')}_girl.wav`
     if (t.who !== 'girl' || existsSync(file)) continue
-    const r = await post('tts', JSON.stringify({ personaId: 'sister', voiceId: HER, text: t.text, language }), 'application/json', '00')
+    const r = await post('tts', JSON.stringify({ personaId: 'sister', voiceId: HER, text: t.text, language: /[\u0900-\u097F]/.test(t.text) ? 'hinglish' : 'english' }), 'application/json', '00')
     writeFileSync(file, wav(Buffer.from(await r.arrayBuffer()), Number(r.headers.get('X-Sample-Rate') || 24000)))
   }
 }
@@ -124,10 +136,12 @@ const totals: number[] = []
 for (const [i, clip] of clips.entries()) {
   const turn = String(i + 1).padStart(2, '0')
   const t = Date.now()
-  const stt = await (await post('stt', readFileSync(`${dir}/${clip}`), 'audio/wav', turn)).json()
+  const stt = await (await post(`stt?lang=${language}`, readFileSync(`${dir}/${clip}`), 'audio/wav', turn)).json()
   const sttMs = Date.now() - t
   turns.push({ who: 'her', text: stt.text, at: Date.now() })
-  console.log(`HER   ${stt.text}   (stt ${sttMs} ms)`)
+  const switched = stt.language && stt.language !== language ? `; call ${language} -> ${stt.language}` : ''
+  if (stt.language) language = stt.language
+  console.log(`HER   ${stt.text}   (stt ${sttMs} ms${switched})`)
   const r = await respond(turn)
   if (!r.tts) {
     console.log(`THEM  ${r.text}   (silent; reply ${r.reply} ms)`)

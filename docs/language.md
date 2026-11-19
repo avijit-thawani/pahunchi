@@ -2,6 +2,14 @@
 
 A refresher. Card: [kanban/auto-language.md](../kanban/auto-language.md). Numbers from 2026-11-07/10 tests on her real call lines (`scripts/stt-bench.ts`, `stt-eval.ts`, `lang-probe.ts`).
 
+## Built 2026-11-19: follows her between Hindi/Hinglish and English
+
+- **Two transcripts per line, at once** (`server/api.ts` `stt`): Sarvam forced `hi-IN` and `unknown`. Added wait: 0 ms over 19 lines (auto-detect came back first every time); the turn waits at most 300 ms for it.
+- **The rule** (`shared/language.ts`): a line is English when auto-detect says English at p >= 0.9 *and* the Hindi transcript holds no common Hindi word (real English comes out of `hi-IN` as English in Devanagari; Hindi that auto-detect "translates" does not). Hindi when it holds two. The call switches on one such line of 3+ English words, or 2+ Hindi words; `/api/stt` returns the call's new `language` and the app uses it for the prompt, voice and fillers from that reply on. The picker is now only the starting language.
+- **Replayed on her 49 real lines** (`node scripts/lang-switch.ts rule`): of 9 Hindi/Hinglish calls, 1 switched wrongly ("Ah, cab data."); both English calls switched, on her first line of 3+ words.
+- **English prompt** (`server/prompt.ts`): no Devanagari anywhere in it (role lines `talkEn`, examples, how he picks up); his few Hindi words are in English letters and turned back into Devanagari only for the voice. `node scripts/lang-switch.ts brain`: 147/148 spoken replies in English across the 6 roles (real English-mode calls before: 1/20).
+- **Not done:** other languages; the picker is still on Home; after English -> Hindi he may write Hindi in English letters for a line.
+
 ## What the user wants
 
 1. No language picker.

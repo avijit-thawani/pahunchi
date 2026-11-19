@@ -63,6 +63,7 @@ export async function stt(req: Request, log: CallLog): Promise<Response> {
   try {
     const detecting = sarvamStt(buf, format, 'unknown').catch(() => null)
     const hindi = await sarvamStt(buf, format, 'hi-IN')
+    const hindiMs = Date.now() - t0
     const auto = await Promise.race([detecting, new Promise<null>((r) => setTimeout(r, AUTO_GRACE_MS, null))])
     const heard = hear(hindi.text, auto)
     const next = nextLanguage(current, heard)
@@ -72,7 +73,7 @@ export async function stt(req: Request, log: CallLog): Promise<Response> {
     const out: SttResponse = { text, ms: Date.now() - t0, model: SARVAM_STT_MODEL, language: next }
     log.event({
       kind: 'stt', text, ms: out.ms, model: SARVAM_STT_MODEL, language, bytes: buf.length,
-      call: current, next, heard, hindi: hindi.text, auto,
+      call: current, next, heard, hindi: hindi.text, hindiMs, auto,
     })
     return json(out)
   } catch (err) {
@@ -232,7 +233,15 @@ function keyed(name: string, header: string): () => Record<string, string> {
   }
 }
 
-function primary(v: VoiceOption, text: string, language: Language): Engine {
+// An English call writes its few Hindi words in English letters (server/prompt.ts); the voice says
+// them more reliably from Devanagari.
+const SPOKEN: Record<string, string> = {
+  beta: 'बेटा', yaar: 'यार', haan: 'हाँ', achha: 'अच्छा', accha: 'अच्छा', arre: 'अरे', chalo: 'चलो', pagal: 'पागल',
+}
+const SPOKEN_RE = new RegExp(`\\b(${Object.keys(SPOKEN).join('|')})\\b`, 'gi')
+
+function primary(v: VoiceOption, spoken: string, language: Language): Engine {
+  const text = language === 'english' ? spoken.replace(SPOKEN_RE, (w) => SPOKEN[w.toLowerCase()]) : spoken
   return {
     name: 'sarvam', model: v.model, voice: v.speaker, timeoutMs: 4000, rate: PCM_RATE,
     url: 'https://api.sarvam.ai/text-to-speech/stream', headers: keyed('SARVAM_API_KEY', 'api-subscription-key'),
