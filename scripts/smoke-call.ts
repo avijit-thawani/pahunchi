@@ -5,6 +5,7 @@
 // Deployed: PHONEY_URL=https://pahunchi.netlify.app PHONEY_PASSWORD=... node scripts/smoke-call.ts
 // PHONEY_HER=sarvam:aparna_hi_customer voices her lines (sim/scenes.json) in that voice through
 // /api/tts once, cached under sim/out/lines/, instead of the lab's Gemini clips.
+// PHONEY_VOICE=sarvam:kabir_hi_conversational picks his voice (default: the role's first).
 // Scenes in OWN below (`short`, `en_hello`, `en_cab`, ...) carry their own lines, voiced in aparna.
 // "her end -> his voice" models the app's turn detection: the pipeline starts after PAUSE_MS of
 // silence and playback waits for END_MS (speculative start), so it is max(END, PAUSE + stt + llm + tts).
@@ -76,7 +77,7 @@ async function respond(turn: string): Promise<Reply> {
   /** Voice one clause; its audio goes onto the call recording in order. Returns time to first audio. */
   const voice = async (c: string) => {
     const t = Date.now()
-    const audio = await post('tts', JSON.stringify({ personaId, text: c, language }), 'application/json', turn)
+    const audio = await post('tts', JSON.stringify({ personaId, text: c, language, voiceId: process.env.PHONEY_VOICE }), 'application/json', turn)
     const reader = audio.body!.getReader()
     const parts: Buffer[] = []
     let ms = 0

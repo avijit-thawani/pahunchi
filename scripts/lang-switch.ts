@@ -93,10 +93,13 @@ const CASES: Case[] = [
   },
 ]
 
-async function brain() {
+// Worry and instructions: she called so that nobody worries; a reply like these makes the call tense.
+const WORRY = /careful|be safe|stay safe|so late|pretty late|this late|at this hour|alone|main road|keep (me|talking|walking)|stay on the (line|call)|are you (okay|alright|ok)\b|anyone('s| is) around|just in case|संभल|ध्यान से|अकेली|इतनी रात|देर रात|sambhal|dhyan se|akeli/i
+
+async function brain(language: Language) {
   const jobs = PERSONAS.flatMap((p) => CASES.flatMap((c) => [0, 1].map((n) => ({ p, c, n }))))
   const res = await pool(jobs, 6, async ({ p, c, n }) => {
-    const msgs: Msg[] = [{ role: 'system', content: systemPrompt(p, p.defaultName, 'english') }, ...c.history]
+    const msgs: Msg[] = [{ role: 'system', content: systemPrompt(p, p.defaultName, language) }, ...c.history]
     const replies: string[] = []
     for (const line of c.her) {
       msgs.push(U(line))
@@ -106,22 +109,36 @@ async function brain() {
     }
     return { persona: p.id, case: c.name, n, her: c.her, replies }
   })
-  let ok = 0, total = 0
+  let ok = 0, total = 0, asks = 0, runs = 0, worry = 0, afterOpener = 0
   const by: Record<string, [number, number]> = {}
+  const who: Record<string, [number, number, number]> = {}
   for (const r of res) {
     console.log(`\n-- ${r.persona} / ${r.case} #${r.n}`)
+    let prevAsked = false
     r.replies.forEach((text, i) => {
       const j = judge(text)
+      // How nosy: replies after the opener that ask something, ask twice running, or sound worried
+      if (r.her[i] !== '[call connected]' && text !== '...') {
+        const asked = text.includes('?')
+        who[r.persona] ??= [0, 0, 0]
+        afterOpener++; who[r.persona][2]++
+        if (asked) { asks++; who[r.persona][0]++ }
+        if (asked && prevAsked) runs++
+        if (WORRY.test(text)) { worry++; who[r.persona][1]++ }
+        prevAsked = asked
+      }
       if (text !== '...') { total++; by[r.case] ??= [0, 0]; by[r.case][1]++; if (j.english) { ok++; by[r.case][0]++ } }
       console.log(`   U: ${r.her[i]}\n   ${j.english ? 'ok  ' : 'MISS'} AI: ${text}${j.why && !j.english ? `   [${j.why}]` : ''}`)
     })
   }
-  console.log(`\n${LLM_MODEL}: ${ok}/${total} spoken replies in English`)
+  console.log(`\n${LLM_MODEL}, ${language}: ${ok}/${total} spoken replies in English`)
+  console.log(`replies after the opener: ${afterOpener}; ask a question ${asks}; question right after a question ${runs}; worried or instructing ${worry}`)
+  for (const [k, [a, w, n]] of Object.entries(who)) console.log(`  ${k}: asks ${a}/${n}, worried ${w}/${n}`)
   for (const [k, [a, b]] of Object.entries(by)) console.log(`  ${k}: ${a}/${b}`)
-  writeFileSync(`${OUT}/brain.json`, JSON.stringify(res, null, 1))
+  writeFileSync(`${OUT}/brain-${language}.json`, JSON.stringify(res, null, 1))
 }
 
 const cmd = process.argv[2]
 if (cmd === 'rule') rule()
-else if (cmd === 'brain') await brain()
+else if (cmd === 'brain') await brain((process.argv[3] as Language) || 'english')
 else console.log('usage: node scripts/lang-switch.ts rule|brain')
