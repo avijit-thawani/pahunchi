@@ -5,7 +5,7 @@ import { LaterPanel, PendingCalls } from './CallLater.tsx'
 import InstallCard from './InstallCard.tsx'
 import { HowTo, Step } from './HowTo.tsx'
 import { EXCUSES, excuse, type Purpose } from '../../shared/scene.ts'
-import { DEFAULT_PERSONA, LANGUAGES, PERSONAS, persona, type Language } from '../../shared/personas.ts'
+import { calleeName, DEFAULT_PERSONA, LANGUAGES, PERSONAS, persona, typedName, type Language } from '../../shared/personas.ts'
 import { useSessions, useSettings } from '../lib/store.ts'
 import { startCall } from '../lib/activeCall.ts'
 import { isNative } from '../lib/native.ts'
@@ -136,7 +136,8 @@ export default function HomePage() {
   const settings = persona(stored.personaId).available
     ? stored
     : { ...stored, personaId: DEFAULT_PERSONA, name: persona(DEFAULT_PERSONA).defaultName }
-  const callee = settings.name.trim() || persona(settings.personaId).defaultName
+  const callee = calleeName(persona(settings.personaId), settings.language, settings.name)
+  const english = settings.language === 'english'
   const she = persona(settings.personaId).gender === 'f'
   const [later, setLater] = useState<Later>(null)
   const laterRef = useRef<HTMLDivElement>(null)
@@ -183,8 +184,11 @@ export default function HomePage() {
               className="pick snap-start shrink-0 w-[4.75rem] flex flex-col items-center gap-1 py-2.5"
             >
               <span className="text-3xl leading-none">{EMOJI[p.id] ?? '🙂'}</span>
-              <span className="font-extrabold text-sm">{p.defaultName}</span>
-              <span className="text-[11px] font-semibold text-base-content/70 leading-none">{p.label.replace(/ \(.*\)/, '')}</span>
+              <span className="font-extrabold text-sm">{calleeName(p, settings.language)}</span>
+              {/* Under an English name the role would repeat it; only the two friends need telling apart. */}
+              <span className="text-[11px] font-semibold text-base-content/70 leading-none">
+                {english ? (/\((.*)\)/.exec(p.label)?.[1] ?? '\u00a0') : p.label.replace(/ \(.*\)/, '')}
+              </span>
             </button>
           ))}
         </div>
@@ -199,8 +203,8 @@ export default function HomePage() {
             <span className="text-sm font-bold text-base-content/70">Name on the call screen</span>
             <input
               className="input w-full mt-1 font-semibold"
-              value={settings.name}
-              placeholder={persona(settings.personaId).defaultName}
+              value={typedName(persona(settings.personaId), settings.name)}
+              placeholder={calleeName(persona(settings.personaId), settings.language)}
               onChange={(e) => setSettings({ ...settings, name: e.target.value })}
             />
           </label>

@@ -1,11 +1,11 @@
 // API handlers in web-standard Request -> Response form. vite.config.ts (dev) and
 // netlify/functions/api.ts (deployed) both call `handle`, which adds caps and logging.
 
-import { persona, type Language, type Persona, type VoiceOption } from '../shared/personas.ts'
+import { calleeName, persona, type Language, type Persona, type VoiceOption } from '../shared/personas.ts'
 import type { ReplyChunk, ReplyRequest, SttResponse } from '../shared/api.ts'
 import { SILENT } from '../shared/api.ts'
 import { Clauses, speakable, stripMarkup } from '../shared/clauses.ts'
-import { hear, nextLanguage, transcriptFor } from '../shared/language.ts'
+import { hear, nextLanguage } from '../shared/language.ts'
 import { CallLog, collect, forgetSessions, pcmToWav } from './log.ts'
 import * as budget from './budget.ts'
 import { clientIp, overLimit } from './limits.ts'
@@ -54,26 +54,28 @@ export async function stt(req: Request, log: CallLog): Promise<Response> {
   budget.spend(req, (buf.length / 32000) * budget.PRICE.sttSecond) // 16 kHz 16-bit mono WAV
   const format = (req.headers.get('Content-Type') || 'audio/wav').split('/')[1].split(';')[0]
   log.file(`${log.turn}_her.${format}`, buf, `audio/${format}`)
-  // The call's language so far. Every line is transcribed twice at once: forced Hindi (what a Hindi
-  // or Hinglish call reads) and codemix, whose script tells shared/language.ts what she spoke.
+  // The call's language so far picks the transcription: an English call is transcribed as English,
+  // a Hindi or Hinglish call as Hindi, as the picker says. Alongside, the same audio goes through
+  // Sarvam's codemix mode, which writes English words in Latin letters and Hindi words in
+  // Devanagari; its script tells shared/language.ts whether she has changed language. (The plain
+  // modes can't: Hindi mode translates spoken English into Hindi, English mode romanises Hindi.)
   const lang = new URL(req.url).searchParams.get('lang')
   const current: Language = lang === 'english' || lang === 'hindi' ? lang : 'hinglish'
   const language = current === 'english' ? 'en' : 'hi'
   const t0 = Date.now()
   try {
     const mixing = sarvamStt(buf, format, 'hi-IN', 'codemix').catch(() => null)
-    const hindi = await sarvamStt(buf, format, 'hi-IN')
-    const hindiMs = Date.now() - t0
+    const own = await sarvamStt(buf, format, current === 'english' ? 'en-IN' : 'hi-IN')
+    const ownMs = Date.now() - t0
     const codemix = await Promise.race([mixing, new Promise<null>((r) => setTimeout(r, CODEMIX_GRACE_MS, null))])
     const heard = hear(codemix)
     const next = nextLanguage(current, heard)
-    let text = transcriptFor(next, hindi, codemix)
-    // An English call with no codemix result: forced Hindi would hand the reply her English as Hindi.
-    if (next === 'english' && !codemix) text = await sarvamStt(buf, format, 'en-IN').catch(() => hindi)
+    // She changed language on this line: the codemix text is the one written in her new language.
+    const text = next !== current && codemix ? codemix : own
     const out: SttResponse = { text, ms: Date.now() - t0, model: SARVAM_STT_MODEL, language: next }
     log.event({
       kind: 'stt', text, ms: out.ms, model: SARVAM_STT_MODEL, language, bytes: buf.length,
-      call: current, next, heard, hindi, hindiMs, codemix,
+      call: current, next, heard, own, ownMs, codemix,
     })
     return json(out)
   } catch (err) {
@@ -134,7 +136,7 @@ export async function reply(req: Request, log: CallLog): Promise<Response> {
   budget.spend(req, budget.PRICE.reply)
   const p = persona(body.personaId)
   const messages = [
-    { role: 'system', content: systemPrompt(p, body.name || p.defaultName, body.language, body.scene) },
+    { role: 'system', content: systemPrompt(p, calleeName(p, body.language, body.name), body.language, body.scene) },
     ...body.turns.slice(-30).map((t) => ({
       role: t.who === 'them' ? 'assistant' : 'user',
       content: t.who === 'event' ? `[${t.text}]` : t.text,

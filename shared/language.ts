@@ -29,8 +29,3 @@ export function nextLanguage(current: Language, heard: Heard): Language {
   if (heard.language === 'english') return 'english'
   return current === 'english' ? 'hinglish' : current
 }
-
-/** The transcript the reply should read: in an English call the codemix one, so English stays in Latin letters. */
-export function transcriptFor(language: Language, hindi: string, codemix: string | null): string {
-  return language === 'english' && codemix ? codemix : hindi
-}

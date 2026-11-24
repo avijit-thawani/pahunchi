@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Copy, EllipsisVertical, Phone, Share } from 'lucide-react'
-import { persona } from '../../shared/personas.ts'
+import { calleeName, persona } from '../../shared/personas.ts'
 import { getSettings } from '../lib/store.ts'
 import { startCall } from '../lib/activeCall.ts'
 import { isIOS, isStandalone, useCallManifest } from '../lib/install.ts'
@@ -30,7 +30,7 @@ export default function QuickCallPage() {
 function useCall() {
   const navigate = useNavigate()
   const settings = getSettings()
-  const name = settings.name.trim() || persona(settings.personaId).defaultName
+  const name = calleeName(persona(settings.personaId), settings.language, settings.name)
   const started = useRef(false)
   const call = () => {
     if (started.current) return

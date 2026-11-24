@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Phone, PhoneOff } from 'lucide-react'
-import { persona } from '../../shared/personas.ts'
+import { calleeName, persona } from '../../shared/personas.ts'
 import { parseIncoming } from '../../shared/scene.ts'
 import { startCall } from '../lib/activeCall.ts'
 import { rang } from '../lib/later.ts'
@@ -22,7 +22,7 @@ export default function IncomingPage() {
   useEffect(() => startRingtone(), [])
 
   if (!ring) return <Navigate to="/" replace />
-  const name = ring.name || persona(ring.personaId).defaultName
+  const name = calleeName(persona(ring.personaId), ring.language, ring.name)
 
   const accept = () => {
     startCall({ ...stored, personaId: ring.personaId, name, language: ring.language }, ring.scene)

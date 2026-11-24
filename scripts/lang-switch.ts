@@ -7,7 +7,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { PERSONAS } from '../shared/personas.ts'
-import { hear, nextLanguage, transcriptFor } from '../shared/language.ts'
+import { hear, nextLanguage } from '../shared/language.ts'
 import type { Language } from '../shared/personas.ts'
 import { systemPrompt } from '../server/prompt.ts'
 
@@ -23,7 +23,7 @@ mkdirSync(OUT, { recursive: true })
 const LLM_MODEL = process.env.PHONEY_LLM_MODEL || 'google/gemini-3.5-flash-lite'
 
 function rule() {
-  type Line = { id: string; hi: string; codemix: string }
+  type Line = { id: string; hi: string; en: string; codemix: string }
   const lines = JSON.parse(readFileSync(`${OUT}/modes.json`, 'utf8')) as Line[]
   for (const start of ['hinglish', 'english'] as Language[]) {
     console.log(`\n== every call started in ${start}`)
@@ -35,7 +35,7 @@ function rule() {
       const next = nextLanguage(lang, heard)
       if (next !== lang) switches++
       const tag = heard ? heard.language + (heard.strong ? '!' : '') : '-'
-      console.log(`${(next !== lang ? `-> ${next}` : '').padEnd(12)} ${tag.padEnd(9)} ${transcriptFor(next, r.hi, r.codemix)}`)
+      console.log(`${(next !== lang ? `-> ${next}` : '').padEnd(12)} ${tag.padEnd(9)} ${next !== lang ? r.codemix : lang === 'english' ? r.en : r.hi}`)
       lang = next
     }
     console.log(`${switches} switches over ${calls} calls`)
