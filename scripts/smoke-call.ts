@@ -54,6 +54,15 @@ async function post(path: string, body: BodyInit, type: string, turn: string) {
   return r
 }
 
+// The whole call as one recording, one voice at a time with short gaps: logs/calls/<session>/call.wav.
+// (Turns here run back to back without waiting for audio to finish, so the logged times overlap.)
+const RATE = 24000
+const tape: Buffer[] = []
+function record(pcm: Buffer, rate: number, gapMs = 350) {
+  if (rate !== RATE) return
+  tape.push(pcm.subarray(0, pcm.length & ~1), Buffer.alloc(Math.round((RATE * gapMs) / 1000) * 2))
+}
+
 type Reply = { text: string; clause: number; reply: number; tts: number; engine: string }
 
 /** Stream a reply; TTS the first clause the moment it is complete. Times are from the request. */
@@ -63,18 +72,30 @@ async function respond(turn: string): Promise<Reply> {
   const clauses = new Clauses()
   let clause = 0
   let tts: Promise<{ tts: number; engine: string }> | undefined
+  let rest: Promise<unknown> = Promise.resolve()
+  /** Voice one clause; its audio goes onto the call recording in order. Returns time to first audio. */
+  const voice = async (c: string) => {
+    const t = Date.now()
+    const audio = await post('tts', JSON.stringify({ personaId, text: c, language }), 'application/json', turn)
+    const reader = audio.body!.getReader()
+    const parts: Buffer[] = []
+    let ms = 0
+    for (;;) {
+      const { done, value } = await reader.read()
+      ms ||= Date.now() - t
+      if (value) parts.push(Buffer.from(value))
+      if (done) break
+    }
+    record(Buffer.concat(parts), Number(audio.headers.get('X-Sample-Rate') || 24000))
+    return { tts: ms, engine: audio.headers.get('X-Engine') || '?' }
+  }
+  // The first clause is timed like the app; later clauses follow one at a time so they stay in order.
   const speak = (c: string) => {
-    if (tts) return
-    clause = Date.now() - t0
-    tts = (async () => {
-      const t = Date.now()
-      const audio = await post('tts', JSON.stringify({ personaId, text: c, language }), 'application/json', turn)
-      const reader = audio.body!.getReader()
-      await reader.read()
-      const ms = Date.now() - t
-      while (!(await reader.read()).done) { /* drain */ }
-      return { tts: ms, engine: audio.headers.get('X-Engine') || '?' }
-    })()
+    if (!tts) {
+      clause = Date.now() - t0
+      tts = voice(c)
+      rest = tts.catch(() => undefined)
+    } else rest = rest.then(() => voice(c))
   }
   let text = ''
   let buf = ''
@@ -97,6 +118,7 @@ async function respond(turn: string): Promise<Reply> {
   const reply = Date.now() - t0
   turns.push({ who: 'them', text, at: Date.now() })
   const t = tts ? await tts : { tts: 0, engine: '-' }
+  await rest
   return { text, clause, reply, ...t }
 }
 
@@ -136,7 +158,9 @@ const totals: number[] = []
 for (const [i, clip] of clips.entries()) {
   const turn = String(i + 1).padStart(2, '0')
   const t = Date.now()
-  const stt = await (await post(`stt?lang=${language}`, readFileSync(`${dir}/${clip}`), 'audio/wav', turn)).json()
+  const her = readFileSync(`${dir}/${clip}`)
+  record(her.subarray(44), her.readUInt32LE(24), 700)
+  const stt = await (await post(`stt?lang=${language}`, her, 'audio/wav', turn)).json()
   const sttMs = Date.now() - t
   turns.push({ who: 'her', text: stt.text, at: Date.now() })
   const switched = stt.language && stt.language !== language ? `; call ${language} -> ${stt.language}` : ''
@@ -153,6 +177,9 @@ for (const [i, clip] of clips.entries()) {
   console.log(`THEM  ${r.text}   (first clause ${r.clause} ms, full reply ${r.reply} ms, tts ${r.engine} first audio ${r.tts} ms;`
     + ` her end -> his voice ≈ ${total} ms, or ${END_MS + pipeline} ms without speculation)`)
 }
+mkdirSync(`logs/calls/${session}`, { recursive: true })
+writeFileSync(`logs/calls/${session}/call.wav`, wav(Buffer.concat(tape), RATE))
+console.log(`\nlisten: logs/calls/${session}/call.wav`)
 const sorted = [...totals].sort((a, b) => a - b)
 if (sorted.length) console.log(`\nher end -> his voice: median ${sorted[Math.floor(sorted.length / 2)]} ms over ${sorted.length} turns`
   + ` (min ${sorted[0]}, max ${sorted.at(-1)})`)
