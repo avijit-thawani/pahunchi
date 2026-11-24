@@ -2,13 +2,14 @@
 
 A refresher. Card: [kanban/auto-language.md](../kanban/auto-language.md). Numbers from 2026-11-07/10 tests on her real call lines (`scripts/stt-bench.ts`, `stt-eval.ts`, `lang-probe.ts`).
 
-## Built 2026-11-19: follows her between Hindi/Hinglish and English
+## Built 2026-11-19/24: follows her between Hindi/Hinglish and English
 
-- **Two transcripts per line, at once** (`server/api.ts` `stt`): Sarvam forced `hi-IN` and `unknown`. Added wait: 0 ms over 19 lines (auto-detect came back first every time); the turn waits at most 300 ms for it.
-- **The rule** (`shared/language.ts`): a line is English when auto-detect says English at p >= 0.9 *and* the Hindi transcript holds no common Hindi word (real English comes out of `hi-IN` as English in Devanagari; Hindi that auto-detect "translates" does not). Hindi when it holds two. The call switches on one such line of 3+ English words, or 2+ Hindi words; `/api/stt` returns the call's new `language` and the app uses it for the prompt, voice and fillers from that reply on. The picker is now only the starting language.
-- **Replayed on her 49 real lines** (`node scripts/lang-switch.ts rule`): of 9 Hindi/Hinglish calls, 1 switched wrongly ("Ah, cab data."); both English calls switched, on her first line of 3+ words.
-- **English prompt** (`server/prompt.ts`): no Devanagari anywhere in it (role lines `talkEn`, examples, how he picks up); his few Hindi words are in English letters and turned back into Devanagari only for the voice. `node scripts/lang-switch.ts brain`: 147/148 spoken replies in English across the 6 roles (real English-mode calls before: 1/20).
-- **Not done:** other languages; the picker is still on Home; after English -> Hindi he may write Hindi in English letters for a line.
+- **Two transcripts per line, at once** (`server/api.ts` `stt`): Sarvam `hi-IN` in `transcribe` mode (what a Hindi or Hinglish call reads) and in `codemix` mode. Codemix writes English words in Latin letters and Hindi words in Devanagari, so its script says what she spoke. Added wait: 0 ms median, 146 ms max over 19 lines; the turn waits at most 300 ms for it.
+- **Why not the other modes** (`node scripts/lang-modes.mjs`, 60 real lines in 5 modes): forced `hi-IN` and `verbatim` translate spoken English into Hindi ("Can you hear me?" -> "क्या आप मुझे सुन रहे हैं?"); auto-detect translates short Hindi into English ("हाँ, चलो" -> "Ah, shut up"). The first version (2026-11-19) trusted those two and pulled a real English call back to Hindi on its first line.
+- **The rule** (`shared/language.ts`): a line with 2+ Devanagari words is Hindi; a line with none and 3+ different English words is English; anything else leaves the call as it is. `/api/stt` returns the call's `language` and the app uses it for the prompt, voice and fillers from that reply on. In an English call the reply reads the codemix transcript. The picker is now only the starting language.
+- **Replayed on 60 real lines, 16 calls** (`node scripts/lang-switch.ts rule`): started in Hinglish, none of the 9 Hindi/Hinglish calls switched and the 4 English calls with a line of 3+ words did; started in English, none of the English calls left it and every Hindi call switched on its first Hindi line.
+- **English prompt** (`server/prompt.ts`): no Devanagari anywhere in it (role lines `talkEn`, examples, how he picks up); his few Hindi words are in English letters and turned back into Devanagari only for the voice. `node scripts/lang-switch.ts brain`: 142-147 of ~148 spoken replies in English across the 6 roles (real English-mode calls before: 1/20).
+- **Not done:** other languages; the picker is still on Home; the first reply after a switch sometimes stays in the old language, or is Hindi in English letters.
 
 ## What the user wants
 
