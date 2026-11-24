@@ -5,7 +5,7 @@ import { persona, type Language, type Persona, type VoiceOption } from '../share
 import type { ReplyChunk, ReplyRequest, SttResponse } from '../shared/api.ts'
 import { SILENT } from '../shared/api.ts'
 import { Clauses, speakable, stripMarkup } from '../shared/clauses.ts'
-import { hear, nextLanguage, transcriptFor, type Detected } from '../shared/language.ts'
+import { hear, nextLanguage, transcriptFor } from '../shared/language.ts'
 import { CallLog, collect, forgetSessions, pcmToWav } from './log.ts'
 import * as budget from './budget.ts'
 import { clientIp, overLimit } from './limits.ts'
@@ -25,8 +25,8 @@ const MAX_AUDIO_BYTES = 5_000_000
 const MAX_LOG_BYTES = 200_000
 const PCM_RATE = 24000
 const CLONE_HEADERS_TIMEOUT_MS = 4000
-/** How long a turn waits for the auto-detect transcript after the Hindi one is in. */
-const AUTO_GRACE_MS = 300
+/** How long a turn waits for the codemix transcript after the Hindi one is in. */
+const CODEMIX_GRACE_MS = 300
 
 type Handler = (req: Request, log: CallLog) => Promise<Response>
 
@@ -54,26 +54,26 @@ export async function stt(req: Request, log: CallLog): Promise<Response> {
   budget.spend(req, (buf.length / 32000) * budget.PRICE.sttSecond) // 16 kHz 16-bit mono WAV
   const format = (req.headers.get('Content-Type') || 'audio/wav').split('/')[1].split(';')[0]
   log.file(`${log.turn}_her.${format}`, buf, `audio/${format}`)
-  // The call's language so far. Every line is transcribed twice at once, forced Hindi and
-  // auto-detect, and shared/language.ts decides from both whether she has changed language.
+  // The call's language so far. Every line is transcribed twice at once: forced Hindi (what a Hindi
+  // or Hinglish call reads) and codemix, whose script tells shared/language.ts what she spoke.
   const lang = new URL(req.url).searchParams.get('lang')
   const current: Language = lang === 'english' || lang === 'hindi' ? lang : 'hinglish'
   const language = current === 'english' ? 'en' : 'hi'
   const t0 = Date.now()
   try {
-    const detecting = sarvamStt(buf, format, 'unknown').catch(() => null)
+    const mixing = sarvamStt(buf, format, 'hi-IN', 'codemix').catch(() => null)
     const hindi = await sarvamStt(buf, format, 'hi-IN')
     const hindiMs = Date.now() - t0
-    const auto = await Promise.race([detecting, new Promise<null>((r) => setTimeout(r, AUTO_GRACE_MS, null))])
-    const heard = hear(hindi.text, auto)
+    const codemix = await Promise.race([mixing, new Promise<null>((r) => setTimeout(r, CODEMIX_GRACE_MS, null))])
+    const heard = hear(codemix)
     const next = nextLanguage(current, heard)
-    let text = transcriptFor(next, heard, hindi.text, auto)
-    // An English call with no auto-detect result: forced Hindi would hand the reply English in Devanagari.
-    if (next === 'english' && !auto) text = (await sarvamStt(buf, format, 'en-IN').catch(() => hindi)).text
+    let text = transcriptFor(next, hindi, codemix)
+    // An English call with no codemix result: forced Hindi would hand the reply her English as Hindi.
+    if (next === 'english' && !codemix) text = await sarvamStt(buf, format, 'en-IN').catch(() => hindi)
     const out: SttResponse = { text, ms: Date.now() - t0, model: SARVAM_STT_MODEL, language: next }
     log.event({
       kind: 'stt', text, ms: out.ms, model: SARVAM_STT_MODEL, language, bytes: buf.length,
-      call: current, next, heard, hindi: hindi.text, hindiMs, auto,
+      call: current, next, heard, hindi, hindiMs, codemix,
     })
     return json(out)
   } catch (err) {
@@ -96,21 +96,20 @@ export async function stt(req: Request, log: CallLog): Promise<Response> {
 }
 
 // Saaras keeps short Hindi lines in Hindi; Scribe turned "हां, क्या नाम है?" into "How can I help?".
-// `codemix` mode is avoided for the same reason (it rendered that clip as "Okay, now.").
-async function sarvamStt(buf: Uint8Array, format: string, code: 'hi-IN' | 'en-IN' | 'unknown'): Promise<Detected> {
+// `codemix` mode rendered that clip as "Okay, now.", so it is the transcript only once a call is English.
+async function sarvamStt(buf: Uint8Array, format: string, code: 'hi-IN' | 'en-IN', mode = 'transcribe'): Promise<string> {
   const key = process.env.SARVAM_API_KEY
   if (!key) throw new Error('SARVAM_API_KEY is not set')
   const form = new FormData()
   form.append('file', new Blob([new Uint8Array(buf)], { type: `audio/${format}` }), `her.${format}`)
   form.append('model', SARVAM_STT_MODEL)
-  form.append('mode', 'transcribe')
+  form.append('mode', mode)
   form.append('language_code', code)
   const r = await fetch('https://api.sarvam.ai/speech-to-text', {
     method: 'POST', headers: { 'api-subscription-key': key }, body: form, signal: AbortSignal.timeout(4000),
   })
   if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`)
-  const j = await r.json()
-  return { text: String(j.transcript || '').trim(), lang: j.language_code ?? null, p: j.language_probability ?? null }
+  return String((await r.json()).transcript || '').trim()
 }
 
 /** Yields the `data:` payloads of a server-sent-events stream. */

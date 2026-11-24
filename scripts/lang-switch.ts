@@ -1,13 +1,13 @@
 // Tests for following her language mid-call (shared/language.ts) and the English prompt.
 //   node scripts/lang-switch.ts rule    free: replays the switch rule over her real lines
-//                                       (logs/lang-probe/ears.json: both transcripts of each line)
+//                                       (logs/lang-switch/modes.json, from scripts/lang-modes.mjs)
 //   node scripts/lang-switch.ts brain   paid, small: the app's LLM with the English prompt, every role:
 //                                       opener, English lines, a Hindi call that turns English, a silence
 // Output: logs/lang-switch/ (gitignored).
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { PERSONAS } from '../shared/personas.ts'
-import { hear, nextLanguage, transcriptFor, type Detected } from '../shared/language.ts'
+import { hear, nextLanguage, transcriptFor } from '../shared/language.ts'
 import type { Language } from '../shared/personas.ts'
 import { systemPrompt } from '../server/prompt.ts'
 
@@ -23,18 +23,19 @@ mkdirSync(OUT, { recursive: true })
 const LLM_MODEL = process.env.PHONEY_LLM_MODEL || 'google/gemini-3.5-flash-lite'
 
 function rule() {
-  type Line = { session: string; hi: Detected; auto: Detected }
-  const lines = JSON.parse(readFileSync('logs/lang-probe/ears.json', 'utf8')) as Line[]
+  type Line = { id: string; hi: string; codemix: string }
+  const lines = JSON.parse(readFileSync(`${OUT}/modes.json`, 'utf8')) as Line[]
   for (const start of ['hinglish', 'english'] as Language[]) {
     console.log(`\n== every call started in ${start}`)
     let session = '', lang = start, switches = 0, calls = 0
     for (const r of lines) {
-      if (r.session !== session) { session = r.session; lang = start; calls++; console.log(`-- ${session}`) }
-      const heard = hear(r.hi.text, r.auto)
+      const s = r.id.split('/')[0]
+      if (s !== session) { session = s; lang = start; calls++; console.log(`-- ${session}`) }
+      const heard = hear(r.codemix)
       const next = nextLanguage(lang, heard)
       if (next !== lang) switches++
       const tag = heard ? heard.language + (heard.strong ? '!' : '') : '-'
-      console.log(`${(next !== lang ? `-> ${next}` : '').padEnd(12)} ${tag.padEnd(9)} ${transcriptFor(next, heard, r.hi.text, r.auto)}`)
+      console.log(`${(next !== lang ? `-> ${next}` : '').padEnd(12)} ${tag.padEnd(9)} ${transcriptFor(next, r.hi, r.codemix)}`)
       lang = next
     }
     console.log(`${switches} switches over ${calls} calls`)
