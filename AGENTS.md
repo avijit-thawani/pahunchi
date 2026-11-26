@@ -48,8 +48,8 @@ Front matter: `tags:`, `tests:` (whatever covers the feature, commands or short 
 | `idea` | Wanted, not yet scoped |
 | `todo` | Scoped, nobody on it |
 | `wip` | Someone is building it now |
-| `dev-web` | On `main`, so live on the dev site, `main--pahunchi.netlify.app` |
-| `prod-web` | On `prod`, so live on `pahunchi.netlify.app` |
+| `dev-web` | On `main`, so live on the dev site, `pahunchi-dev.thawani.co` |
+| `prod-web` | On `prod`, so live on `pahunchi.thawani.co` |
 | `dev-android` | In the debug build installed on the user's Pixel |
 
 | `server` | Lives on the server (`/api`, Supabase), so web and Android get it from the same Netlify deploy; `dev-web`/`prod-web` then says where it's deployed, and no web/Android split is needed |
@@ -66,9 +66,9 @@ A feature should exist, look and sit in the same place on web and Android. When 
 
 Netlify deploys from GitHub, so a release is a push, not a `netlify deploy` from a laptop.
 
-- **Dev** (agents ship here without asking): push to `main`; Netlify deploys it to `https://main--pahunchi.netlify.app`. Android: `npm run android`, build the debug APK, install on the Pixel.
+- **Dev** (agents ship here without asking): push to `main`; Netlify deploys it to `https://pahunchi-dev.thawani.co`. Android: `npm run android`, build the debug APK, install on the Pixel.
 - **Check the deploy, not just the push.** After pushing, confirm Netlify built it before calling it live: `netlify api listSiteDeploys --data '{"site_id":"365083bc-c390-4322-8cc9-2eb0e2fdbb55","per_page":3}'` shows your commit as `ready`, and the site's `/assets/*.js` contain the new code. Tell the user which site has it (dev or prod) and if a deploy failed or is still building.
-- **Prod**: merge `main` into `prod` (`git push origin main:prod`); Netlify deploys it to `pahunchi.netlify.app`. Only when the user says so; tell them before you do.
+- **Prod**: merge `main` into `prod` (`git push origin main:prod`); Netlify deploys it to `pahunchi.thawani.co`. Only when the user says so; tell them before you do.
 - Before any push to `prod`, run [docs/preprod-checklist.md](docs/preprod-checklist.md) on the dev release, web and Android side by side, and add the run to its Runs section. When a feature becomes crucial, add a short text test for it there.
 
 ## Everything else

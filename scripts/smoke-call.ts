@@ -2,7 +2,7 @@
 // /api/stt -> /api/reply (streamed) -> /api/tts on the first clause, timed like the browser does.
 //   npm run dev   (in another terminal)
 //   node scripts/smoke-call.ts [scene_id] [personaId] [language]   (language: what the call starts in)
-// Deployed: PHONEY_URL=https://pahunchi.netlify.app PHONEY_PASSWORD=... node scripts/smoke-call.ts
+// Deployed: PHONEY_URL=https://pahunchi.thawani.co PHONEY_PASSWORD=... node scripts/smoke-call.ts
 // PHONEY_HER=sarvam:aparna_hi_customer voices her lines (sim/scenes.json) in that voice through
 // /api/tts once, cached under sim/out/lines/, instead of the lab's Gemini clips.
 // PHONEY_VOICE=sarvam:kabir_hi_conversational picks his voice (default: the role's first).

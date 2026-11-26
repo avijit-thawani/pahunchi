@@ -183,7 +183,7 @@ def end_card() -> Path:
     d.text((W // 2, 900), "A call that talks back,", font=font(50, "Bold"), fill=(210, 220, 232), anchor="mm")
     d.text((W // 2, 968), "for the walk or the cab home.", font=font(50, "Bold"), fill=(210, 220, 232), anchor="mm")
     d.rounded_rectangle((150, 1120, W - 150, 1240), 60, fill=GREEN)
-    d.text((W // 2, 1180), "pahunchi.netlify.app", font=font(54), fill=WHITE, anchor="mm")
+    d.text((W // 2, 1180), "pahunchi.thawani.co", font=font(54), fill=WHITE, anchor="mm")
     d.text((W // 2, 1320), "Free · Hindi, English, Hinglish", font=font(40, "SemiBold"), fill=(180, 192, 210), anchor="mm")
     img.save(out)
     return out

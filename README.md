@@ -2,7 +2,7 @@
 
 # Pahunchi
 
-**Try it here, free: <https://pahunchi.netlify.app>**
+**Try it here, free: <https://pahunchi.thawani.co>**
 
 A fake phone call that talks back. In India many women call someone, or pretend to, when walking alone or riding in a cab at night. Pahunchi places a call to an AI "dad", "mom", "brother" or "friend" who answers in a natural Indian voice (Hindi, English or Hinglish), reacts like a real person, and keeps quiet when she just wants to scroll. Why: women already fake "haan papa, bas pahunch rahi hoon" calls in cabs; evidence and competitors in [docs/landscape.md](docs/landscape.md).
 
@@ -27,11 +27,11 @@ Later: make call time useful (voice journal, a listener); export just her side o
 
 ## Shipping intent
 
-Two channels: **dev** (branch `main`, `main--pahunchi.netlify.app`, debug build on our Pixel), where agents ship freely, and **prod** (branch `prod`, `pahunchi.netlify.app`; Play Store later), what users get. The bar for prod is **feature and UI/UX parity**: each feature exists, looks and sits in the same place on web and Android (same screen, entry point, copy), or its card says why not. Before a prod release, [docs/preprod-checklist.md](docs/preprod-checklist.md) runs on the dev release. Agents track features in a local, gitignored `kanban/`; rules in [AGENTS.md](AGENTS.md).
+Two channels: **dev** (branch `main`, `pahunchi-dev.thawani.co`, debug build on our Pixel), where agents ship freely, and **prod** (branch `prod`, `pahunchi.thawani.co`; Play Store later), what users get. The bar for prod is **feature and UI/UX parity**: each feature exists, looks and sits in the same place on web and Android (same screen, entry point, copy), or its card says why not. Before a prod release, [docs/preprod-checklist.md](docs/preprod-checklist.md) runs on the dev release. Agents track features in a local, gitignored `kanban/`; rules in [AGENTS.md](AGENTS.md).
 
 ## Status
 
-Live at <https://pahunchi.netlify.app> (public; rate limits + key cap): call loop, server-side call logging, voice lab. Google sign-in (Supabase Auth) gates trusted contacts, linked via a `/join/<token>` link or the email she typed. Signed-in calls sync to `calls`; contacts see them in History per their delay (`shared_calls()`). No contact alerts yet.
+Live at <https://pahunchi.thawani.co> (public; rate limits + key cap): call loop, server-side call logging, voice lab. Google sign-in (Supabase Auth) gates trusted contacts, linked via a `/join/<token>` link or the email she typed. Signed-in calls sync to `calls`; contacts see them in History per their delay (`shared_calls()`). No contact alerts yet.
 
 - **Call loop:** ringback -> responder picks up -> browser VAD -> STT Sarvam `saaras:v4` (Scribe fallback) -> reply `google/gemini-3.5-flash-lite` (reasoning `minimal`), streamed -> TTS per clause as soon as it is complete -> phone-band filter with a TV room behind. A cached "हम्म / हाँ" plays if he hasn't started 2.5 s after she stops. Long silences ask the model, which usually stays quiet. Mic is ignored while he talks (no barge-in yet).
 - **Turn detection (speculative):** at 300 ms of silence the app sends STT + reply + TTS; it plays only once the silence reaches 600 ms and drops it all if she resumes (mostly caught during STT).
@@ -85,7 +85,7 @@ Every call is logged server-side for debugging: per turn her WAV (as sent to STT
 
 ## Deploy (Netlify)
 
-Site `phoney-call` deploys from GitHub: every push to `main` goes to `main--pahunchi.netlify.app` (dev), and pushing `main` to `prod` (`git push origin main:prod`) releases `pahunchi.netlify.app`. Password gate (edge function + rechecked in the API function, HttpOnly HMAC cookie) is off while `PHONEY_PUBLIC=1`. Caps: Netlify per-IP rate limits (400 req/min site, 200/min API) plus in-memory 150/min per IP and 2500 requests per call session. Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PHONEY_PASSWORD` (spaces or hyphens between words both work), `PHONEY_COOKIE_SECRET` (random hex; rotating either logs everyone out), `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (Web Push; `npx web-push generate-vapid-keys`; changing them breaks existing subscriptions). Locally, `phoney/.env` holds the Supabase pair for `logs.ts --remote` and `setup-supabase.ts`.
+Site `phoney-call` deploys from GitHub: every push to `main` goes to `pahunchi-dev.thawani.co` (dev), and pushing `main` to `prod` (`git push origin main:prod`) releases `pahunchi.thawani.co`. Password gate (edge function + rechecked in the API function, HttpOnly HMAC cookie) is off while `PHONEY_PUBLIC=1`. Caps: Netlify per-IP rate limits (400 req/min site, 200/min API) plus in-memory 150/min per IP and 2500 requests per call session. Env vars (Netlify UI or API, never committed): `OPENROUTER_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PHONEY_PASSWORD` (spaces or hyphens between words both work), `PHONEY_COOKIE_SECRET` (random hex; rotating either logs everyone out), `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (Web Push; `npx web-push generate-vapid-keys`; changing them breaks existing subscriptions). Locally, `phoney/.env` holds the Supabase pair for `logs.ts --remote` and `setup-supabase.ts`.
 
 ## Roadmap
 
